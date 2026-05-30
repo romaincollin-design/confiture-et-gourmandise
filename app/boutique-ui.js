@@ -174,27 +174,17 @@ export default function App() {
 function ClientView(props) {
   const { step } = props;
   return (
-    <div style={{ display: "grid", placeItems: "start center", padding: "24px 16px 40px", background: `radial-gradient(120% 80% at 80% -10%, ${C.jam}10, transparent 55%), ${C.cream}` }}>
-      <div style={{ width: "100%", maxWidth: 392 }}>
-        <Phone>
-          {step === "welcome" && <Welcome {...props} />}
-          {step === "contact" && <Contact {...props} />}
-          {step === "coords" && <Coords {...props} />}
-          {step === "leadDone" && <LeadDone {...props} />}
-          {step === "shop" && <Shop {...props} />}
-          {step === "cart" && <Cart {...props} />}
-          {step === "checkout" && <Checkout {...props} />}
-          {step === "done" && <Done {...props} />}
-        </Phone>
+    <div style={{ display: "grid", placeItems: "start center", padding: "20px 14px 120px", minHeight: "100%", background: `radial-gradient(120% 70% at 80% -10%, ${C.jam}10, transparent 55%), ${C.cream}` }}>
+      <div style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 24, border: `1px solid ${C.line}`, boxShadow: "0 24px 60px -34px #16140f44", overflow: "hidden" }}>
+        {step === "welcome" && <Welcome {...props} />}
+        {step === "contact" && <Contact {...props} />}
+        {step === "coords" && <Coords {...props} />}
+        {step === "leadDone" && <LeadDone {...props} />}
+        {step === "shop" && <Shop {...props} />}
+        {step === "cart" && <Cart {...props} />}
+        {step === "checkout" && <Checkout {...props} />}
+        {step === "done" && <Done {...props} />}
       </div>
-    </div>
-  );
-}
-function Phone({ children }) {
-  return (
-    <div style={{ background: C.paper, borderRadius: 30, border: `1px solid ${C.line}`, boxShadow: "0 24px 60px -28px #16140f55", overflow: "hidden", position: "relative" }}>
-      <div style={{ height: 26, display: "grid", placeItems: "center" }}><div style={{ width: 78, height: 5, borderRadius: 5, background: "#16140f22" }} /></div>
-      <div className="ca-scroll" style={{ maxHeight: 648, overflowY: "auto" }}>{children}</div>
     </div>
   );
 }
@@ -406,8 +396,8 @@ function Shop({ products, cart, add, sub1, count, total, setStep }) {
         );
       })}
       {count > 0 && (
-        <div style={{ position: "absolute", left: 14, right: 14, bottom: 14 }}>
-          <button onClick={() => setStep("cart")} className="ca-tap" style={{ width: "100%", background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", boxShadow: "0 12px 26px -12px #16140faa" }}>
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, display: "flex", justifyContent: "center", padding: "0 14px max(14px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
+          <button onClick={() => setStep("cart")} className="ca-tap" style={{ pointerEvents: "auto", width: "100%", maxWidth: 432, background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", boxShadow: "0 12px 30px -10px #16140faa" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 14 }}><ShoppingBag size={17} /> Mon panier · {count}</span>
             <span style={{ fontFamily: SCRIPT, fontSize: 17, color: "#e9c980" }}>{eur(total)}</span>
           </button>
