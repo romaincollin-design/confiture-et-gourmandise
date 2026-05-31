@@ -29,12 +29,12 @@ const SCRIPT = "'Pacifico', cursive";
 const SANS = "'Raleway', system-ui, sans-serif";
 const eur = (n) => (Number.isInteger(n) ? n + " €" : n.toFixed(2).replace(".", ",") + " €");
 
-const BRAND = { name: "Comme Avant", tag: "Confitures & gourmandises", tel: "06 12 34 56 78", wa: "33612345678", email: "contact@comme-avant.fr" };
+const BRAND = { name: "Comme Avant", tag: "Confitures & gourmandises", tel: "06 13 54 52 24", wa: "33613545224", email: "contact@comme-avant.fr" };
 const VCARD = `BEGIN:VCARD
 VERSION:3.0
 FN:Comme Avant — Confitures & gourmandises
 ORG:Comme Avant (association)
-TEL;TYPE=CELL:06 12 34 56 78
+TEL;TYPE=CELL:06 13 54 52 24
 EMAIL:contact@comme-avant.fr
 NOTE:Des goûts et des saveurs d'antan. Circuit court, fait main.
 END:VCARD`;
@@ -77,7 +77,7 @@ const SEED_ORDERS = [
   { id: "C-1041", name: "Karim Belaïd", email: "karim.b@email.fr", items: 6, total: 46, mode: "livraison", date: "Lun 26/05", status: "Livrée", paid: true },
 ];
 const SEED_CLIENTS = [
-  { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 12 34 56 78", orders: 4, spent: 84 },
+  { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 13 54 52 24", orders: 4, spent: 84 },
   { email: "karim.b@email.fr", prenom: "Karim", nom: "Belaïd", tel: "06 98 76 54 32", orders: 2, spent: 67 },
   { email: "lea.r@email.fr", prenom: "Léa", nom: "Roux", tel: "07 11 22 33 44", orders: 0, spent: 0 },
 ];
@@ -105,7 +105,7 @@ export default function App() {
   const [clients, setClients] = useState(SEED_CLIENTS);
   const [promos, setPromos] = useState([{ code: "SAVEURS10", pct: 10, active: true }]);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
-  const [profile, setProfile] = useState({ name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 12 34 56 78", email: "contact@comme-avant.fr", wa: "33612345678", pin: "1234" });
+  const [profile, setProfile] = useState({ name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", pin: "1234" });
   const [proAuth, setProAuth] = useState(false);
 
   const [step, setStep] = useState("welcome");
@@ -314,7 +314,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
         <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} ph="Marie" />
         <Field label="Nom" value={cust.nom} onChange={set("nom")} ph="Dupont" />
       </div>
-      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" ph="06 12 34 56 78" />
+      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" ph="06 13 54 52 24" />
       <Field label="Email" value={cust.email} onChange={set("email")} type="email" ph="marie@email.fr" />
       <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 14px" }}>
         <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2 }} />
@@ -756,7 +756,7 @@ function ProProfile({ profile, setProfile, onLogout }) {
           <Field label="Téléphone" value={profile.tel} onChange={set("tel")} type="tel" />
           <Field label="WhatsApp" value={profile.wa} onChange={set("wa")} type="tel" />
         </div>
-        <div style={{ fontSize: 11, color: C.soft, margin: "-4px 0 10px", lineHeight: 1.4 }}>WhatsApp au format international sans « + » ni espaces — ex. 33612345678.</div>
+        <div style={{ fontSize: 11, color: C.soft, margin: "-4px 0 10px", lineHeight: 1.4 }}>WhatsApp au format international sans « + » ni espaces — ex. 33613545224.</div>
         <Field label="Email" value={profile.email} onChange={set("email")} type="email" />
       </div>
       <div style={card()}>
@@ -834,7 +834,7 @@ function Switch({ on, onClick }) {
 
 /* ---------------- Conteneurs séparés (1 site, 2 espaces) ---------------- */
 const SEED_PROMOS = [{ code: "SAVEURS10", pct: 10, active: true }];
-const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 12 34 56 78", email: "contact@comme-avant.fr", wa: "33612345678", pin: "1234" };
+const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", pin: "1234" };
 
 function Header({ profile, badge }) {
   return (
