@@ -1126,7 +1126,11 @@ function InstallBanner() {
 function ProCaisse({ products }) {
   const [sales, setSales] = useState([]);   // { id, pid, name, unit, price, ts }
   const [flash, setFlash] = useState(null);
+  const [open, setOpen] = useState({});
+  const isOpen = (c) => open[c] ?? true;
+  const toggle = (c) => setOpen((o) => ({ ...o, [c]: !isOpen(c) }));
   const sellable = products.filter((p) => !p.soon && p.active !== false);
+  const cats = CAT_ORDER.filter((c) => sellable.some((p) => p.cat === c));
 
   const sell = (p) => {
     const id = Date.now() + "-" + Math.random().toString(36).slice(2, 6);
@@ -1178,19 +1182,39 @@ function ProCaisse({ products }) {
         </div>
       </div>
 
-      {/* Grille produits */}
-      <div className="caisse-grid" style={{ marginBottom: 18 }}>
-        {sellable.map((p) => (
-          <button key={p.id} onClick={() => sell(p)} className="ca-tap"
-            style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
-            <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-            <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-            {flash === p.id && (
-              <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 700, fontSize: 15 }}><Check size={20} /> Vendu</span>
-            )}
-          </button>
-        ))}
+      {/* Produits regroupés par catégorie */}
+      <div style={{ marginBottom: 6 }}>
+        {cats.map((c) => {
+          const items = sellable.filter((p) => p.cat === c);
+          const op = isOpen(c);
+          return (
+            <div key={c} style={{ marginBottom: 12 }}>
+              <button onClick={() => toggle(c)} className="ca-tap"
+                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 8 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{c}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.soft, background: C.cream, borderRadius: 20, padding: "2px 9px" }}>{items.length}</span>
+                </span>
+                <ChevronDown size={18} color={C.soft} style={{ transform: op ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+              </button>
+              {op && (
+                <div className="caisse-grid">
+                  {items.map((p) => (
+                    <button key={p.id} onClick={() => sell(p)} className="ca-tap"
+                      style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+                      <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+                      <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+                      {flash === p.id && (
+                        <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 700, fontSize: 15 }}><Check size={20} /> Vendu</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Dernières ventes du jour */}
