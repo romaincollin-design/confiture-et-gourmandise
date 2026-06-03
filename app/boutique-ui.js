@@ -18,6 +18,17 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) both; }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
+.pro-shell { display: flex; min-height: 706px; }
+.pro-nav { width: 212px; background: #FBF6EA; border-right: 1px solid #241F1718; padding: 12px; flex-shrink: 0; }
+.pro-content { flex: 1; padding: 24px 26px; max-height: 706px; overflow-y: auto; background: #EFE7D5; }
+.caisse-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 600px) { .caisse-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px) {
+  .pro-shell { flex-direction: column; min-height: 0; }
+  .pro-nav { width: 100%; display: flex; gap: 6px; overflow-x: auto; border-right: none; border-bottom: 1px solid #241F1718; padding: 8px; -webkit-overflow-scrolling: touch; }
+  .pro-nav button { width: auto !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; }
+  .pro-content { max-height: none; padding: 16px 14px 90px; }
+}
 `;
 
 const C = {
@@ -536,16 +547,17 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
 
 /* ---------------- PRO ---------------- */
 function ProView({ orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout }) {
-  const [tab, setTab] = useState("commandes");
-  const NAV = [["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const [tab, setTab] = useState("caisse");
+  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
-    <div style={{ display: "flex", minHeight: 706 }}>
-      <div style={{ width: 212, background: C.paper, borderRight: `1px solid ${C.line}`, padding: 12, flexShrink: 0 }}>
+    <div className="pro-shell">
+      <div className="pro-nav">
         {NAV.map(([k, lbl, Ic]) => (
           <button key={k} onClick={() => setTab(k)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, border: "none", cursor: "pointer", padding: "11px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 3, textAlign: "left", background: tab === k ? C.board : "transparent", color: tab === k ? C.chalk : C.ink }}><Ic size={16} /> {lbl}</button>
         ))}
       </div>
-      <div className="ca-scroll" style={{ flex: 1, padding: "24px 26px", maxHeight: 706, overflowY: "auto", background: C.cream }}>
+      <div className="ca-scroll pro-content">
+        {tab === "caisse" && <ProCaisse {...{ products }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients }} />}
@@ -1105,6 +1117,130 @@ function InstallBanner() {
           ? <button onClick={install} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", flexShrink: 0 }}>Installer</button>
           : <Send size={18} color={C.jam} style={{ flexShrink: 0 }} />}
         <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Caisse — vente sur place (maquette fonctionnelle) ---------------- */
+function ProCaisse({ products }) {
+  const [sales, setSales] = useState([]);   // { id, pid, name, unit, price, ts }
+  const [flash, setFlash] = useState(null);
+  const sellable = products.filter((p) => !p.soon && p.active !== false);
+
+  const sell = (p) => {
+    const id = Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+    setSales((s) => [{ id, pid: p.id, name: p.name, unit: p.unit, price: p.price, ts: Date.now() }, ...s]);
+    setFlash(p.id);
+    setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 650);
+  };
+  const cancel = (id) => setSales((s) => s.filter((x) => x.id !== id));
+
+  const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+  const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const todayK = dayKey(Date.now());
+  const todaySales = sales.filter((s) => dayKey(s.ts) === todayK);
+  const todayTotal = todaySales.reduce((a, s) => a + s.price, 0);
+
+  // par produit (aujourd'hui)
+  const byProd = {};
+  todaySales.forEach((s) => { byProd[s.name] = byProd[s.name] || { qty: 0, sum: 0 }; byProd[s.name].qty++; byProd[s.name].sum += s.price; });
+  const prodRows = Object.entries(byProd).sort((a, b) => b[1].sum - a[1].sum);
+
+  // par heure (aujourd'hui)
+  const byHour = Array(24).fill(0);
+  todaySales.forEach((s) => { byHour[new Date(s.ts).getHours()] += s.price; });
+  const maxHour = Math.max(1, ...byHour);
+  const hoursActive = byHour.map((v, h) => [h, v]).filter(([h]) => h >= 7 && h <= 20);
+
+  // historique par jour
+  const byDay = {};
+  sales.forEach((s) => { const k = dayKey(s.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += s.price; });
+  const dayRows = Object.entries(byDay);
+
+  const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
+  const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 };
+
+  return (
+    <div className="ca-anim">
+      <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
+      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Vente sur place — touchez un produit pour enregistrer la vente.</div>
+
+      {/* Total du jour */}
+      <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>Aujourd'hui · {todayK}</div>
+          <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eur(todayTotal)}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{todaySales.length}</div>
+          <div style={{ fontSize: 11, opacity: .65 }}>vente{todaySales.length > 1 ? "s" : ""}</div>
+        </div>
+      </div>
+
+      {/* Grille produits */}
+      <div className="caisse-grid" style={{ marginBottom: 18 }}>
+        {sellable.map((p) => (
+          <button key={p.id} onClick={() => sell(p)} className="ca-tap"
+            style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+            <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+            <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+            {flash === p.id && (
+              <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 700, fontSize: 15 }}><Check size={20} /> Vendu</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Dernières ventes du jour */}
+      <div style={card}>
+        <div style={h2}>Dernières ventes · aujourd'hui</div>
+        {todaySales.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune vente pour l'instant. Touchez un produit ci-dessus.</div>
+        ) : (
+          todaySales.map((s) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+              <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(s.ts)}</span>
+              <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{s.name} <span style={{ color: C.soft }}>· {s.unit}</span></span>
+              <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(s.price)}</span>
+              <button onClick={() => cancel(s.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annulé</button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Stats */}
+      <div style={card}>
+        <div style={h2}>Par produit · aujourd'hui</div>
+        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([name, v]) => (
+          <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>×{v.qty}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={card}>
+        <div style={h2}>Par heure · aujourd'hui</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 90, paddingTop: 6 }}>
+          {hoursActive.map(([h, v]) => (
+            <div key={h} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{ width: "100%", height: Math.round((v / maxHour) * 70) || 2, background: v ? C.jam : C.line, borderRadius: 4 }} />
+              <span style={{ fontSize: 9, color: C.soft }}>{h}h</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ ...card, marginBottom: 0 }}>
+        <div style={h2}>Historique par jour</div>
+        {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : dayRows.map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} vente{v.count > 1 ? "s" : ""}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
