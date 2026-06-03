@@ -51,12 +51,14 @@ NOTE:Des goûts et des saveurs d'antan. Circuit court, fait main.
 END:VCARD`;
 const VCARD_HREF = "data:text/vcard;charset=utf-8," + encodeURIComponent(VCARD);
 
-const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Salé", "Produits locaux", "Bientôt"];
+const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
 const CAT_SUB = {
   Confitures: "fruits frais · locaux · sans traitement",
   "Gelées": "fruits frais · locaux · sans traitement",
   Gourmandises: "fait avec amour",
   "Salé": "fait maison",
+  Miel: "récolte locale",
+  "Crème de marron": "fait maison",
   "Produits locaux": "du coin, faits près d'ici",
   "Bientôt": "très bientôt en pot",
 };
@@ -96,8 +98,8 @@ const SEED_PRODUCTS = [
   { id: "pissa-part", name: "Pissaladière", cat: "Salé", price: 3, unit: "à la part", stock: 24, illu: "pissa", col: "#7A6A2A" },
   { id: "pissa-1", name: "Pissaladière", cat: "Salé", price: 33, unit: "1 plaque (12 parts)", stock: 4, illu: "pissa", col: "#7A6A2A" },
   { id: "pissa-2", name: "Pissaladière", cat: "Salé", price: 60, unit: "2 plaques · 30 €/plaque", stock: 2, illu: "pissa", col: "#7A6A2A" },
-  { id: "miel", name: "Miel", cat: "Produits locaux", price: 12, unit: "pot 500g", stock: 10, illu: "caramel", col: "#D9A441" },
-  { id: "creme-marron", name: "Crème de marron", cat: "Produits locaux", price: 10, unit: "pot 500g", stock: 10, illu: "loaf", col: "#6B4A2E" },
+  { id: "miel", name: "Miel", cat: "Miel", price: 12, unit: "pot 500g", stock: 10, illu: "caramel", col: "#D9A441" },
+  { id: "creme-marron", name: "Crème de marron", cat: "Crème de marron", price: 10, unit: "pot 500g", stock: 10, illu: "loaf", col: "#6B4A2E" },
   { id: "fraise", name: "Fraise", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "berry", col: "#C0392B" },
   { id: "abricot", name: "Abricot", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#E08A2E" },
   { id: "nefle", name: "Nèfle", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#C98A3A" },
@@ -766,30 +768,47 @@ function ProPromos({ promos, setPromos }) {
   );
 }
 function ProSettings({ paymentEnabled, setPaymentEnabled }) {
+  const [pm, setPm] = useState({ wero: true, cb: true, especes: true, cheque: false, virement: false });
+  const METHODS = [
+    { k: "wero", label: "Wero", desc: "paiement mobile (banques FR)", bg: "linear-gradient(135deg,#E5007D,#7B2FF7)", fg: "#fff", tag: "wero" },
+    { k: "cb", label: "Carte bancaire", desc: "au stand (TPE)", bg: "#1A2B4A", fg: "#fff", tag: "CB" },
+    { k: "especes", label: "Espèces", desc: "à l'enlèvement", bg: "#3F7A4B", fg: "#fff", tag: "€" },
+    { k: "cheque", label: "Chèque", desc: "à l'ordre de l'enseigne", bg: "#B5722B", fg: "#fff", tag: "✓" },
+    { k: "virement", label: "Virement", desc: "IBAN sur demande", bg: "#16140F", fg: "#fff", tag: "IBAN" },
+  ];
   return (
     <div className="ca-anim">
-      <ProHead title="Réglages" sub="Le QR code et l'activation du paiement" />
+      <ProHead title="Réglages" sub="Moyens de paiement, QR code et paiement en ligne" />
+      <div style={card()}>
+        <Section>Moyens de paiement acceptés</Section>
+        <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 12, lineHeight: 1.5 }}>Affichés au client au moment de la commande. Activez ceux que vous acceptez.</div>
+        {METHODS.map((m) => (
+          <div key={m.k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ width: 54, height: 34, borderRadius: 8, background: m.bg, color: m.fg, display: "grid", placeItems: "center", fontWeight: 800, fontSize: m.tag.length > 2 ? 11 : 15, flexShrink: 0 }}>{m.tag}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{m.label}</div>
+              <div style={{ fontSize: 12, color: C.soft }}>{m.desc}</div>
+            </div>
+            <Switch on={pm[m.k]} onClick={() => setPm((s) => ({ ...s, [m.k]: !s[m.k] }))} />
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Les pastilles sont des repères visuels ; les logos officiels (Wero, CB…) pourront être importés ensuite.</div>
+      </div>
       <div style={card()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}><CreditCard size={17} color={C.jam} /> Paiement en ligne</div>
-            <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 4, maxWidth: 380 }}>Le parcours carte / PayPal / Lydia est déjà câblé. {paymentEnabled ? "Il est actif côté client." : "Il est en veille — les clients réservent et règlent à l'enlèvement."}</div>
+            <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 4, maxWidth: 380 }}>{paymentEnabled ? "Actif côté client." : "En veille — les clients réservent et règlent à l'enlèvement."}</div>
           </div>
           <Switch on={paymentEnabled} onClick={() => setPaymentEnabled((v) => !v)} />
         </div>
-        {paymentEnabled && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.line}`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[["PayPal — email / lien", "confituresetgourmandise@gmail.com"], ["IBAN virement", "FR76 ····"], ["Lydia — n° / lien", "lien Lydia Pro"]].map(([l, ph]) => (<div key={l}><MiniLabel>{l}</MiniLabel><input placeholder={ph} style={inp()} /></div>))}
-            <div style={{ alignSelf: "end", fontSize: 11, color: C.soft }}>Démo — branchement réel à la mise en production.</div>
-          </div>
-        )}
       </div>
       <div style={{ ...card(), display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{ width: 96, height: 96, borderRadius: 14, background: C.board, display: "grid", placeItems: "center", flexShrink: 0 }}><QrCode size={56} color={C.chalk} /></div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 15 }}>QR code du stand</div>
           <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 4 }}>À imprimer et poser sur le stand. Il ouvre votre boutique à l'adresse :</div>
-          <div style={{ marginTop: 8, fontFamily: SCRIPT, fontSize: 17, color: C.jam }}>comme-avant.fr</div>
+          <div style={{ marginTop: 8, fontFamily: SCRIPT, fontSize: 16, color: C.jam }}>confiture-et-gourmandise.vercel.app</div>
         </div>
       </div>
     </div>
