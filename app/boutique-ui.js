@@ -575,7 +575,7 @@ function ProView({ orders, setOrders, products, setProducts, clients, promos, se
         {tab === "caisse" && <ProCaisse {...{ products }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
-        {tab === "clients" && <ProClients {...{ clients }} />}
+        {tab === "clients" && <ProClients {...{ clients, orders }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout }} />}
@@ -707,19 +707,80 @@ function ProProducts({ products, setProducts }) {
     </div>
   );
 }
-function ProClients({ clients }) {
+function ProClients({ clients, orders }) {
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState(null);
+  const [page, setPage] = useState(0);
+  const PER = 8;
+  const filtered = clients.filter((c) => ((c.prenom + " " + c.nom + " " + c.email + " " + c.tel).toLowerCase().includes(q.toLowerCase().trim())));
+  const pages = Math.max(1, Math.ceil(filtered.length / PER));
+  const pg = Math.min(page, pages - 1);
+  const rows = filtered.slice(pg * PER, pg * PER + PER);
+  const ordersOf = (email) => orders.filter((o) => o.email === email);
+  const selIdx = filtered.findIndex((c) => c.email === sel);
+  const selClient = selIdx >= 0 ? filtered[selIdx] : null;
+  const move = (d) => { const n = selIdx + d; if (n >= 0 && n < filtered.length) setSel(filtered[n].email); };
+  const arrowBtn = (d) => ({ width: 32, height: 32, borderRadius: 9, border: `1px solid ${C.line}`, background: "#fff", color: d ? "#C9BFA8" : C.ink, cursor: d ? "default" : "pointer", display: "grid", placeItems: "center" });
+  const th = { fontSize: 10.5, letterSpacing: ".06em", textTransform: "uppercase", color: C.soft, fontWeight: 700, textAlign: "left", padding: "9px 10px", whiteSpace: "nowrap" };
+  const td = { fontSize: 13, color: C.ink, padding: "9px 10px", borderTop: `1px solid ${C.line}`, whiteSpace: "nowrap" };
   return (
     <div className="ca-anim">
-      <ProHead title="Clients · CRM" sub={`${clients.length} contacts capturés via le QR`} />
-      {clients.map((c) => (
-        <div key={c.email} style={{ ...card(), display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15 }}>{c.prenom[0]}{c.nom[0]}</div>
-            <div><div style={{ fontWeight: 600, fontSize: 14 }}>{c.prenom} {c.nom}</div><div style={{ fontSize: 12, color: C.soft }}>{c.email} · {c.tel}</div></div>
-          </div>
-          <div style={{ textAlign: "right" }}><div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam }}>{eur(c.spent)}</div><div style={{ fontSize: 11.5, color: C.soft }}>{c.orders === 0 ? "prospect" : `${c.orders} commande${c.orders > 1 ? "s" : ""}`}</div></div>
+      <ProHead title="Clients · CRM" sub={`${clients.length} contacts — tableur, filtre et navigation`} />
+      <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Filtrer : nom, email, téléphone…" style={{ ...inp(), marginBottom: 12 }} />
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+            <thead style={{ background: C.cream }}>
+              <tr><th style={th}>Client</th><th style={th}>Téléphone</th><th style={th}>Email</th><th style={{ ...th, textAlign: "center" }}>Cmd</th><th style={{ ...th, textAlign: "right" }}>Total</th></tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td style={{ ...td, color: C.soft }} colSpan={5}>Aucun client pour ce filtre.</td></tr>
+              ) : rows.map((c) => (
+                <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B330D" : "transparent" }}>
+                  <td style={{ ...td, fontWeight: 600 }}>{c.prenom} {c.nom}</td>
+                  <td style={td}>{c.tel || "—"}</td>
+                  <td style={td}>{c.email}</td>
+                  <td style={{ ...td, textAlign: "center" }}>{c.orders || 0}</td>
+                  <td style={{ ...td, textAlign: "right", fontWeight: 700, color: C.jam }}>{eur(c.spent || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderTop: `1px solid ${C.line}`, background: C.cream }}>
+          <span style={{ fontSize: 12, color: C.soft }}>{filtered.length} client{filtered.length > 1 ? "s" : ""}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setPage(Math.max(0, pg - 1))} disabled={pg === 0} className="ca-tap" style={arrowBtn(pg === 0)}><ChevronLeft size={16} /></button>
+            <span style={{ fontSize: 12, color: C.ink, minWidth: 54, textAlign: "center" }}>{pg + 1} / {pages}</span>
+            <button onClick={() => setPage(Math.min(pages - 1, pg + 1))} disabled={pg >= pages - 1} className="ca-tap" style={arrowBtn(pg >= pages - 1)}><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      </div>
+      {selClient && (
+        <div style={{ ...card(), marginTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15, flexShrink: 0 }}>{(selClient.prenom[0] || "")}{(selClient.nom[0] || "")}</div>
+              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 15 }}>{selClient.prenom} {selClient.nom}</div><div style={{ fontSize: 12, color: C.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selClient.email} · {selClient.tel}</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <button onClick={() => move(-1)} disabled={selIdx <= 0} className="ca-tap" style={arrowBtn(selIdx <= 0)}><ChevronLeft size={16} /></button>
+              <span style={{ fontSize: 11, color: C.soft }}>{selIdx + 1}/{filtered.length}</span>
+              <button onClick={() => move(1)} disabled={selIdx >= filtered.length - 1} className="ca-tap" style={arrowBtn(selIdx >= filtered.length - 1)}><ChevronRight size={16} /></button>
+            </div>
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, margin: "6px 0 8px" }}>Commandes de ce client</div>
+          {ordersOf(selClient.email).length === 0 ? (
+            <div style={{ fontSize: 13, color: C.soft }}>Aucune commande enregistrée.</div>
+          ) : ordersOf(selClient.email).map((o) => (
+            <div key={o.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
+              <span style={{ color: C.ink }}>{o.id} <span style={{ color: C.soft }}>· {o.date} · {o.mode}</span></span>
+              <span style={{ fontWeight: 700, color: C.jam }}>{eur(o.total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
