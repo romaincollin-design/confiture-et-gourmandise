@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
-  Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock
+  Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe
 } from "lucide-react";
 
 const FONT = `
@@ -295,7 +295,7 @@ function Welcome({ setStep, setIntent, profile, returning, cust }) {
           <BigBtn onClick={() => { setIntent("order"); setStep("coords"); }}>Entrer dans la boutique <ChevronRight size={16} /></BigBtn>
         )}
         <WhatsAppBtn profile={profile} />
-        <InstallTip />
+        <InstallBanner />
         <button onClick={() => setStep("contact")} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
       </div>
     </div>
@@ -303,24 +303,26 @@ function Welcome({ setStep, setIntent, profile, returning, cust }) {
 }
 
 function Contact({ setStep, profile }) {
-  const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${profile.name}\nORG:${profile.name}\nTEL;TYPE=CELL:${profile.tel}\nEMAIL:${profile.email}\nNOTE:${profile.tagline}\nEND:VCARD`;
+  const site = profile.site || "https://confiture-et-gourmandise.vercel.app";
+  const siteShort = site.replace(/^https?:\/\//, "");
+  const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${profile.name}\nORG:${profile.name} — ${profile.tag}\nTEL;TYPE=CELL:${profile.tel}\nEMAIL:${profile.email}\nURL:${site}\nNOTE:${profile.tagline}\nEND:VCARD`;
   const href = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcard);
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Nos coordonnées" sub="Gardez le stand dans votre poche" />
       <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: 22, textAlign: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: "#d8b46a" }}>✦ &nbsp; ✦ &nbsp; ✦</div>
-        <div style={{ fontFamily: SCRIPT, fontSize: 26, marginTop: 6 }}>{profile.name}</div>
-        <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .7, marginBottom: 16, padding: "0 8px" }}>{profile.tag}</div>
-        {[[Smartphone, profile.tel], [Mail, profile.email], [MapPin, "Sur le marché · livraison dans la semaine"]].map(([Ic, v], i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", fontSize: 13, padding: "5px 0" }}>
-            <Ic size={15} color="#d8b46a" /> {v}
+        <div style={{ fontSize: 14, color: "#d8b46a" }}>✦ &nbsp; ✦ &nbsp; ✦</div>
+        <div style={{ fontFamily: SCRIPT, fontSize: 30, marginTop: 6 }}>{profile.name}</div>
+        <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", opacity: .75, marginBottom: 18, padding: "0 8px" }}>{profile.tag}</div>
+        {[[Smartphone, profile.tel], [Mail, profile.email], [Globe, siteShort], [MapPin, "Sur le marché · livraison dans la semaine"]].map(([Ic, v], i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", fontSize: 14.5, padding: "6px 0" }}>
+            <Ic size={16} color="#d8b46a" /> {v}
           </div>
         ))}
       </div>
-      <a href={href} download="contact.vcf" className="ca-tap"
-        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "15px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", boxSizing: "border-box" }}>
-        <Smartphone size={16} /> Ajouter à mes contacts
+      <a href={href} download="comme-avant.vcf" className="ca-tap"
+        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "16px 18px", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", boxSizing: "border-box" }}>
+        <Smartphone size={17} /> Ajouter à mes contacts
       </a>
       <GhostBtn onClick={() => setStep("coords")}><ShoppingBag size={16} /> Plutôt passer une commande</GhostBtn>
     </div>
@@ -878,7 +880,7 @@ function Switch({ on, onClick }) {
 
 /* ---------------- Conteneurs séparés (1 site, 2 espaces) ---------------- */
 const SEED_PROMOS = [{ code: "SAVEURS10", pct: 10, active: true }];
-const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", pin: "1234" };
+const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", site: "https://confiture-et-gourmandise.vercel.app", pin: "1234" };
 
 function Header({ profile, badge }) {
   return (
@@ -1052,13 +1054,57 @@ function Announce() {
   const close = () => { try { localStorage.setItem("ca_seen_" + ANNOUNCE.id, "1"); } catch (e) {} setShow(false); };
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90, display: "flex", justifyContent: "center", padding: "max(10px, env(safe-area-inset-top)) 12px 0", pointerEvents: "none" }}>
-      <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "12px 12px 12px 14px", display: "flex", gap: 11, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc" }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={18} color={C.chalk} /></div>
+      <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "14px 14px 14px 16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={20} color={C.chalk} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>{ANNOUNCE.title}</div>
-          <div style={{ fontSize: 12.5, opacity: .85, lineHeight: 1.4, marginTop: 1 }}>{ANNOUNCE.body}</div>
+          <div style={{ fontWeight: 700, fontSize: 15.5 }}>{ANNOUNCE.title}</div>
+          <div style={{ fontSize: 14, opacity: .9, lineHeight: 1.45, marginTop: 2 }}>{ANNOUNCE.body}</div>
         </div>
-        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.chalk, cursor: "pointer", opacity: .7, padding: 2, lineHeight: 0 }}><X size={16} /></button>
+        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.chalk, cursor: "pointer", opacity: .7, padding: 2, lineHeight: 0 }}><X size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+// Bannière d'installation automatique (Android : invite native ; iOS : instructions)
+function InstallBanner() {
+  const mounted = useMounted();
+  const [deferred, setDeferred] = useState(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    let t;
+    try {
+      const ua = navigator.userAgent || "";
+      const isIos = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua);
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const dismissed = localStorage.getItem("ca_install_dismiss") === "1";
+      if (!standalone && !dismissed && isIos) t = setTimeout(() => setShow(true), 1400);
+    } catch (e) {}
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferred(e);
+      try { if (localStorage.getItem("ca_install_dismiss") !== "1") setShow(true); } catch (_) {}
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => { window.removeEventListener("beforeinstallprompt", handler); if (t) clearTimeout(t); };
+  }, []);
+  if (!mounted || !show) return null;
+  const close = () => { try { localStorage.setItem("ca_install_dismiss", "1"); } catch (e) {} setShow(false); };
+  const install = async () => { try { deferred.prompt(); await deferred.userChoice; } catch (e) {} setDeferred(null); setShow(false); };
+  return (
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 70, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
+      <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.paper, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 16, padding: "13px 13px 13px 15px", display: "flex", gap: 12, alignItems: "center", boxShadow: "0 18px 40px -16px #16140f88" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Smartphone size={20} color="#fff" /></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5 }}>Installer l'appli Comme Avant</div>
+          {deferred
+            ? <div style={{ fontSize: 13, color: C.soft, marginTop: 1 }}>Accès direct depuis votre écran d'accueil.</div>
+            : <div style={{ fontSize: 13, color: C.soft, marginTop: 1, lineHeight: 1.4 }}>Touchez <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.</div>}
+        </div>
+        {deferred
+          ? <button onClick={install} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", flexShrink: 0 }}>Installer</button>
+          : <Send size={18} color={C.jam} style={{ flexShrink: 0 }} />}
+        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={18} /></button>
       </div>
     </div>
   );
