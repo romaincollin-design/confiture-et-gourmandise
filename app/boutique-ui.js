@@ -311,11 +311,11 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
       <StepHead onBack={() => setStep("welcome")} title="Vos coordonnées"
         sub={lead ? "Restez informé·e de nos nouveautés et offres" : "Une étape avant de découvrir nos saveurs"} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-        <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} ph="Marie" />
-        <Field label="Nom" value={cust.nom} onChange={set("nom")} ph="Dupont" />
+        <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} ph="Marie" name="given-name" autoComplete="given-name" />
+        <Field label="Nom" value={cust.nom} onChange={set("nom")} ph="Dupont" name="family-name" autoComplete="family-name" />
       </div>
-      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" ph="06 13 54 52 24" />
-      <Field label="Email" value={cust.email} onChange={set("email")} type="email" ph="marie@email.fr" />
+      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" ph="06 13 54 52 24" name="tel" autoComplete="tel" />
+      <Field label="Email" value={cust.email} onChange={set("email")} type="email" ph="marie@email.fr" name="email" autoComplete="email" />
       <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 14px" }}>
         <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2 }} />
         <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Je souhaite recevoir les nouveautés et offres de Comme Avant.</span>
@@ -809,11 +809,25 @@ function StepHead({ onBack, title, sub }) {
 function ProHead({ title, sub }) { return <div style={{ marginBottom: 18 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{title}</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{sub}</div></div>; }
 function Section({ children }) { return <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 }}>{children}</div>; }
 function Lbl({ children }) { return <label style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 600, color: C.soft }}>{children}</label>; }
-function Field({ label, value, onChange, type = "text", ph }) {
+function Field({ label, value, onChange, type = "text", ph, autoComplete, name }) {
+  const email = type === "email";
+  const tel = type === "tel";
   return (
     <div style={{ marginBottom: 12 }}>
       <Lbl>{label}</Lbl>
-      <input type={type} value={value} placeholder={ph} onChange={(e) => onChange(e.target.value)} style={inp()} />
+      <input
+        type={type}
+        name={name}
+        value={value}
+        placeholder={ph}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        inputMode={tel ? "tel" : email ? "email" : undefined}
+        autoCapitalize={email ? "none" : undefined}
+        autoCorrect={email ? "off" : undefined}
+        spellCheck={email ? false : undefined}
+        style={inp()}
+      />
     </div>
   );
 }
