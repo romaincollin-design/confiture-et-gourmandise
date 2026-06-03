@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
@@ -244,7 +244,7 @@ function Hero() {
   );
 }
 
-function Welcome({ setStep, setIntent, profile }) {
+function Welcome({ setStep, setIntent, profile, returning, cust }) {
   const steps = [["1", "Coordonnées"], ["2", "Saveurs"], ["3", "Commande"]];
   return (
     <div className="ca-anim">
@@ -269,7 +269,16 @@ function Welcome({ setStep, setIntent, profile }) {
             </div>
           ))}
         </div>
-        <BigBtn onClick={() => { setIntent("order"); setStep("coords"); }}>Entrer dans la boutique <ChevronRight size={16} /></BigBtn>
+        {returning && cust?.prenom ? (
+          <>
+            <BigBtn onClick={() => { setIntent("order"); setStep("shop"); }}>Bon retour {cust.prenom} — Commander <ChevronRight size={16} /></BigBtn>
+            <GhostBtn onClick={() => { setIntent("order"); setStep("coords"); }}>Modifier mes coordonnées</GhostBtn>
+          </>
+        ) : (
+          <BigBtn onClick={() => { setIntent("order"); setStep("coords"); }}>Entrer dans la boutique <ChevronRight size={16} /></BigBtn>
+        )}
+        <WhatsAppBtn profile={profile} />
+        <InstallTip />
         <button onClick={() => setStep("contact")} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
       </div>
     </div>
@@ -477,7 +486,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
   const [copied, setCopied] = useState(false);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `Commande ${profile.name} ${o.id}\n${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}`;
+  const recap = `Bonjour ${profile.name} ! Je souhaite passer commande (réf. ${o.id}) :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMes coordonnées :\n${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
@@ -492,6 +501,10 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
         ))}
         <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700 }}><span>Total</span><span style={{ fontFamily: SCRIPT, color: C.jam }}>{eur(o.total)}</span></div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.soft, marginTop: 10 }}>{mode === "retrait" ? <MapPin size={14} /> : <Truck size={14} />}{mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison prévue dans la semaine"}{!paymentEnabled && " · règlement à l'enlèvement"}</div>
+      </div>
+      <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", borderRadius: 13, padding: "12px 14px", textAlign: "left", marginBottom: 16, display: "flex", gap: 9, alignItems: "flex-start" }}>
+        <Check size={16} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} />
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Envoyez votre commande ci-dessous — <b>on vous recontacte rapidement pour la confirmer</b> (disponibilités et créneau de retrait/livraison). Aucun paiement en ligne : règlement à l'enlèvement.</div>
       </div>
       <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, textAlign: "left", marginBottom: 10 }}>Envoyer ma commande</div>
       <a href={wa} target="_blank" rel="noreferrer" className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><MessageCircle size={17} /> Envoyer par WhatsApp</a>
@@ -875,6 +888,13 @@ export function BoutiquePublique() {
   const [step, setStep] = useState("welcome");
   const [intent, setIntent] = useState("order");
   const [cust, setCust] = useState({ prenom: "", nom: "", tel: "", email: "" });
+  const [returning, setReturning] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ca_cust");
+      if (saved) { const c = JSON.parse(saved); if (c && c.prenom) { setCust(c); setReturning(true); } }
+    } catch (e) {}
+  }, []);
   const [cart, setCart] = useState({});
   const [mode, setMode] = useState("retrait");
   const [promoInput, setPromoInput] = useState("");
@@ -887,7 +907,7 @@ export function BoutiquePublique() {
   const count = cartLines.reduce((s, l) => s + l.qty, 0);
   const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
   const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
-  const upsertClient = (c) => setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0 }, ...list]);
+  const upsertClient = (c) => { try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {} setReturning(true); setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0 }, ...list]); };
   const placeOrder = () => {
     const id = "C-" + (1043 + orders.length);
     const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, items: count, total, mode, date: "Auj.", status: "À préparer", paid: false };
@@ -899,8 +919,9 @@ export function BoutiquePublique() {
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
+      <Announce />
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile }} />
+      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile, returning }} />
     </div>
   );
 }
@@ -920,6 +941,108 @@ export function EspacePro() {
       {proAuth
         ? <ProView {...{ orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => setProAuth(false) }} />
         : <ProLogin pin={profile.pin} onOk={() => setProAuth(true)} />}
+    </div>
+  );
+}
+
+/* ---------------- Extras : retour client, WhatsApp, install, nouveauté ---------------- */
+// Annonce "nouveauté" (modifiable plus tard depuis l'espace pro / Supabase)
+const ANNOUNCE = { id: "2026-06-fraise", title: "Nouveauté de saison", body: "Bientôt : confiture de Fraise — édition limitée. Restez à l'affût !" };
+
+function useMounted() {
+  const [m, setM] = useState(false);
+  useEffect(() => setM(true), []);
+  return m;
+}
+
+function WhatsAppBtn({ profile }) {
+  const mounted = useMounted();
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    const check = () => { const h = new Date().getHours(); setOpen(h >= 9 && h < 18); };
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, []);
+  if (!mounted) return null;
+  if (open) {
+    return (
+      <a href={`https://wa.me/${profile.wa}`} target="_blank" rel="noreferrer" className="ca-tap"
+        style={{ width: "100%", marginTop: 12, background: "#1FA855", color: "#fff", borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}>
+        <MessageCircle size={16} /> Nous écrire sur WhatsApp
+      </a>
+    );
+  }
+  return (
+    <div style={{ width: "100%", marginTop: 12, background: C.cream, color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}>
+      <MessageCircle size={15} /> WhatsApp · disponible de 9h à 18h
+    </div>
+  );
+}
+
+function InstallTip() {
+  const mounted = useMounted();
+  const [deferred, setDeferred] = useState(null);
+  const [ios, setIos] = useState(false);
+  const [showIos, setShowIos] = useState(false);
+  const [installed, setInstalled] = useState(false);
+  useEffect(() => {
+    try {
+      const ua = navigator.userAgent || "";
+      const isIos = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua);
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      setIos(isIos);
+      setInstalled(standalone);
+    } catch (e) {}
+    const handler = (e) => { e.preventDefault(); setDeferred(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+  if (!mounted || installed) return null;
+  const btn = { width: "100%", marginTop: 10, background: "transparent", color: C.soft, border: `1.5px dashed ${C.line}`, borderRadius: 13, padding: "12px 16px", fontWeight: 600, fontSize: 12.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 };
+  if (deferred) {
+    return (
+      <button className="ca-tap" style={btn} onClick={async () => { deferred.prompt(); try { await deferred.userChoice; } catch (e) {} setDeferred(null); }}>
+        <Smartphone size={15} /> Installer l'appli sur mon écran d'accueil
+      </button>
+    );
+  }
+  if (ios) {
+    return (
+      <>
+        <button className="ca-tap" style={btn} onClick={() => setShowIos((s) => !s)}>
+          <Smartphone size={15} /> Ajouter à l'écran d'accueil
+        </button>
+        {showIos && (
+          <div style={{ marginTop: 8, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, color: C.ink, lineHeight: 1.5, textAlign: "left" }}>
+            Touchez <b>Partager</b> <Send size={12} /> en bas de Safari, puis <b>« Sur l'écran d'accueil »</b>. L'icône Comme Avant apparaîtra comme une appli.
+          </div>
+        )}
+      </>
+    );
+  }
+  return null;
+}
+
+function Announce() {
+  const mounted = useMounted();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("ca_seen_" + ANNOUNCE.id) !== "1") setShow(true); }
+    catch (e) { setShow(true); }
+  }, []);
+  if (!mounted || !show) return null;
+  const close = () => { try { localStorage.setItem("ca_seen_" + ANNOUNCE.id, "1"); } catch (e) {} setShow(false); };
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90, display: "flex", justifyContent: "center", padding: "max(10px, env(safe-area-inset-top)) 12px 0", pointerEvents: "none" }}>
+      <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "12px 12px 12px 14px", display: "flex", gap: 11, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={18} color={C.chalk} /></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{ANNOUNCE.title}</div>
+          <div style={{ fontSize: 12.5, opacity: .85, lineHeight: 1.4, marginTop: 1 }}>{ANNOUNCE.body}</div>
+        </div>
+        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.chalk, cursor: "pointer", opacity: .7, padding: 2, lineHeight: 0 }}><X size={16} /></button>
+      </div>
     </div>
   );
 }
