@@ -40,13 +40,13 @@ const SCRIPT = "'Pacifico', cursive";
 const SANS = "'Raleway', system-ui, sans-serif";
 const eur = (n) => (Number.isInteger(n) ? n + " €" : n.toFixed(2).replace(".", ",") + " €");
 
-const BRAND = { name: "Comme Avant", tag: "Confitures & gourmandises", tel: "06 13 54 52 24", wa: "33613545224", email: "contact@comme-avant.fr" };
+const BRAND = { name: "Comme Avant", tag: "Confitures & gourmandises", tel: "06 13 54 52 24", wa: "33613545224", email: "confituresetgourmandise@gmail.com" };
 const VCARD = `BEGIN:VCARD
 VERSION:3.0
 FN:Comme Avant — Confitures & gourmandises
 ORG:Comme Avant (association)
 TEL;TYPE=CELL:06 13 54 52 24
-EMAIL:contact@comme-avant.fr
+EMAIL:confituresetgourmandise@gmail.com
 NOTE:Des goûts et des saveurs d'antan. Circuit court, fait main.
 END:VCARD`;
 const VCARD_HREF = "data:text/vcard;charset=utf-8," + encodeURIComponent(VCARD);
@@ -133,7 +133,7 @@ export default function App() {
   const [clients, setClients] = useState(SEED_CLIENTS);
   const [promos, setPromos] = useState([{ code: "SAVEURS10", pct: 10, active: true }]);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
-  const [profile, setProfile] = useState({ name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", pin: "1234" });
+  const [profile, setProfile] = useState({ name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "confituresetgourmandise@gmail.com", wa: "33613545224", pin: "1234" });
   const [proAuth, setProAuth] = useState(false);
 
   const [step, setStep] = useState("welcome");
@@ -317,7 +317,18 @@ function Contact({ setStep, profile }) {
   const site = profile.site || "https://confiture-et-gourmandise.vercel.app";
   const siteShort = site.replace(/^https?:\/\//, "");
   const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${profile.name}\nORG:${profile.name} — ${profile.tag}\nTEL;TYPE=CELL:${profile.tel}\nEMAIL:${profile.email}\nURL:${site}\nNOTE:${profile.tagline}\nEND:VCARD`;
-  const href = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcard);
+  const saveContact = () => {
+    try {
+      const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "comme-avant.vcf";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e) {} }, 1500);
+    } catch (e) {
+      window.location.href = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcard);
+    }
+  };
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Nos coordonnées" sub="Gardez le stand dans votre poche" />
@@ -331,10 +342,10 @@ function Contact({ setStep, profile }) {
           </div>
         ))}
       </div>
-      <a href={href} download="comme-avant.vcf" className="ca-tap"
-        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "16px 18px", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", boxSizing: "border-box" }}>
+      <button onClick={saveContact} className="ca-tap"
+        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "16px 18px", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", boxSizing: "border-box" }}>
         <Smartphone size={17} /> Ajouter à mes contacts
-      </a>
+      </button>
       <GhostBtn onClick={() => setStep("coords")}><ShoppingBag size={16} /> Plutôt passer une commande</GhostBtn>
     </div>
   );
@@ -766,7 +777,7 @@ function ProSettings({ paymentEnabled, setPaymentEnabled }) {
         </div>
         {paymentEnabled && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.line}`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[["PayPal — email / lien", "contact@comme-avant.fr"], ["IBAN virement", "FR76 ····"], ["Lydia — n° / lien", "lien Lydia Pro"]].map(([l, ph]) => (<div key={l}><MiniLabel>{l}</MiniLabel><input placeholder={ph} style={inp()} /></div>))}
+            {[["PayPal — email / lien", "confituresetgourmandise@gmail.com"], ["IBAN virement", "FR76 ····"], ["Lydia — n° / lien", "lien Lydia Pro"]].map(([l, ph]) => (<div key={l}><MiniLabel>{l}</MiniLabel><input placeholder={ph} style={inp()} /></div>))}
             <div style={{ alignSelf: "end", fontSize: 11, color: C.soft }}>Démo — branchement réel à la mise en production.</div>
           </div>
         )}
@@ -784,29 +795,40 @@ function ProSettings({ paymentEnabled, setPaymentEnabled }) {
 }
 
 function ProProfile({ profile, setProfile, onLogout }) {
-  const set = (k) => (v) => setProfile((p) => ({ ...p, [k]: v }));
+  const [draft, setDraft] = useState(profile);
+  const [saved, setSaved] = useState(false);
+  const set = (k) => (v) => { setDraft((p) => ({ ...p, [k]: v })); setSaved(false); };
+  const dirty = JSON.stringify(draft) !== JSON.stringify(profile);
+  const save = () => { setProfile(draft); setSaved(true); setTimeout(() => setSaved(false), 2500); };
   return (
-    <div className="ca-anim">
+    <div className="ca-anim" style={{ paddingBottom: 84 }}>
       <ProHead title="Profil de l'enseigne" sub="Vos infos commerce — reprises sur la boutique, la carte contact et les commandes" />
       <div style={card()}>
         <Section>Identité</Section>
-        <Field label="Nom de l'enseigne" value={profile.name} onChange={set("name")} />
-        <Field label="Sous-titre" value={profile.tag} onChange={set("tag")} />
-        <div style={{ marginBottom: 12 }}><Lbl>Signature</Lbl><textarea value={profile.tagline} onChange={(e) => set("tagline")(e.target.value)} rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginTop: 5 }} /></div>
+        <Field label="Nom de l'enseigne" value={draft.name} onChange={set("name")} />
+        <Field label="Sous-titre" value={draft.tag} onChange={set("tag")} />
+        <div style={{ marginBottom: 12 }}><Lbl>Signature</Lbl><textarea value={draft.tagline} onChange={(e) => set("tagline")(e.target.value)} rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginTop: 5 }} /></div>
       </div>
       <div style={card()}>
         <Section>Contact</Section>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Téléphone" value={profile.tel} onChange={set("tel")} type="tel" />
-          <Field label="WhatsApp" value={profile.wa} onChange={set("wa")} type="tel" />
+          <Field label="Téléphone" value={draft.tel} onChange={set("tel")} type="tel" />
+          <Field label="WhatsApp" value={draft.wa} onChange={set("wa")} type="tel" />
         </div>
         <div style={{ fontSize: 11, color: C.soft, margin: "-4px 0 10px", lineHeight: 1.4 }}>WhatsApp au format international sans « + » ni espaces — ex. 33613545224.</div>
-        <Field label="Email" value={profile.email} onChange={set("email")} type="email" />
+        <Field label="Email" value={draft.email} onChange={set("email")} type="email" />
+        <Field label="Site internet" value={draft.site || ""} onChange={set("site")} />
       </div>
       <div style={card()}>
         <Section>Accès commerçant</Section>
-        <Field label="Code d'accès à cet espace" value={profile.pin} onChange={set("pin")} />
+        <Field label="Code d'accès à cet espace" value={draft.pin} onChange={set("pin")} />
         <button onClick={onLogout} className="ca-tap" style={{ marginTop: 6, border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "11px 16px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><Lock size={15} /> Se déconnecter</button>
+      </div>
+      <div style={{ position: "sticky", bottom: 0, paddingTop: 10, background: `linear-gradient(transparent, ${C.cream} 30%)` }}>
+        <button onClick={save} disabled={!dirty} className="ca-tap"
+          style={{ width: "100%", background: dirty ? C.ok : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: dirty ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
+          <Check size={18} /> {saved ? "Modifications enregistrées ✓" : dirty ? "Valider les modifications" : "Aucune modification"}
+        </button>
       </div>
     </div>
   );
@@ -892,7 +914,7 @@ function Switch({ on, onClick }) {
 
 /* ---------------- Conteneurs séparés (1 site, 2 espaces) ---------------- */
 const SEED_PROMOS = [{ code: "SAVEURS10", pct: 10, active: true }];
-const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "contact@comme-avant.fr", wa: "33613545224", site: "https://confiture-et-gourmandise.vercel.app", pin: "1234" };
+const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "confituresetgourmandise@gmail.com", wa: "33613545224", site: "https://confiture-et-gourmandise.vercel.app", pin: "1234" };
 
 function Header({ profile, badge }) {
   return (
@@ -1124,73 +1146,79 @@ function InstallBanner() {
 
 /* ---------------- Caisse — vente sur place (maquette fonctionnelle) ---------------- */
 function ProCaisse({ products }) {
-  const [sales, setSales] = useState([]);   // { id, pid, name, unit, price, ts }
+  const [ticket, setTicket] = useState({});   // pid -> { name, unit, price, qty }
+  const [orders, setOrders] = useState([]);   // commandes fermées : { id, items, total, count, ts }
   const [flash, setFlash] = useState(null);
+  const [justClosed, setJustClosed] = useState(false);
   const [open, setOpen] = useState({});
   const isOpen = (c) => open[c] ?? true;
   const toggle = (c) => setOpen((o) => ({ ...o, [c]: !isOpen(c) }));
   const sellable = products.filter((p) => !p.soon && p.active !== false);
   const cats = CAT_ORDER.filter((c) => sellable.some((p) => p.cat === c));
 
-  const sell = (p) => {
-    const id = Date.now() + "-" + Math.random().toString(36).slice(2, 6);
-    setSales((s) => [{ id, pid: p.id, name: p.name, unit: p.unit, price: p.price, ts: Date.now() }, ...s]);
-    setFlash(p.id);
-    setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 650);
+  const add = (p) => {
+    setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, qty: (t[p.id]?.qty || 0) + 1 } }));
+    setFlash(p.id); setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 500);
   };
-  const cancel = (id) => setSales((s) => s.filter((x) => x.id !== id));
+  const dec = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; const q = cur.qty - 1; const n = { ...t }; if (q <= 0) delete n[pid]; else n[pid] = { ...cur, qty: q }; return n; });
+  const removeLine = (pid) => setTicket((t) => { const n = { ...t }; delete n[pid]; return n; });
+  const lines = Object.entries(ticket);
+  const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
+  const tTotal = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
+  const closeOrder = () => {
+    if (tCount === 0) return;
+    const items = lines.map(([pid, l]) => ({ pid, ...l }));
+    setOrders((o) => [{ id: Date.now() + "-" + Math.random().toString(36).slice(2, 6), items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
+    setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
+  };
+  const cancelOrder = (id) => setOrders((o) => o.filter((x) => x.id !== id));
 
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const todayK = dayKey(Date.now());
-  const todaySales = sales.filter((s) => dayKey(s.ts) === todayK);
-  const todayTotal = todaySales.reduce((a, s) => a + s.price, 0);
+  const todayOrders = orders.filter((o) => dayKey(o.ts) === todayK);
+  const todayTotal = todayOrders.reduce((a, o) => a + o.total, 0);
+  const todayItems = todayOrders.reduce((a, o) => a + o.count, 0);
 
-  // par produit (aujourd'hui)
   const byProd = {};
-  todaySales.forEach((s) => { byProd[s.name] = byProd[s.name] || { qty: 0, sum: 0 }; byProd[s.name].qty++; byProd[s.name].sum += s.price; });
+  todayOrders.forEach((o) => o.items.forEach((it) => { byProd[it.name] = byProd[it.name] || { qty: 0, sum: 0 }; byProd[it.name].qty += it.qty; byProd[it.name].sum += it.qty * it.price; }));
   const prodRows = Object.entries(byProd).sort((a, b) => b[1].sum - a[1].sum);
 
-  // par heure (aujourd'hui)
   const byHour = Array(24).fill(0);
-  todaySales.forEach((s) => { byHour[new Date(s.ts).getHours()] += s.price; });
+  todayOrders.forEach((o) => { byHour[new Date(o.ts).getHours()] += o.total; });
   const maxHour = Math.max(1, ...byHour);
   const hoursActive = byHour.map((v, h) => [h, v]).filter(([h]) => h >= 7 && h <= 20);
 
-  // historique par jour
   const byDay = {};
-  sales.forEach((s) => { const k = dayKey(s.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += s.price; });
+  orders.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += o.total; });
   const dayRows = Object.entries(byDay);
 
   const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
   const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 };
 
   return (
-    <div className="ca-anim">
+    <div className="ca-anim" style={{ paddingBottom: tCount > 0 ? 92 : 8 }}>
       <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
-      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Vente sur place — touchez un produit pour enregistrer la vente.</div>
+      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la commande » pour l'enregistrer.</div>
 
-      {/* Total du jour */}
       <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>Aujourd'hui · {todayK}</div>
           <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eur(todayTotal)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>{todaySales.length}</div>
-          <div style={{ fontSize: 11, opacity: .65 }}>vente{todaySales.length > 1 ? "s" : ""}</div>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{todayOrders.length}</div>
+          <div style={{ fontSize: 11, opacity: .65 }}>commande{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
         </div>
       </div>
 
-      {/* Produits regroupés par catégorie */}
       <div style={{ marginBottom: 6 }}>
         {cats.map((c) => {
           const items = sellable.filter((p) => p.cat === c);
           const op = isOpen(c);
           return (
             <div key={c} style={{ marginBottom: 12 }}>
-              <button onClick={() => toggle(c)} className="ca-tap"
-                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 8 }}>
+              <button onClick={() => toggle(c)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 8 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
                   <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{c}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.soft, background: C.cream, borderRadius: 20, padding: "2px 9px" }}>{items.length}</span>
@@ -1200,14 +1228,14 @@ function ProCaisse({ products }) {
               {op && (
                 <div className="caisse-grid">
                   {items.map((p) => (
-                    <button key={p.id} onClick={() => sell(p)} className="ca-tap"
-                      style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
-                      <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+                    <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+                        {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
+                      </span>
                       <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
                       <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-                      {flash === p.id && (
-                        <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontWeight: 700, fontSize: 15 }}><Check size={20} /> Vendu</span>
-                      )}
+                      {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
                     </button>
                   ))}
                 </div>
@@ -1217,29 +1245,43 @@ function ProCaisse({ products }) {
         })}
       </div>
 
-      {/* Dernières ventes du jour */}
-      <div style={card}>
-        <div style={h2}>Dernières ventes · aujourd'hui</div>
-        {todaySales.length === 0 ? (
-          <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune vente pour l'instant. Touchez un produit ci-dessus.</div>
-        ) : (
-          todaySales.map((s) => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(s.ts)}</span>
-              <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{s.name} <span style={{ color: C.soft }}>· {s.unit}</span></span>
-              <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(s.price)}</span>
-              <button onClick={() => cancel(s.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annulé</button>
+      {tCount > 0 && (
+        <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
+          <div style={h2}>Commande en cours</div>
+          {lines.map(([pid, l]) => (
+            <div key={pid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+              <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name} <span style={{ color: C.soft }}>· {eur(l.price)}</span></span>
+              <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
+              <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
+              <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price })} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
+              <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
             </div>
-          ))
-        )}
+          ))}
+          <button onClick={() => setTicket({})} className="ca-tap" style={{ marginTop: 10, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
+        </div>
+      )}
+
+      {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Commande enregistrée</div>}
+
+      <div style={card}>
+        <div style={h2}>Ventes du jour</div>
+        {todayOrders.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune commande fermée aujourd'hui.</div>
+        ) : todayOrders.map((o) => (
+          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
+            <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + (it.qty > 1 ? " \u00d7" + it.qty : "")).join(", ")}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(o.total)}</span>
+            <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annul\u00e9</button>
+          </div>
+        ))}
       </div>
 
-      {/* Stats */}
       <div style={card}>
         <div style={h2}>Par produit · aujourd'hui</div>
-        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([name, v]) => (
+        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>\u2014</div> : prodRows.map(([name, v]) => (
           <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>×{v.qty}</span></span>
+            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>\u00d7{v.qty}</span></span>
             <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
           </div>
         ))}
@@ -1259,13 +1301,22 @@ function ProCaisse({ products }) {
 
       <div style={{ ...card, marginBottom: 0 }}>
         <div style={h2}>Historique par jour</div>
-        {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : dayRows.map(([k, v]) => (
+        {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>\u2014</div> : dayRows.map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} vente{v.count > 1 ? "s" : ""}</span></span>
+            <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} cmd</span></span>
             <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
           </div>
         ))}
       </div>
+
+      {tCount > 0 && (
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
+          <button onClick={closeOrder} className="ca-tap" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 14px 30px -10px #16140faa" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> Fermer la commande · {tCount} art.</span>
+            <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
