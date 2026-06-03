@@ -96,6 +96,8 @@ const SEED_PRODUCTS = [
   { id: "pissa-part", name: "Pissaladière", cat: "Salé", price: 3, unit: "à la part", stock: 24, illu: "pissa", col: "#7A6A2A" },
   { id: "pissa-1", name: "Pissaladière", cat: "Salé", price: 33, unit: "1 plaque (12 parts)", stock: 4, illu: "pissa", col: "#7A6A2A" },
   { id: "pissa-2", name: "Pissaladière", cat: "Salé", price: 60, unit: "2 plaques · 30 €/plaque", stock: 2, illu: "pissa", col: "#7A6A2A" },
+  { id: "miel", name: "Miel", cat: "Produits locaux", price: 12, unit: "pot 500g", stock: 10, illu: "caramel", col: "#D9A441" },
+  { id: "creme-marron", name: "Crème de marron", cat: "Produits locaux", price: 10, unit: "pot 500g", stock: 10, illu: "loaf", col: "#6B4A2E" },
   { id: "fraise", name: "Fraise", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "berry", col: "#C0392B" },
   { id: "abricot", name: "Abricot", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#E08A2E" },
   { id: "nefle", name: "Nèfle", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#C98A3A" },
@@ -1150,11 +1152,11 @@ function ProCaisse({ products }) {
   const [orders, setOrders] = useState([]);   // commandes fermées : { id, items, total, count, ts }
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
-  const [open, setOpen] = useState({});
-  const isOpen = (c) => open[c] ?? true;
-  const toggle = (c) => setOpen((o) => ({ ...o, [c]: !isOpen(c) }));
+  const [cat, setCat] = useState(null);
   const sellable = products.filter((p) => !p.soon && p.active !== false);
   const cats = CAT_ORDER.filter((c) => sellable.some((p) => p.cat === c));
+  const activeCat = cat && cats.includes(cat) ? cat : cats[0];
+  const catItems = sellable.filter((p) => p.cat === activeCat);
 
   const add = (p) => {
     setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, qty: (t[p.id]?.qty || 0) + 1 } }));
@@ -1212,37 +1214,28 @@ function ProCaisse({ products }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: 6 }}>
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
         {cats.map((c) => {
-          const items = sellable.filter((p) => p.cat === c);
-          const op = isOpen(c);
+          const sel = c === activeCat;
           return (
-            <div key={c} style={{ marginBottom: 12 }}>
-              <button onClick={() => toggle(c)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 14px", cursor: "pointer", marginBottom: 8 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{c}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.soft, background: C.cream, borderRadius: 20, padding: "2px 9px" }}>{items.length}</span>
-                </span>
-                <ChevronDown size={18} color={C.soft} style={{ transform: op ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-              </button>
-              {op && (
-                <div className="caisse-grid">
-                  {items.map((p) => (
-                    <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
-                      <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
-                        {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
-                      </span>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-                      <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-                      {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${sel ? C.board : C.line}`, background: sel ? C.board : C.paper, color: sel ? C.chalk : C.ink, borderRadius: 20, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
+            </button>
           );
         })}
+      </div>
+      <div className="caisse-grid" style={{ marginBottom: 6 }}>
+        {catItems.map((p) => (
+          <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+              {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
+            </span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+            <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+            {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
+          </button>
+        ))}
       </div>
 
       {tCount > 0 && (
