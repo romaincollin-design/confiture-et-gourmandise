@@ -365,12 +365,14 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Vos coordonnées"
         sub={lead ? "Restez informé·e de nos nouveautés et offres" : "Pour préparer et confirmer votre commande"} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-        <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
-        <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
-      </div>
-      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
-      <Field label="Email" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
+      <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
+          <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
+          <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
+        </div>
+        <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
+        <Field label="Email" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
+      </form>
       <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 12px" }}>
         <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2, width: 17, height: 17, flexShrink: 0 }} />
         <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Je souhaite rester en contact et vous autorise à me contacter (nouveautés, offres et confirmation de commande).</span>
@@ -533,7 +535,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
   const [copied, setCopied] = useState(false);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `🫙 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMes coordonnées :\n${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n\nMerci de me confirmer la disponibilité 🙂`;
+  const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
@@ -967,6 +969,7 @@ function Field({ label, value, onChange, type = "text", ph, autoComplete, name }
       <Lbl>{label}</Lbl>
       <input
         type={type}
+        id={name}
         name={name}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -1105,7 +1108,7 @@ function WhatsAppBtn({ profile }) {
   if (!mounted) return null;
   if (open) {
     return (
-      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent("🫙 " + profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
+      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent("💬 " + profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
         style={{ width: "100%", marginTop: 12, background: "#1FA855", color: "#fff", borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}>
         <MessageCircle size={16} /> Nous écrire sur WhatsApp
       </a>
