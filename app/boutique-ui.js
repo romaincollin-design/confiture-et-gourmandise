@@ -250,29 +250,25 @@ function Hero() {
         <line x1="50" y1="18" x2="54" y2="38" stroke="#9A6A2E" strokeWidth="2.4" strokeLinecap="round" />
         <line x1="49" y1="27" x2="55" y2="29" stroke="#9A6A2E" strokeWidth="1.3" strokeLinecap="round" />
         <line x1="50" y1="23" x2="55" y2="25" stroke="#9A6A2E" strokeWidth="1.3" strokeLinecap="round" />
+        <g transform="translate(15 15)"><ellipse cx="-4" cy="-5" rx="5" ry="3" fill="#e6f3f6" stroke="#c4dde2" strokeWidth="1" transform="rotate(-22 -4 -5)" /><ellipse cx="5" cy="-5" rx="5" ry="3" fill="#e6f3f6" stroke="#c4dde2" strokeWidth="1" transform="rotate(22 5 -5)" /><ellipse cx="0.5" cy="0.5" rx="6.5" ry="5" fill="#F2C53D" stroke="#d9a82f" strokeWidth="1" /><path d="M-1.5 -3.5 v8 M2.5 -4 v9" stroke="#3a2a12" strokeWidth="2" /><circle cx="-5.5" cy="-0.6" r="3" fill="#2a1f10" /><path d="M-7 -3 q-1.5 -2.5 -3.5 -2.6 M-5.4 -3.4 q-1 -2.8 -2.3 -3.6" stroke="#2a1f10" strokeWidth="1" fill="none" strokeLinecap="round" /></g>
       </g>
       {/* Pissaladière */}
       <g transform="translate(146 6)">
-        <ellipse cx="30" cy="86" rx="25" ry="4" fill="#E7DCC4" />
-        <path d="M30 28 L10 80 Q30 87 50 80 Z" fill="#CDA456" stroke="#A9742E" strokeWidth="1" />
-        <path d="M10 80 Q30 87 50 80" fill="none" stroke="#A9742E" strokeWidth="2.6" strokeLinecap="round" />
-        <path d="M22 58 q8 -5 16 0" fill="none" stroke="#B07F33" strokeWidth="1.4" strokeLinecap="round" />
-        <path d="M19 69 q11 -6 22 0" fill="none" stroke="#B07F33" strokeWidth="1.4" strokeLinecap="round" />
-        <ellipse cx="26" cy="63" rx="2.3" ry="2.9" fill="#2E241A" />
-        <ellipse cx="35" cy="71" rx="2.3" ry="2.9" fill="#2E241A" />
-        <ellipse cx="30" cy="52" rx="2.1" ry="2.7" fill="#2E241A" />
+        <ellipse cx="30" cy="86" rx="24" ry="4" fill="#E7DCC4" />
+        <rect x="6" y="42" width="48" height="38" rx="7" fill="#D9A441" stroke="#A9742E" strokeWidth="1" />
+        <rect x="11" y="47" width="38" height="28" rx="5" fill="#E9CE94" />
+        <g stroke="#CDA663" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".8"><path d="M14 54 q8 -2 16 0 t15 0" /><path d="M14 63 q9 2 17 0 t14 0" /><path d="M14 71 q8 -2 16 0 t13 0" /></g>
+        <g stroke="#9C6B45" strokeWidth="2.4" strokeLinecap="round"><line x1="17" y1="48" x2="29" y2="74" /><line x1="29" y1="48" x2="41" y2="74" /><line x1="40" y1="48" x2="47" y2="64" /><line x1="29" y1="48" x2="17" y2="74" /><line x1="41" y1="48" x2="29" y2="74" /><line x1="47" y1="56" x2="40" y2="74" /></g>
+        <g fill="#241F17"><circle cx="22" cy="61" r="2.6" /><circle cx="34" cy="54" r="2.6" /><circle cx="34" cy="68" r="2.6" /><circle cx="45" cy="61" r="2.6" /></g>
       </g>
       {/* Pain d'épices */}
       <g transform="translate(216 6)">
         <ellipse cx="30" cy="86" rx="27" ry="4" fill="#E7DCC4" />
-        <path d="M7 66 Q7 46 30 46 Q53 46 53 66 L53 78 Q53 84 47 84 L13 84 Q7 84 7 78 Z" fill="#8A5A24" stroke="#6E4519" strokeWidth="1" />
-        <path d="M12 56 Q30 47 48 56" fill="none" stroke="#A56E2C" strokeWidth="2" strokeLinecap="round" />
-        <line x1="22" y1="50" x2="20" y2="63" stroke="#6E4519" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="30" y1="48" x2="30" y2="63" stroke="#6E4519" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="38" y1="50" x2="40" y2="63" stroke="#6E4519" strokeWidth="1.2" strokeLinecap="round" />
-        <circle cx="24" cy="74" r="1" fill="#5E3C16" />
-        <circle cx="36" cy="76" r="1" fill="#5E3C16" />
-        <circle cx="30" cy="72" r="1" fill="#5E3C16" />
+        <path d="M9 80 V56 Q9 42 30 42 Q51 42 51 56 V80 Q51 84 47 84 H13 Q9 84 9 80 Z" fill="#8A5A24" stroke="#6E4519" strokeWidth="1" />
+        <path d="M9 74 H51 V80 Q51 84 47 84 H13 Q9 84 9 80 Z" fill="#5E3717" />
+        <path d="M14 50 q16 -6 32 0" stroke="#FFFFFF" strokeWidth="3" opacity=".22" fill="none" strokeLinecap="round" />
+        <g stroke="#F3ECD6" strokeWidth="2.2" strokeLinecap="round" fill="none" opacity=".92"><path d="M18 52 q2 8 -1 16" /><path d="M30 49 q2 9 -1 18" /><path d="M42 52 q2 8 -1 16" /></g>
+        <g fill="#3a2410"><circle cx="22" cy="69" r="1.2" /><circle cx="32" cy="71" r="1.2" /><circle cx="42" cy="67" r="1.2" /></g>
       </g>
     </svg>
   );
