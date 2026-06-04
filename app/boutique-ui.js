@@ -356,28 +356,30 @@ function Contact({ setStep, profile }) {
 }
 
 function Coords({ cust, setCust, setStep, upsertClient, intent }) {
-  const [optin, setOptin] = useState(true);
-  const ok = cust.prenom && cust.nom && cust.tel && cust.email.includes("@");
+  const [optin, setOptin] = useState(false);
+  const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email);
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
+  const valider = (next) => { upsertClient({ ...cust, optin }); setStep(next); };
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Vos coordonnées"
-        sub={lead ? "Restez informé·e de nos nouveautés et offres" : "Une étape avant de découvrir nos saveurs"} />
+        sub={lead ? "Restez informé·e de nos nouveautés et offres" : "Pour préparer et confirmer votre commande"} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-        <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} ph="Marie" name="given-name" autoComplete="given-name" />
-        <Field label="Nom" value={cust.nom} onChange={set("nom")} ph="Dupont" name="family-name" autoComplete="family-name" />
+        <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
+        <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
       </div>
-      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" ph="06 13 54 52 24" name="tel" autoComplete="tel" />
-      <Field label="Email" value={cust.email} onChange={set("email")} type="email" ph="marie@email.fr" name="email" autoComplete="email" />
-      <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 14px" }}>
-        <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2 }} />
-        <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Je souhaite recevoir les nouveautés et offres de Comme Avant.</span>
+      <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
+      <Field label="Email" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
+      <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 12px" }}>
+        <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2, width: 17, height: 17, flexShrink: 0 }} />
+        <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Je souhaite rester en contact et vous autorise à me contacter (nouveautés, offres et confirmation de commande).</span>
       </label>
-      <p style={{ fontSize: 11, color: C.soft, lineHeight: 1.5, margin: "0 0 16px" }}>Vos infos servent uniquement à {lead ? "vous tenir informé·e" : "gérer votre commande"} — jamais transmises à des tiers.</p>
+      <p style={{ fontSize: 11, color: C.soft, lineHeight: 1.5, margin: "0 0 16px" }}>Vos coordonnées servent uniquement à gérer votre commande et, si vous l'acceptez, à vous tenir informé·e — jamais transmises à des tiers. Vous pouvez demander leur suppression à tout moment.</p>
       {lead
-        ? <BigBtn disabled={!ok} onClick={() => { upsertClient(cust); setStep("leadDone"); }}>Valider mes coordonnées <Check size={16} /></BigBtn>
-        : <BigBtn disabled={!ok} onClick={() => { upsertClient(cust); setStep("shop"); }}>Voir nos saveurs <ChevronRight size={17} /></BigBtn>}
+        ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>Valider mes coordonnées <Check size={16} /></BigBtn>
+        : <BigBtn disabled={!ok} onClick={() => valider("shop")}>Voir nos saveurs <ChevronRight size={17} /></BigBtn>}
+      {!ok && <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", marginTop: 10 }}>Prénom, nom, téléphone et email sont nécessaires pour commander.</p>}
     </div>
   );
 }
@@ -967,7 +969,6 @@ function Field({ label, value, onChange, type = "text", ph, autoComplete, name }
         type={type}
         name={name}
         value={value}
-        placeholder={ph}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         inputMode={tel ? "tel" : email ? "email" : undefined}
@@ -1042,8 +1043,10 @@ export function BoutiquePublique() {
   const count = cartLines.reduce((s, l) => s + l.qty, 0);
   const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
   const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
-  const upsertClient = (c) => { try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {} setReturning(true); setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0 }, ...list]); };
+  const upsertClient = (c) => { try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {} setReturning(true); setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]); };
+  const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email || ""));
   const placeOrder = () => {
+    if (!custOk) { setStep("coords"); return; }
     const id = "C-" + (1043 + orders.length);
     const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, items: count, total, mode, date: "Auj.", status: "À préparer", paid: false };
     setOrders((l) => [o, ...l]);
