@@ -346,10 +346,10 @@ function Contact({ setStep, profile }) {
           </div>
         ))}
       </div>
-      <button onClick={saveContact} className="ca-tap"
-        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "16px 18px", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", boxSizing: "border-box" }}>
+      <a href="/api/contact" className="ca-tap"
+        style={{ width: "100%", background: C.jam, color: "#fff", borderRadius: 13, padding: "16px 18px", fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", boxSizing: "border-box", textDecoration: "none" }}>
         <Smartphone size={17} /> Ajouter à mes contacts
-      </button>
+      </a>
       <GhostBtn onClick={() => setStep("coords")}><ShoppingBag size={16} /> Plutôt passer une commande</GhostBtn>
     </div>
   );
@@ -531,7 +531,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
   const [copied, setCopied] = useState(false);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `Bonjour ${profile.name} ! Je souhaite passer commande (réf. ${o.id}) :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMes coordonnées :\n${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n\nMerci de me confirmer la disponibilité 🙂`;
+  const recap = `🫙 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMes coordonnées :\n${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
@@ -1102,7 +1102,7 @@ function WhatsAppBtn({ profile }) {
   if (!mounted) return null;
   if (open) {
     return (
-      <a href={`https://wa.me/${profile.wa}`} target="_blank" rel="noreferrer" className="ca-tap"
+      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent("🫙 " + profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
         style={{ width: "100%", marginTop: 12, background: "#1FA855", color: "#fff", borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}>
         <MessageCircle size={16} /> Nous écrire sur WhatsApp
       </a>
