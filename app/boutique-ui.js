@@ -117,27 +117,9 @@ const SEED_PRODUCTS = [
   { id: "abricot", name: "Abricot", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#E08A2E" },
   { id: "nefle", name: "Nèfle", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#C98A3A" },
 ];
-const SEED_ORDERS = [
-  { id: "C-1044", name: "Sophie Mercier", email: "sophie.m@email.fr", items: 2, total: 16, mode: "retrait", pickup: "Samedi 7 juin", date: "Auj.", status: "À préparer", paid: false },
-  { id: "C-1043", name: "Léa Roux", email: "lea.r@email.fr", items: 4, total: 28, mode: "retrait", pickup: "Dimanche 8 juin", date: "Auj.", status: "À préparer", paid: false },
-  { id: "C-1042", name: "Sophie Mercier", email: "sophie.m@email.fr", items: 3, total: 21, mode: "retrait", pickup: "Sam 31/05", date: "Sam 31/05", status: "Prête", paid: false },
-  { id: "C-1041", name: "Karim Belaïd", email: "karim.b@email.fr", items: 6, total: 46, mode: "retrait", pickup: "Dim 25/05", date: "Dim 25/05", status: "Remise", paid: true },
-];
-const _mkSale = (id, daysAgo, hour, items) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, 0, 0, 0); return { id, ts: d.getTime(), items, total: items.reduce((s, i) => s + i.qty * i.price, 0), count: items.reduce((s, i) => s + i.qty, 0) }; };
-const SEED_SALES = [
-  _mkSale("v1", 0, 9, [{ name: "Oranges amères (pot 250g)", qty: 2, price: 7, cost: 2.6 }, { name: "Pain d'épices", qty: 1, price: 13, cost: 5 }]),
-  _mkSale("v2", 0, 10, [{ name: "Caramels (sachet 100g)", qty: 3, price: 4, cost: 1.4 }, { name: "Miel", qty: 1, price: 12, cost: 6 }]),
-  _mkSale("v3", 0, 11, [{ name: "Pissaladière (1 plaque)", qty: 1, price: 33, cost: 14 }, { name: "Citron (pot 340g)", qty: 2, price: 9, cost: 3.2 }]),
-  _mkSale("v4", 1, 10, [{ name: "Quetsche (pot 250g)", qty: 4, price: 7, cost: 2.5 }]),
-  _mkSale("v5", 6, 11, [{ name: "Crème de marron", qty: 2, price: 10, cost: 4.5 }, { name: "Mûre (pot 250g)", qty: 3, price: 7, cost: 2.6 }]),
-  _mkSale("v6", 20, 10, [{ name: "Pissaladière (2 plaques)", qty: 1, price: 60, cost: 28 }]),
-  _mkSale("v7", 70, 9, [{ name: "Pain d'épices", qty: 5, price: 14, cost: 5.5 }]),
-];
-const SEED_CLIENTS = [
-  { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 13 54 52 24", orders: 4, spent: 84, optin: true },
-  { email: "karim.b@email.fr", prenom: "Karim", nom: "Belaïd", tel: "06 98 76 54 32", orders: 2, spent: 67, optin: false },
-  { email: "lea.r@email.fr", prenom: "Léa", nom: "Roux", tel: "07 11 22 33 44", orders: 1, spent: 28, optin: true },
-];
+const SEED_ORDERS = [];
+const SEED_SALES = [];
+const SEED_CLIENTS = [];
 
 /* ---------- Illustrations façon étiquette ---------- */
 function Illu({ k, col, s = 46 }) {
