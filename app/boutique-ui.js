@@ -3,7 +3,8 @@ import { useState, useMemo, useEffect } from "react";
 import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
-  Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe
+  Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone
 } from "lucide-react";
 
 const FONT = `
@@ -105,8 +106,20 @@ const SEED_PRODUCTS = [
   { id: "nefle", name: "Nèfle", cat: "Bientôt", price: 7, unit: "pot 250g", stock: 0, soon: true, illu: "apricot", col: "#C98A3A" },
 ];
 const SEED_ORDERS = [
-  { id: "C-1042", name: "Sophie Mercier", email: "sophie.m@email.fr", items: 3, total: 21, mode: "retrait", date: "Mar 27/05", status: "Prête", paid: false },
-  { id: "C-1041", name: "Karim Belaïd", email: "karim.b@email.fr", items: 6, total: 46, mode: "livraison", date: "Lun 26/05", status: "Livrée", paid: true },
+  { id: "C-1044", name: "Sophie Mercier", email: "sophie.m@email.fr", items: 2, total: 16, mode: "retrait", pickup: "Samedi 7 juin", date: "Auj.", status: "À préparer", paid: false },
+  { id: "C-1043", name: "Léa Roux", email: "lea.r@email.fr", items: 4, total: 28, mode: "retrait", pickup: "Dimanche 8 juin", date: "Auj.", status: "À préparer", paid: false },
+  { id: "C-1042", name: "Sophie Mercier", email: "sophie.m@email.fr", items: 3, total: 21, mode: "retrait", pickup: "Sam 31/05", date: "Sam 31/05", status: "Prête", paid: false },
+  { id: "C-1041", name: "Karim Belaïd", email: "karim.b@email.fr", items: 6, total: 46, mode: "retrait", pickup: "Dim 25/05", date: "Dim 25/05", status: "Remise", paid: true },
+];
+const _mkSale = (id, daysAgo, hour, items) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, 0, 0, 0); return { id, ts: d.getTime(), items, total: items.reduce((s, i) => s + i.qty * i.price, 0), count: items.reduce((s, i) => s + i.qty, 0) }; };
+const SEED_SALES = [
+  _mkSale("v1", 0, 9, [{ name: "Oranges amères (pot 250g)", qty: 2, price: 7, cost: 2.6 }, { name: "Pain d'épices", qty: 1, price: 13, cost: 5 }]),
+  _mkSale("v2", 0, 10, [{ name: "Caramels (sachet 100g)", qty: 3, price: 4, cost: 1.4 }, { name: "Miel", qty: 1, price: 12, cost: 6 }]),
+  _mkSale("v3", 0, 11, [{ name: "Pissaladière (1 plaque)", qty: 1, price: 33, cost: 14 }, { name: "Citron (pot 340g)", qty: 2, price: 9, cost: 3.2 }]),
+  _mkSale("v4", 1, 10, [{ name: "Quetsche (pot 250g)", qty: 4, price: 7, cost: 2.5 }]),
+  _mkSale("v5", 6, 11, [{ name: "Crème de marron", qty: 2, price: 10, cost: 4.5 }, { name: "Mûre (pot 250g)", qty: 3, price: 7, cost: 2.6 }]),
+  _mkSale("v6", 20, 10, [{ name: "Pissaladière (2 plaques)", qty: 1, price: 60, cost: 28 }]),
+  _mkSale("v7", 70, 9, [{ name: "Pain d'épices", qty: 5, price: 14, cost: 5.5 }]),
 ];
 const SEED_CLIENTS = [
   { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 13 54 52 24", orders: 4, spent: 84 },
@@ -491,21 +504,29 @@ function Cart({ cartLines, add, sub1, sub, discount, total, promoInput, setPromo
   );
 }
 
-function Checkout({ mode, setMode, sub, discount, total, paymentEnabled, placeOrder, setStep }) {
+function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnabled, placeOrder, setStep }) {
   const [pm, setPm] = useState("cb");
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const fmt = (d) => cap(d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
+  const days = (() => { const out = []; const base = new Date(); for (let i = 0; i < 21 && out.length < 4; i++) { const x = new Date(); x.setDate(base.getDate() + i); if (x.getDay() === 0 || x.getDay() === 6) out.push(x); } return out; })();
+  useEffect(() => { if (!pickupDay && days.length) setPickupDay(fmt(days[0])); }, []);
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
-      <StepHead onBack={() => setStep("cart")} title="Finaliser" sub="Récupération & règlement" />
-      <Section>Mode de récupération</Section>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-        {[["retrait", MapPin, "Retrait", "Au stand, le marché"], ["livraison", Truck, "Livraison", "Dans la semaine"]].map(([k, Ic, t, s]) => (
-          <button key={k} onClick={() => setMode(k)} className="ca-tap" style={{ textAlign: "left", cursor: "pointer", borderRadius: 13, padding: 14, border: `1.5px solid ${mode === k ? C.jam : C.line}`, background: mode === k ? "#7A2B330d" : C.cream }}>
-            <Ic size={18} color={mode === k ? C.jam : C.soft} />
-            <div style={{ fontWeight: 600, fontSize: 14, marginTop: 7 }}>{t}</div>
-            <div style={{ fontSize: 11.5, color: C.soft }}>{s}</div>
+      <StepHead onBack={() => setStep("cart")} title="Finaliser" sub="Jour de retrait & règlement" />
+      <Section>Jour de retrait au marché</Section>
+      <div style={{ fontSize: 12.5, color: C.soft, margin: "0 0 11px", lineHeight: 1.45 }}>Le marché a lieu le <b style={{ color: C.ink }}>samedi et le dimanche</b>. Choisissez quand venir chercher votre commande au stand.</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 10 }}>
+        {days.map((d) => { const lbl = fmt(d); const sel = pickupDay === lbl; return (
+          <button key={lbl} onClick={() => setPickupDay(lbl)} className="ca-tap" style={{ textAlign: "left", cursor: "pointer", borderRadius: 12, padding: "11px 13px", border: `1.5px solid ${sel ? C.jam : C.line}`, background: sel ? "#7A2B330d" : C.cream }}>
+            <Calendar size={16} color={sel ? C.jam : C.soft} />
+            <div style={{ fontWeight: 600, fontSize: 13, marginTop: 5, lineHeight: 1.25 }}>{lbl}</div>
           </button>
-        ))}
+        ); })}
       </div>
+      <label style={{ display: "block", marginBottom: 18 }}>
+        <span style={{ fontSize: 12, color: C.soft }}>Autre jour souhaité</span>
+        <input type="date" onChange={(e) => { if (e.target.value) { const d = new Date(e.target.value + "T12:00:00"); setPickupDay(fmt(d)); } }} style={{ ...inp(), marginTop: 5 }} />
+      </label>
       <Section>Paiement</Section>
       {paymentEnabled ? (
         <div style={{ marginBottom: 16 }}>
@@ -520,7 +541,7 @@ function Checkout({ mode, setMode, sub, discount, total, paymentEnabled, placeOr
       ) : (
         <div style={{ borderRadius: 13, padding: 15, border: `1.5px dashed ${C.line}`, background: C.cream, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 13.5, color: C.soft }}><Power size={15} /> Paiement en ligne — en veille</div>
-          <div style={{ fontSize: 12.5, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>Vous réglez <b style={{ color: C.ink }}>à l'enlèvement</b> (espèces / lien envoyé). Le paiement carte, PayPal ou Lydia s'active en un clic côté Pro.</div>
+          <div style={{ fontSize: 12.5, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>Vous réglez <b style={{ color: C.ink }}>à l'enlèvement</b> (espèces, Wero, carte…). Le paiement en ligne s'active en un clic côté Pro.</div>
         </div>
       )}
       <Totals {...{ sub, discount, total }} />
@@ -533,7 +554,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
   const [copied, setCopied] = useState(false);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n${mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison dans la semaine"}${!paymentEnabled ? " — règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
+  const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
@@ -547,11 +568,11 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
           <div key={l.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "4px 0" }}><span>{l.qty}× {l.name}</span><span style={{ fontFamily: SCRIPT, color: C.jam }}>{eur(l.price * l.qty)}</span></div>
         ))}
         <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700 }}><span>Total</span><span style={{ fontFamily: SCRIPT, color: C.jam }}>{eur(o.total)}</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.soft, marginTop: 10 }}>{mode === "retrait" ? <MapPin size={14} /> : <Truck size={14} />}{mode === "retrait" ? "Retrait au stand le jour du marché" : "Livraison prévue dans la semaine"}{!paymentEnabled && " · règlement à l'enlèvement"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.soft, marginTop: 10 }}><Calendar size={14} /> Retrait au stand{o.pickup ? ` · ${o.pickup}` : ""}{!paymentEnabled && " · règlement à l'enlèvement"}</div>
       </div>
       <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", borderRadius: 13, padding: "12px 14px", textAlign: "left", marginBottom: 16, display: "flex", gap: 9, alignItems: "flex-start" }}>
         <Check size={16} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} />
-        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Envoyez votre commande ci-dessous — <b>on vous recontacte rapidement pour la confirmer</b> (disponibilités et créneau de retrait/livraison). Aucun paiement en ligne : règlement à l'enlèvement.</div>
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Envoyez votre commande ci-dessous — <b>on vous recontacte rapidement pour la confirmer</b> (disponibilités et jour de retrait au marché). Aucun paiement en ligne : règlement à l'enlèvement.</div>
       </div>
       <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, textAlign: "left", marginBottom: 10 }}>Envoyer ma commande</div>
       <a href={wa} target="_blank" rel="noreferrer" className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><MessageCircle size={17} /> Envoyer par WhatsApp</a>
@@ -563,9 +584,9 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -574,7 +595,8 @@ function ProView({ orders, setOrders, products, setProducts, clients, promos, se
         ))}
       </div>
       <div className="ca-scroll pro-content">
-        {tab === "caisse" && <ProCaisse {...{ products }} />}
+        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
+        {tab === "ventes" && <ProVentes {...{ sales }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients, orders }} />}
@@ -586,43 +608,58 @@ function ProView({ orders, setOrders, products, setProducts, clients, promos, se
     </div>
   );
 }
-const STATUSES = ["À préparer", "Prête", "Retirée", "Livrée"];
+const STATUSES = ["À préparer", "Prête", "Remise"];
 function ProOrders({ orders, setOrders }) {
   const setStatus = (id, s) => setOrders((l) => l.map((o) => o.id === id ? { ...o, status: s } : o));
+  const groups = {};
+  orders.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
+  const keys = Object.keys(groups);
   return (
     <div className="ca-anim">
-      <ProHead title="Commandes" sub={`${orders.length} commandes · ${eur(orders.reduce((s, o) => s + o.total, 0))} de chiffre`} />
-      {orders.map((o) => (
-        <div key={o.id} style={card()}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
-              <div style={{ fontSize: 12, color: C.soft, marginTop: 2, display: "flex", alignItems: "center", gap: 8 }}>{o.mode === "retrait" ? <MapPin size={13} /> : <Truck size={13} />}{o.mode} · {o.items} art. · {o.date}{o.paid ? <span style={{ color: C.ok, fontWeight: 600 }}>· payé</span> : <span style={{ color: C.caramel, fontWeight: 600 }}>· à régler</span>}</div>
+      <ProHead title="Commandes" sub={`${orders.length} commande${orders.length > 1 ? "s" : ""} · ${eur(orders.reduce((s, o) => s + o.total, 0))}`} />
+      {keys.map((day) => {
+        const list = groups[day];
+        const dayTotal = list.reduce((s, o) => s + o.total, 0);
+        return (
+          <div key={day} style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 8px" }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam, textTransform: "capitalize" }}>{day}</div>
+              <div style={{ fontSize: 12, color: C.soft }}>{list.length} cmd · {eur(dayTotal)}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam }}>{eur(o.total)}</span>
-              <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value)} style={sel(o.status)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
-            </div>
+            {list.map((o) => (
+              <div key={o.id} style={card()}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
+                    <div style={{ fontSize: 12, color: C.soft, marginTop: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Calendar size={13} /> Retrait : <b style={{ color: C.ink, fontWeight: 600 }}>{o.pickup || "à convenir"}</b> · {o.items} art.{o.paid ? <span style={{ color: C.ok, fontWeight: 600 }}> · payé</span> : <span style={{ color: C.caramel, fontWeight: 600 }}> · à régler</span>}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    <span style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam }}>{eur(o.total)}</span>
+                    <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value)} style={sel(o.status)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 function ProProducts({ products, setProducts }) {
   const ILLUS = ["orange", "lemon", "plum", "mure", "apple", "quince", "berry", "apricot", "caramel", "cake", "loaf", "pissa", "miel", "marron"];
-  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", stock: "", illu: "orange", col: "#C25E1E" };
+  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", stock: "", illu: "orange", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
   const [nw, setNw] = useState(blank);
   const [openId, setOpenId] = useState(null);
   const [openCat, setOpenCat] = useState({});
 
-  const updField = (id, key, val) => setProducts((l) => l.map((p) => p.id === id ? { ...p, [key]: (key === "price" || key === "stock") ? (val === "" ? 0 : +val) : val } : p));
+  const updField = (id, key, val) => setProducts((l) => l.map((p) => p.id === id ? { ...p, [key]: (key === "price" || key === "stock" || key === "cost") ? (val === "" ? 0 : +val) : val } : p));
   const toggle = (id) => setProducts((l) => l.map((p) => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
   const remove = (id) => setProducts((l) => l.filter((p) => p.id !== id));
   const create = () => {
     if (!nw.name || nw.price === "") return;
-    setProducts((l) => [{ id: "x" + Date.now(), name: nw.name, cat: nw.cat, unit: nw.unit, price: +nw.price, stock: +nw.stock || 0, illu: nw.illu, col: nw.col }, ...l]);
+    setProducts((l) => [{ id: "x" + Date.now(), name: nw.name, cat: nw.cat, unit: nw.unit, price: +nw.price, cost: +nw.cost || 0, stock: +nw.stock || 0, illu: nw.illu, col: nw.col }, ...l]);
     setOpenCat((o) => ({ ...o, [nw.cat]: true }));
     setNw(blank); setCreating(false);
   };
@@ -644,7 +681,8 @@ function ProProducts({ products, setProducts }) {
             <div style={{ gridColumn: "1 / -1" }}><MiniLabel>Nom</MiniLabel><input value={nw.name} onChange={(e) => setNw({ ...nw, name: e.target.value })} placeholder="Confiture de figue" style={inp()} /></div>
             <div><MiniLabel>Catégorie</MiniLabel><select value={nw.cat} onChange={(e) => setNw({ ...nw, cat: e.target.value })} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><MiniLabel>Format / poids</MiniLabel><input value={nw.unit} onChange={(e) => setNw({ ...nw, unit: e.target.value })} placeholder="pot 250g" style={inp()} /></div>
-            <div><MiniLabel>Prix unitaire €</MiniLabel><input type="number" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} placeholder="7" style={inp()} /></div>
+            <div><MiniLabel>Prix de vente €</MiniLabel><input type="number" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} placeholder="7" style={inp()} /></div>
+            <div><MiniLabel>Prix d'achat €</MiniLabel><input type="number" value={nw.cost} onChange={(e) => setNw({ ...nw, cost: e.target.value })} placeholder="2.50" style={inp()} /></div>
             <div><MiniLabel>Stock</MiniLabel><input type="number" value={nw.stock} onChange={(e) => setNw({ ...nw, stock: e.target.value })} placeholder="0" style={inp()} /></div>
           </div>
           <div style={{ margin: "12px 0 0" }}><MiniLabel>Illustration & couleur</MiniLabel>
@@ -686,6 +724,16 @@ function ProProducts({ products, setProducts }) {
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
                         <button onClick={() => remove(p.id)} className="ca-tap" title="Supprimer" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 9, padding: "9px 10px", cursor: "pointer", display: "grid", placeItems: "center" }}><Trash2 size={15} /></button>
                       </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 9, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, color: C.soft }}>Prix d'achat</span>
+                        <input type="number" value={p.cost ?? ""} onChange={(e) => updField(p.id, "cost", e.target.value)} placeholder="—" style={{ ...inp(), width: 76, padding: "7px 9px" }} />
+                        <span style={{ fontSize: 11, color: C.soft }}>€</span>
+                      </div>
+                      {p.cost > 0
+                        ? <span style={{ fontSize: 12, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Coef <b style={{ color: C.jam }}>×{(p.price / p.cost).toFixed(2)}</b> · marge <b style={{ color: C.ok }}>{eur(p.price - p.cost)}</b></span>
+                        : <span style={{ fontSize: 11.5, color: C.soft }}>Renseignez le prix d'achat → coef &amp; marge</span>}
                     </div>
                     {openId === p.id && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
@@ -729,34 +777,30 @@ function ProClients({ clients, orders }) {
     <div className="ca-anim">
       <ProHead title="Clients · CRM" sub={`${clients.length} contacts — tableur, filtre et navigation`} />
       <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Filtrer : nom, email, téléphone…" style={{ ...inp(), marginBottom: 12 }} />
-      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
-            <thead style={{ background: C.cream }}>
-              <tr><th style={th}>Client</th><th style={th}>Téléphone</th><th style={th}>Email</th><th style={{ ...th, textAlign: "center" }}>Cmd</th><th style={{ ...th, textAlign: "right" }}>Total</th></tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td style={{ ...td, color: C.soft }} colSpan={5}>Aucun client pour ce filtre.</td></tr>
-              ) : rows.map((c) => (
-                <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B330D" : "transparent" }}>
-                  <td style={{ ...td, fontWeight: 600 }}>{c.prenom} {c.nom}</td>
-                  <td style={td}>{c.tel || "—"}</td>
-                  <td style={td}>{c.email}</td>
-                  <td style={{ ...td, textAlign: "center" }}>{c.orders || 0}</td>
-                  <td style={{ ...td, textAlign: "right", fontWeight: 700, color: C.jam }}>{eur(c.spent || 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderTop: `1px solid ${C.line}`, background: C.cream }}>
-          <span style={{ fontSize: 12, color: C.soft }}>{filtered.length} client{filtered.length > 1 ? "s" : ""}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => setPage(Math.max(0, pg - 1))} disabled={pg === 0} className="ca-tap" style={arrowBtn(pg === 0)}><ChevronLeft size={16} /></button>
-            <span style={{ fontSize: 12, color: C.ink, minWidth: 54, textAlign: "center" }}>{pg + 1} / {pages}</span>
-            <button onClick={() => setPage(Math.min(pages - 1, pg + 1))} disabled={pg >= pages - 1} className="ca-tap" style={arrowBtn(pg >= pages - 1)}><ChevronRight size={16} /></button>
-          </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {rows.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "10px 2px" }}>Aucun client pour ce filtre.</div>
+          : rows.map((c) => (
+            <button key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", borderRadius: 13, border: `1.5px solid ${sel === c.email ? C.jam : C.line}`, background: sel === c.email ? "#7A2B330d" : C.paper }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15, flexShrink: 0 }}>{(c.prenom[0] || "")}{(c.nom[0] || "")}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{c.prenom} {c.nom}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.ink, marginTop: 3 }}><Phone size={12} color={C.soft} /> {c.tel || "—"}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.soft, marginTop: 1, overflow: "hidden" }}><Mail size={11} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</span></div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontFamily: SCRIPT, fontSize: 17, color: C.jam }}>{eur(c.spent || 0)}</div>
+                <div style={{ fontSize: 11, color: C.soft }}>{c.orders || 0} cmd</div>
+              </div>
+              <ChevronRight size={16} color={C.soft} style={{ flexShrink: 0 }} />
+            </button>
+          ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 4px 0" }}>
+        <span style={{ fontSize: 12, color: C.soft }}>{filtered.length} client{filtered.length > 1 ? "s" : ""}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={() => setPage(Math.max(0, pg - 1))} disabled={pg === 0} className="ca-tap" style={arrowBtn(pg === 0)}><ChevronLeft size={16} /></button>
+          <span style={{ fontSize: 12, color: C.ink, minWidth: 54, textAlign: "center" }}>{pg + 1} / {pages}</span>
+          <button onClick={() => setPage(Math.min(pages - 1, pg + 1))} disabled={pg >= pages - 1} className="ca-tap" style={arrowBtn(pg >= pages - 1)}><ChevronRight size={16} /></button>
         </div>
       </div>
       {selClient && (
@@ -777,7 +821,7 @@ function ProClients({ clients, orders }) {
             <div style={{ fontSize: 13, color: C.soft }}>Aucune commande enregistrée.</div>
           ) : ordersOf(selClient.email).map((o) => (
             <div key={o.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ color: C.ink }}>{o.id} <span style={{ color: C.soft }}>· {o.date} · {o.mode}</span></span>
+              <span style={{ color: C.ink }}>{o.id} <span style={{ color: C.soft }}>· {o.date}{o.pickup ? " · retrait " + o.pickup : ""}</span></span>
               <span style={{ fontWeight: 700, color: C.jam }}>{eur(o.total)}</span>
             </div>
           ))}
@@ -958,13 +1002,13 @@ function StepHead({ onBack, title, sub }) {
 }
 function ProHead({ title, sub }) { return <div style={{ marginBottom: 18 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{title}</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{sub}</div></div>; }
 function Section({ children }) { return <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 }}>{children}</div>; }
-function Lbl({ children }) { return <label style={{ fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 600, color: C.soft }}>{children}</label>; }
+function Lbl({ children, htmlFor }) { return <label htmlFor={htmlFor} style={{ display: "block", marginBottom: 4, fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 600, color: C.soft }}>{children}</label>; }
 function Field({ label, value, onChange, type = "text", ph, autoComplete, name }) {
   const email = type === "email";
   const tel = type === "tel";
   return (
     <div style={{ marginBottom: 12 }}>
-      <Lbl>{label}</Lbl>
+      <Lbl htmlFor={name}>{label}</Lbl>
       <input
         type={type}
         id={name}
@@ -1034,6 +1078,7 @@ export function BoutiquePublique() {
   }, []);
   const [cart, setCart] = useState({});
   const [mode, setMode] = useState("retrait");
+  const [pickupDay, setPickupDay] = useState("");
   const [promoInput, setPromoInput] = useState("");
   const [applied, setApplied] = useState(null);
   const [lastOrder, setLastOrder] = useState(null);
@@ -1049,18 +1094,18 @@ export function BoutiquePublique() {
   const placeOrder = () => {
     if (!custOk) { setStep("coords"); return; }
     const id = "C-" + (1043 + orders.length);
-    const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, items: count, total, mode, date: "Auj.", status: "À préparer", paid: false };
+    const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false };
     setOrders((l) => [o, ...l]);
     setLastOrder({ ...o, lines: cartLines });
     setStep("done");
   };
-  const resetClient = () => { setStep("welcome"); setIntent("order"); setCart({}); setApplied(null); setPromoInput(""); setCust({ prenom: "", nom: "", tel: "", email: "" }); setMode("retrait"); };
+  const resetClient = () => { setStep("welcome"); setIntent("order"); setCart({}); setApplied(null); setPromoInput(""); setCust({ prenom: "", nom: "", tel: "", email: "" }); setMode("retrait"); setPickupDay(""); };
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
       <Announce />
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile, returning }} />
+      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile, returning }} />
     </div>
   );
 }
@@ -1068,6 +1113,7 @@ export function BoutiquePublique() {
 export function EspacePro() {
   const [products, setProducts] = useState(SEED_PRODUCTS);
   const [orders, setOrders] = useState(SEED_ORDERS);
+  const [sales, setSales] = useState(SEED_SALES);
   const [clients, setClients] = useState(SEED_CLIENTS);
   const [promos, setPromos] = useState(SEED_PROMOS);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
@@ -1078,7 +1124,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => setProAuth(false) }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => setProAuth(false) }} />
         : <ProLogin pin={profile.pin} onOk={() => setProAuth(true)} />}
     </div>
   );
@@ -1191,35 +1237,43 @@ function InstallBanner() {
   const mounted = useMounted();
   const [deferred, setDeferred] = useState(null);
   const [show, setShow] = useState(false);
+  const [plat, setPlat] = useState(null);
   useEffect(() => {
-    let t;
+    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
+    let t, t2, gotPrompt = false;
     try {
       const ua = navigator.userAgent || "";
       const isIos = /iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua);
+      const isAndroid = /android/i.test(ua);
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
       const dismissed = localStorage.getItem("ca_install_dismiss") === "1";
-      if (!standalone && !dismissed && isIos) t = setTimeout(() => setShow(true), 1400);
+      if (!standalone && !dismissed) {
+        if (isIos) { setPlat("ios"); t = setTimeout(() => setShow(true), 1400); }
+        else if (isAndroid) { setPlat("android"); t2 = setTimeout(() => { if (!gotPrompt) setShow(true); }, 3500); }
+      }
     } catch (e) {}
     const handler = (e) => {
-      e.preventDefault();
-      setDeferred(e);
+      e.preventDefault(); gotPrompt = true; setDeferred(e);
       try { if (localStorage.getItem("ca_install_dismiss") !== "1") setShow(true); } catch (_) {}
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => { window.removeEventListener("beforeinstallprompt", handler); if (t) clearTimeout(t); };
+    return () => { window.removeEventListener("beforeinstallprompt", handler); if (t) clearTimeout(t); if (t2) clearTimeout(t2); };
   }, []);
   if (!mounted || !show) return null;
   const close = () => { try { localStorage.setItem("ca_install_dismiss", "1"); } catch (e) {} setShow(false); };
   const install = async () => { try { deferred.prompt(); await deferred.userChoice; } catch (e) {} setDeferred(null); setShow(false); };
+  const instr = deferred
+    ? <>Accès direct depuis votre écran d'accueil.</>
+    : plat === "ios"
+      ? <>Touchez <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.</>
+      : <>Menu <b>⋮</b> du navigateur puis <b>« Installer l'application »</b>.</>;
   return (
     <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 70, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
       <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.paper, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 16, padding: "13px 13px 13px 15px", display: "flex", gap: 12, alignItems: "center", boxShadow: "0 18px 40px -16px #16140f88" }}>
         <div style={{ width: 42, height: 42, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Smartphone size={20} color="#fff" /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5 }}>Installer l'appli Comme Avant</div>
-          {deferred
-            ? <div style={{ fontSize: 13, color: C.soft, marginTop: 1 }}>Accès direct depuis votre écran d'accueil.</div>
-            : <div style={{ fontSize: 13, color: C.soft, marginTop: 1, lineHeight: 1.4 }}>Touchez <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.</div>}
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 1, lineHeight: 1.4 }}>{instr}</div>
         </div>
         {deferred
           ? <button onClick={install} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", flexShrink: 0 }}>Installer</button>
@@ -1230,10 +1284,81 @@ function InstallBanner() {
   );
 }
 
+/* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
+function ProVentes({ sales }) {
+  const [per, setPer] = useState("jour");
+  const now = new Date();
+  const inPeriod = (ts) => { const d = new Date(ts); if (per === "jour") return d.toDateString() === now.toDateString(); if (per === "semaine") return (now - d) <= 7 * 86400000 && d <= now; if (per === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); return d.getFullYear() === now.getFullYear(); };
+  const list = sales.filter((s) => inPeriod(s.ts));
+  const ca = list.reduce((a, s) => a + s.total, 0);
+  const marge = list.reduce((a, s) => a + s.items.reduce((m, i) => m + (i.price - (i.cost || 0)) * i.qty, 0), 0);
+  const nb = list.length;
+  const panier = nb ? ca / nb : 0;
+  const costKnown = list.length > 0 && list.every((s) => s.items.every((i) => i.cost > 0));
+
+  let buckets = [];
+  if (per === "jour") { const h = {}; list.forEach((s) => { const k = new Date(s.ts).getHours(); h[k] = (h[k] || 0) + s.total; }); for (let i = 7; i <= 20; i++) buckets.push({ label: i + "h", value: h[i] || 0 }); }
+  else if (per === "semaine") { for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(now.getDate() - i); const key = d.toDateString(); const v = list.filter((s) => new Date(s.ts).toDateString() === key).reduce((a, s) => a + s.total, 0); buckets.push({ label: d.toLocaleDateString("fr-FR", { weekday: "narrow" }), value: v }); } }
+  else if (per === "mois") { const bd = {}; list.forEach((s) => { const d = new Date(s.ts).getDate(); bd[d] = (bd[d] || 0) + s.total; }); const ds = Object.keys(bd).map(Number).sort((a, b) => a - b); buckets = ds.length ? ds.map((d) => ({ label: String(d), value: bd[d] })) : [{ label: "—", value: 0 }]; }
+  else { const M = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]; const bm = Array(12).fill(0); list.forEach((s) => { bm[new Date(s.ts).getMonth()] += s.total; }); buckets = bm.map((v, i) => ({ label: M[i], value: v })); }
+  const max = Math.max(1, ...buckets.map((b) => b.value));
+
+  const top = {}; list.forEach((s) => s.items.forEach((i) => { top[i.name] = top[i.name] || { qty: 0, ca: 0 }; top[i.name].qty += i.qty; top[i.name].ca += i.qty * i.price; }));
+  const topRows = Object.entries(top).sort((a, b) => b[1].ca - a[1].ca).slice(0, 6);
+
+  const PERIODS = [["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["année", "Année"]];
+  const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
+  const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 12 };
+  const kpi = (label, value, Ic, color) => (
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.soft, marginBottom: 4 }}><Ic size={13} /> {label}</div>
+      <div style={{ fontFamily: SCRIPT, fontSize: 22, color: color || C.jam, lineHeight: 1.1 }}>{value}</div>
+    </div>
+  );
+
+  return (
+    <div className="ca-anim" style={{ paddingBottom: 16 }}>
+      <ProHead title="Ventes" sub="Chiffre, marge et tendance — ventes au comptoir" />
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }}>
+        {PERIODS.map(([k, lbl]) => { const s = per === k; return (
+          <button key={k} onClick={() => setPer(k)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${s ? C.board : C.line}`, background: s ? C.board : C.paper, color: s ? C.chalk : C.ink, borderRadius: 20, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{lbl}</button>
+        ); })}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        {kpi("Chiffre d'affaires", eur(ca), TrendingUp)}
+        {kpi("Marge", eur(marge), Percent, C.ok)}
+        {kpi("Ventes", String(nb), CreditCard)}
+        {kpi("Panier moyen", eur(panier), Wallet)}
+      </div>
+      {!costKnown && <div style={{ fontSize: 11.5, color: C.soft, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 10, padding: "9px 12px", marginBottom: 14, lineHeight: 1.4 }}>La marge se calcule avec les prix d'achat saisis dans l'onglet Produits — complétez-les pour une marge exacte.</div>}
+      <div style={card}>
+        <div style={h2}>Évolution · {PERIODS.find((p) => p[0] === per)[1].toLowerCase()}</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120, paddingTop: 6 }}>
+          {buckets.map((b, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: 0 }}>
+              <div style={{ fontSize: 8.5, color: C.soft, height: 10 }}>{b.value > 0 ? Math.round(b.value) : ""}</div>
+              <div style={{ width: "100%", maxWidth: 26, height: Math.round((b.value / max) * 80) || 2, background: b.value ? C.jam : C.line, borderRadius: 4, transition: "height .3s" }} />
+              <span style={{ fontSize: 9, color: C.soft, whiteSpace: "nowrap" }}>{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ ...card, marginBottom: 0 }}>
+        <div style={h2}>Top produits</div>
+        {topRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : topRows.map(([name, v]) => (
+          <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ color: C.ink, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name} <span style={{ color: C.soft }}>×{v.qty}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam, flexShrink: 0, marginLeft: 8 }}>{eur(v.ca)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Caisse — vente sur place (maquette fonctionnelle) ---------------- */
-function ProCaisse({ products }) {
+function ProCaisse({ products, sales, setSales }) {
   const [ticket, setTicket] = useState({});   // pid -> { name, unit, price, qty }
-  const [orders, setOrders] = useState([]);   // commandes fermées : { id, items, total, count, ts }
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
@@ -1253,16 +1378,16 @@ function ProCaisse({ products }) {
   const tTotal = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
   const closeOrder = () => {
     if (tCount === 0) return;
-    const items = lines.map(([pid, l]) => ({ pid, ...l }));
-    setOrders((o) => [{ id: Date.now() + "-" + Math.random().toString(36).slice(2, 6), items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
+    const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
+    setSales((o) => [{ id: Date.now() + "-" + Math.random().toString(36).slice(2, 6), items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
   };
-  const cancelOrder = (id) => setOrders((o) => o.filter((x) => x.id !== id));
+  const cancelOrder = (id) => setSales((o) => o.filter((x) => x.id !== id));
 
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const todayK = dayKey(Date.now());
-  const todayOrders = orders.filter((o) => dayKey(o.ts) === todayK);
+  const todayOrders = sales.filter((o) => dayKey(o.ts) === todayK);
   const todayTotal = todayOrders.reduce((a, o) => a + o.total, 0);
   const todayItems = todayOrders.reduce((a, o) => a + o.count, 0);
 
@@ -1276,7 +1401,7 @@ function ProCaisse({ products }) {
   const hoursActive = byHour.map((v, h) => [h, v]).filter(([h]) => h >= 7 && h <= 20);
 
   const byDay = {};
-  orders.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += o.total; });
+  sales.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += o.total; });
   const dayRows = Object.entries(byDay);
 
   const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
