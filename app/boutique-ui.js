@@ -660,18 +660,25 @@ function ProOrders({ orders, setOrders }) {
 }
 function ProProducts({ products, setProducts }) {
   const ILLUS = ["orange", "lemon", "plum", "mure", "apple", "quince", "berry", "apricot", "caramel", "cake", "loaf", "pissa", "miel", "marron"];
-  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", stock: "", illu: "orange", col: "#C25E1E" };
+  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "orange", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
   const [nw, setNw] = useState(blank);
   const [openId, setOpenId] = useState(null);
   const [openCat, setOpenCat] = useState({});
 
   const updField = (id, key, val) => setProducts((l) => l.map((p) => p.id === id ? { ...p, [key]: (key === "price" || key === "stock" || key === "cost") ? (val === "" ? 0 : +val) : val } : p));
+  // prix d'achat × coef = prix de vente (liaison à double sens)
+  const onCost = (p, val) => { const cost = val === "" ? 0 : +val; const coef = p.coef || (p.cost ? +(p.price / p.cost).toFixed(2) : 0); setProducts((l) => l.map((x) => x.id === p.id ? { ...x, cost, coef, price: coef ? +(cost * coef).toFixed(2) : x.price } : x)); };
+  const onCoef = (p, val) => { const coef = val === "" ? 0 : +val; setProducts((l) => l.map((x) => x.id === p.id ? { ...x, coef, price: x.cost ? +(x.cost * coef).toFixed(2) : x.price } : x)); };
+  const onPrice = (p, val) => { const price = val === "" ? 0 : +val; setProducts((l) => l.map((x) => x.id === p.id ? { ...x, price, coef: x.cost ? +(price / x.cost).toFixed(2) : x.coef } : x)); };
   const toggle = (id) => setProducts((l) => l.map((p) => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
   const remove = (id) => setProducts((l) => l.filter((p) => p.id !== id));
+  const canCreate = nw.name && (nw.price !== "" || (nw.cost !== "" && nw.coef !== ""));
   const create = () => {
-    if (!nw.name || nw.price === "") return;
-    setProducts((l) => [{ id: "x" + Date.now(), name: nw.name, cat: nw.cat, unit: nw.unit, price: +nw.price, cost: +nw.cost || 0, stock: +nw.stock || 0, illu: nw.illu, col: nw.col }, ...l]);
+    const cost = +nw.cost || 0; const coef = +nw.coef || 0;
+    const price = nw.price !== "" ? +nw.price : (cost && coef ? +(cost * coef).toFixed(2) : 0);
+    if (!nw.name || !price) return;
+    setProducts((l) => [{ id: "x" + Date.now(), name: nw.name, cat: nw.cat, unit: nw.unit, price, cost, coef, stock: +nw.stock || 0, illu: nw.illu, col: nw.col }, ...l]);
     setOpenCat((o) => ({ ...o, [nw.cat]: true }));
     setNw(blank); setCreating(false);
   };
@@ -693,8 +700,9 @@ function ProProducts({ products, setProducts }) {
             <div style={{ gridColumn: "1 / -1" }}><MiniLabel>Nom</MiniLabel><input value={nw.name} onChange={(e) => setNw({ ...nw, name: e.target.value })} placeholder="Confiture de figue" style={inp()} /></div>
             <div><MiniLabel>Catégorie</MiniLabel><select value={nw.cat} onChange={(e) => setNw({ ...nw, cat: e.target.value })} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><MiniLabel>Format / poids</MiniLabel><input value={nw.unit} onChange={(e) => setNw({ ...nw, unit: e.target.value })} placeholder="pot 250g" style={inp()} /></div>
+            <div><MiniLabel>Prix d'achat €</MiniLabel><input type="number" value={nw.cost} onChange={(e) => { const cost = e.target.value; setNw((n) => ({ ...n, cost, price: (n.coef !== "" && cost !== "") ? (+cost * +n.coef).toFixed(2) : n.price })); }} placeholder="2.50" style={inp()} /></div>
+            <div><MiniLabel>Coef ×</MiniLabel><input type="number" step="0.1" value={nw.coef} onChange={(e) => { const coef = e.target.value; setNw((n) => ({ ...n, coef, price: (coef !== "" && n.cost !== "") ? (+n.cost * +coef).toFixed(2) : n.price })); }} placeholder="2.8" style={inp()} /></div>
             <div><MiniLabel>Prix de vente €</MiniLabel><input type="number" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} placeholder="7" style={inp()} /></div>
-            <div><MiniLabel>Prix d'achat €</MiniLabel><input type="number" value={nw.cost} onChange={(e) => setNw({ ...nw, cost: e.target.value })} placeholder="2.50" style={inp()} /></div>
             <div><MiniLabel>Stock</MiniLabel><input type="number" value={nw.stock} onChange={(e) => setNw({ ...nw, stock: e.target.value })} placeholder="0" style={inp()} /></div>
           </div>
           <div style={{ margin: "12px 0 0" }}><MiniLabel>Illustration & couleur</MiniLabel>
@@ -704,7 +712,7 @@ function ProProducts({ products, setProducts }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-            <button onClick={create} disabled={!nw.name || nw.price === ""} className="ca-tap" style={{ flex: 1, background: (!nw.name || nw.price === "") ? C.line : C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 600, cursor: (!nw.name || nw.price === "") ? "default" : "pointer", fontSize: 13.5 }}>Créer le produit</button>
+            <button onClick={create} disabled={!canCreate} className="ca-tap" style={{ flex: 1, background: !canCreate ? C.line : C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 600, cursor: !canCreate ? "default" : "pointer", fontSize: 13.5 }}>Créer le produit</button>
             <button onClick={() => { setNw(blank); setCreating(false); }} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.soft, borderRadius: 11, padding: "12px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13.5 }}>Annuler</button>
           </div>
         </div>
@@ -730,22 +738,26 @@ function ProProducts({ products, setProducts }) {
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={p.illu} col={p.col} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
-                      <div><MiniLabel>Prix €</MiniLabel><input type="number" value={p.price} onChange={(e) => updField(p.id, "price", e.target.value)} style={inp()} /></div>
+                      <div><MiniLabel>Prix vente €</MiniLabel><input type="number" value={p.price} onChange={(e) => onPrice(p, e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Stock</MiniLabel><input type="number" value={p.stock} onChange={(e) => updField(p.id, "stock", e.target.value)} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
                       <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
                         <button onClick={() => remove(p.id)} className="ca-tap" title="Supprimer" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 9, padding: "9px 10px", cursor: "pointer", display: "grid", placeItems: "center" }}><Trash2 size={15} /></button>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 9, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 11, color: C.soft }}>Prix d'achat</span>
-                        <input type="number" value={p.cost ?? ""} onChange={(e) => updField(p.id, "cost", e.target.value)} placeholder="—" style={{ ...inp(), width: 76, padding: "7px 9px" }} />
+                        <span style={{ fontSize: 11, color: C.soft }}>Achat</span>
+                        <input type="number" value={p.cost ?? ""} onChange={(e) => onCost(p, e.target.value)} placeholder="—" style={{ ...inp(), width: 66, padding: "7px 9px" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
                       </div>
-                      {p.cost > 0
-                        ? <span style={{ fontSize: 12, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Coef <b style={{ color: C.jam }}>×{(p.price / p.cost).toFixed(2)}</b> · marge <b style={{ color: C.ok }}>{eur(p.price - p.cost)}</b></span>
-                        : <span style={{ fontSize: 11.5, color: C.soft }}>Renseignez le prix d'achat → coef &amp; marge</span>}
+                      <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, color: C.soft }}>Coef</span>
+                        <input type="number" step="0.1" value={p.coef ?? ""} onChange={(e) => onCoef(p, e.target.value)} placeholder="—" style={{ ...inp(), width: 62, padding: "7px 9px" }} />
+                      </div>
+                      <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>=</span>
+                      <span style={{ fontSize: 12.5, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Vente <b style={{ color: C.jam }}>{eur(p.price || 0)}</b>{p.cost > 0 && <> · marge <b style={{ color: (p.price - p.cost) >= 0 ? C.ok : "#B23B3B" }}>{eur(+(p.price - p.cost).toFixed(2))}</b></>}</span>
                     </div>
                     {openId === p.id && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
