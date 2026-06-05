@@ -40,6 +40,18 @@ const C = {
 const SCRIPT = "'Pacifico', cursive";
 const SANS = "'Raleway', system-ui, sans-serif";
 const eur = (n) => (Number.isInteger(n) ? n + " €" : n.toFixed(2).replace(".", ",") + " €");
+const csvCell = (v) => { const s = String(v ?? ""); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const downloadCSV = (filename, header, rows) => {
+  try {
+    const lines = [header, ...rows].map((r) => r.map(csvCell).join(";"));
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1500);
+  } catch (e) {}
+};
+const copyText = (t) => { try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (e) {} };
 
 const BRAND = { name: "Comme Avant", tag: "Confitures & gourmandises", tel: "06 13 54 52 24", wa: "33613545224", email: "confituresetgourmandise@gmail.com" };
 const VCARD = `BEGIN:VCARD
@@ -122,9 +134,9 @@ const SEED_SALES = [
   _mkSale("v7", 70, 9, [{ name: "Pain d'épices", qty: 5, price: 14, cost: 5.5 }]),
 ];
 const SEED_CLIENTS = [
-  { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 13 54 52 24", orders: 4, spent: 84 },
-  { email: "karim.b@email.fr", prenom: "Karim", nom: "Belaïd", tel: "06 98 76 54 32", orders: 2, spent: 67 },
-  { email: "lea.r@email.fr", prenom: "Léa", nom: "Roux", tel: "07 11 22 33 44", orders: 0, spent: 0 },
+  { email: "sophie.m@email.fr", prenom: "Sophie", nom: "Mercier", tel: "06 13 54 52 24", orders: 4, spent: 84, optin: true },
+  { email: "karim.b@email.fr", prenom: "Karim", nom: "Belaïd", tel: "06 98 76 54 32", orders: 2, spent: 67, optin: false },
+  { email: "lea.r@email.fr", prenom: "Léa", nom: "Roux", tel: "07 11 22 33 44", orders: 1, spent: 28, optin: true },
 ];
 
 /* ---------- Illustrations façon étiquette ---------- */
@@ -771,11 +783,13 @@ function ProClients({ clients, orders }) {
   const selClient = selIdx >= 0 ? filtered[selIdx] : null;
   const move = (d) => { const n = selIdx + d; if (n >= 0 && n < filtered.length) setSel(filtered[n].email); };
   const arrowBtn = (d) => ({ width: 32, height: 32, borderRadius: 9, border: `1px solid ${C.line}`, background: "#fff", color: d ? "#C9BFA8" : C.ink, cursor: d ? "default" : "pointer", display: "grid", placeItems: "center" });
-  const th = { fontSize: 10.5, letterSpacing: ".06em", textTransform: "uppercase", color: C.soft, fontWeight: 700, textAlign: "left", padding: "9px 10px", whiteSpace: "nowrap" };
-  const td = { fontSize: 13, color: C.ink, padding: "9px 10px", borderTop: `1px solid ${C.line}`, whiteSpace: "nowrap" };
+  const exportCsv = () => downloadCSV(`clients-${new Date().toISOString().slice(0, 10)}.csv`, ["Prénom", "Nom", "Téléphone", "Email", "Commandes", "Total dépensé", "Consentement contact"], filtered.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.orders || 0, (c.spent || 0) + " €", c.optin ? "oui" : "non"]));
   return (
     <div className="ca-anim">
-      <ProHead title="Clients · CRM" sub={`${clients.length} contacts — tableur, filtre et navigation`} />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Clients · CRM</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{clients.length} contacts · fiches, filtre &amp; export</div></div>
+        <button onClick={exportCsv} disabled={!filtered.length} className="ca-tap" style={{ background: filtered.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: filtered.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0 }}><Send size={14} /> Export CSV</button>
+      </div>
       <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Filtrer : nom, email, téléphone…" style={{ ...inp(), marginBottom: 12 }} />
       <div style={{ display: "grid", gap: 8 }}>
         {rows.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "10px 2px" }}>Aucun client pour ce filtre.</div>
@@ -831,25 +845,73 @@ function ProClients({ clients, orders }) {
   );
 }
 function ProMail({ clients }) {
-  const [aud, setAud] = useState("tous"); const [obj, setObj] = useState(""); const [msg, setMsg] = useState(""); const [sent, setSent] = useState(0);
-  const targets = aud === "tous" ? clients.length : aud === "acheteurs" ? clients.filter((c) => c.orders > 0).length : clients.filter((c) => c.orders === 0).length;
+  const [aud, setAud] = useState("optin");
+  const [chan, setChan] = useState("email");
+  const [obj, setObj] = useState("");
+  const [msg, setMsg] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const filt = (c) => aud === "tous" ? true : aud === "optin" ? c.optin : aud === "acheteurs" ? (c.orders > 0) : (c.orders === 0);
+  const recipients = clients.filter(filt);
+  const withEmail = recipients.filter((c) => c.email);
+  const withTel = recipients.filter((c) => c.tel);
+
+  const templates = [
+    ["Nouveauté", "Nouveauté au stand", "Bonjour {prenom},\nGrande nouvelle cette semaine au marché : … Au plaisir de vous y retrouver !\nComme Avant"],
+    ["Offre", "Offre de la semaine", "Bonjour {prenom},\nCette semaine seulement : … Pensez à réserver. À très vite au marché !\nComme Avant"],
+    ["Rappel marché", "On vous attend au marché", "Bonjour {prenom},\nNous sommes au marché ce week-end (samedi & dimanche). Vos confitures et gourmandises vous attendent !\nComme Avant"],
+  ];
+
+  const bccLink = `mailto:?bcc=${encodeURIComponent(withEmail.map((c) => c.email).join(","))}&subject=${encodeURIComponent(obj)}&body=${encodeURIComponent(msg)}`;
+  const waLink = (c) => `https://wa.me/${(c.tel || "").replace(/\D/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(msg.replace(/\{prenom\}/g, c.prenom || ""))}`;
+  const copyMsg = () => { copyText(msg); setCopied(true); setTimeout(() => setCopied(false), 1600); };
+  const exportList = () => downloadCSV(`diffusion-${aud}.csv`, ["Prénom", "Nom", "Téléphone", "Email", "Consentement"], recipients.map((c) => [c.prenom, c.nom, c.tel || "", c.email || "", c.optin ? "oui" : "non"]));
+
+  const AUDS = [["optin", "Consentement"], ["tous", "Tous"], ["acheteurs", "Ont commandé"], ["prospects", "Prospects"]];
+  const canEmail = withEmail.length && obj;
   return (
     <div className="ca-anim">
-      <ProHead title="Publimail" sub="Annoncez nouveautés et offres à vos clients" />
+      <ProHead title="Publimail" sub="Offres & nouveautés — envoi groupé email / WhatsApp" />
       <div style={card()}>
         <MiniLabel>Destinataires</MiniLabel>
-        <div style={{ display: "flex", gap: 8, margin: "6px 0 16px" }}>
-          {[["tous", "Tous"], ["acheteurs", "Ont commandé"], ["prospects", "Prospects"]].map(([k, l]) => (<button key={k} onClick={() => setAud(k)} className="ca-tap" style={{ flex: 1, border: `1.5px solid ${aud === k ? C.jam : C.line}`, background: aud === k ? "#7A2B330d" : C.cream, borderRadius: 10, padding: "9px", fontWeight: 600, fontSize: 12.5, cursor: "pointer", color: C.ink }}>{l}</button>))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "6px 0 6px" }}>
+          {AUDS.map(([k, l]) => (<button key={k} onClick={() => setAud(k)} className="ca-tap" style={{ border: `1.5px solid ${aud === k ? C.jam : C.line}`, background: aud === k ? "#7A2B330d" : C.cream, borderRadius: 10, padding: "8px 12px", fontWeight: 600, fontSize: 12.5, cursor: "pointer", color: C.ink }}>{l}</button>))}
         </div>
-        <MiniLabel>Objet</MiniLabel>
+        <div style={{ fontSize: 12, color: C.soft, marginBottom: 14 }}>{recipients.length} contact{recipients.length > 1 ? "s" : ""} · {withEmail.length} email · {withTel.length} tél{aud !== "optin" && <span style={{ color: C.caramel }}> · pensez au consentement (RGPD)</span>}</div>
+
+        <MiniLabel>Modèles</MiniLabel>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "6px 0 14px" }}>
+          {templates.map(([t, subj, body]) => <button key={t} onClick={() => { setObj(subj); setMsg(body); }} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: C.cream, borderRadius: 20, padding: "6px 12px", fontSize: 12, cursor: "pointer", color: C.ink }}>{t}</button>)}
+        </div>
+
+        <MiniLabel>Objet (email)</MiniLabel>
         <input value={obj} onChange={(e) => setObj(e.target.value)} placeholder="Les confitures de mûre sont arrivées" style={{ ...inp(), margin: "6px 0 12px" }} />
         <MiniLabel>Message</MiniLabel>
-        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={4} placeholder="Bonjour, cette semaine au marché…" style={{ ...inp(), margin: "6px 0 14px", resize: "vertical", lineHeight: 1.5 }} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12.5, color: C.soft }}>→ {targets} contact{targets > 1 ? "s" : ""}</span>
-          <button onClick={() => setSent(targets)} disabled={!obj} className="ca-tap" style={{ background: obj ? C.jam : C.line, color: "#fff", border: "none", borderRadius: 11, padding: "11px 18px", fontWeight: 600, cursor: obj ? "pointer" : "default", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><Send size={15} /> Envoyer</button>
+        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={5} placeholder="Bonjour {prenom}, cette semaine au marché…" style={{ ...inp(), margin: "6px 0 6px", resize: "vertical", lineHeight: 1.5 }} />
+        <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 14 }}>Astuce : <b>{"{prenom}"}</b> est remplacé par le prénom du client dans les messages WhatsApp.</div>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {[["email", "Email groupé", Mail], ["whatsapp", "WhatsApp", MessageCircle]].map(([k, l, Ic]) => (<button key={k} onClick={() => setChan(k)} className="ca-tap" style={{ flex: 1, border: `1.5px solid ${chan === k ? C.jam : C.line}`, background: chan === k ? "#7A2B330d" : C.cream, borderRadius: 10, padding: "10px", fontWeight: 600, fontSize: 12.5, cursor: "pointer", color: C.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Ic size={15} /> {l}</button>))}
         </div>
-        {sent > 0 && <div style={{ marginTop: 12, fontSize: 13, color: C.ok, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}><Check size={15} /> Envoyé à {sent} contacts (démo)</div>}
+
+        {chan === "email" ? (
+          <a href={bccLink} className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", background: canEmail ? C.jam : C.line, color: "#fff", borderRadius: 12, padding: "13px", fontWeight: 600, fontSize: 13.5, textDecoration: "none", pointerEvents: canEmail ? "auto" : "none", boxSizing: "border-box" }}><Mail size={16} /> Ouvrir l'email vers {withEmail.length} contact{withEmail.length > 1 ? "s" : ""}</a>
+        ) : (
+          <div>
+            <button onClick={copyMsg} className="ca-tap" style={{ width: "100%", marginBottom: 10, border: `1.5px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 12, padding: "11px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{copied ? <><Check size={15} /> Message copié</> : <><Copy size={15} /> Copier le message</>}</button>
+            <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>WhatsApp n'autorise pas l'envoi en masse par lien : ouvrez chaque conversation (message pré-rempli) ou créez une <b>Liste de diffusion</b> dans WhatsApp et collez le message.</div>
+            <div style={{ display: "grid", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+              {withTel.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun contact avec téléphone.</div> : withTel.map((c) => (
+                <a key={c.email || c.tel} href={msg ? waLink(c) : undefined} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${C.line}`, background: C.cream, borderRadius: 10, padding: "9px 12px", textDecoration: "none", color: C.ink, pointerEvents: msg ? "auto" : "none", opacity: msg ? 1 : .5 }}>
+                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft }}>{c.tel}</span></span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, color: "#1FA855", fontWeight: 600, fontSize: 12, flexShrink: 0 }}><MessageCircle size={14} /> Envoyer</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button onClick={exportList} disabled={!recipients.length} className="ca-tap" style={{ width: "100%", marginTop: 14, border: `1px solid ${C.line}`, background: "transparent", color: C.soft, borderRadius: 11, padding: "10px", fontWeight: 600, fontSize: 12.5, cursor: recipients.length ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Send size={14} /> Exporter la liste (CSV)</button>
       </div>
     </div>
   );
@@ -1287,6 +1349,7 @@ function InstallBanner() {
 /* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
 function ProVentes({ sales }) {
   const [per, setPer] = useState("jour");
+  const [openDay, setOpenDay] = useState(null);
   const now = new Date();
   const inPeriod = (ts) => { const d = new Date(ts); if (per === "jour") return d.toDateString() === now.toDateString(); if (per === "semaine") return (now - d) <= 7 * 86400000 && d <= now; if (per === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); return d.getFullYear() === now.getFullYear(); };
   const list = sales.filter((s) => inPeriod(s.ts));
@@ -1306,6 +1369,20 @@ function ProVentes({ sales }) {
   const top = {}; list.forEach((s) => s.items.forEach((i) => { top[i.name] = top[i.name] || { qty: 0, ca: 0 }; top[i.name].qty += i.qty; top[i.name].ca += i.qty * i.price; }));
   const topRows = Object.entries(top).sort((a, b) => b[1].ca - a[1].ca).slice(0, 6);
 
+  const fmtDay = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+  const fmtTime = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const dayMap = {};
+  [...list].sort((a, b) => b.ts - a.ts).forEach((s) => { const k = new Date(s.ts).toDateString(); (dayMap[k] = dayMap[k] || { ts: s.ts, key: k, label: fmtDay(s.ts), sales: [] }).sales.push(s); });
+  const dayList = Object.values(dayMap).sort((a, b) => b.ts - a.ts);
+  const saleMargin = (s) => s.items.reduce((m, i) => m + (i.price - (i.cost || 0)) * i.qty, 0);
+  const exportCsv = () => {
+    const rows = [];
+    [...list].sort((a, b) => a.ts - b.ts).forEach((s) => s.items.forEach((i) => {
+      rows.push([fmtDay(s.ts), fmtTime(s.ts), s.id, i.name, i.qty, eur(i.price), eur(i.cost || 0), eur((i.price - (i.cost || 0)) * i.qty)]);
+    }));
+    downloadCSV(`ventes-${per}-${now.toISOString().slice(0, 10)}.csv`, ["Jour", "Heure", "Ticket", "Produit", "Quantité", "Prix vente", "Prix achat", "Marge"], rows);
+  };
+
   const PERIODS = [["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["année", "Année"]];
   const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
   const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 12 };
@@ -1318,7 +1395,10 @@ function ProVentes({ sales }) {
 
   return (
     <div className="ca-anim" style={{ paddingBottom: 16 }}>
-      <ProHead title="Ventes" sub="Chiffre, marge et tendance — ventes au comptoir" />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Ventes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Contrôle de gestion · CA, marge, détail & export</div></div>
+        <button onClick={exportCsv} disabled={!list.length} className="ca-tap" style={{ background: list.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: list.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0 }}><Send size={14} /> Export CSV</button>
+      </div>
       <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }}>
         {PERIODS.map(([k, lbl]) => { const s = per === k; return (
           <button key={k} onClick={() => setPer(k)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${s ? C.board : C.line}`, background: s ? C.board : C.paper, color: s ? C.chalk : C.ink, borderRadius: 20, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{lbl}</button>
@@ -1343,7 +1423,7 @@ function ProVentes({ sales }) {
           ))}
         </div>
       </div>
-      <div style={{ ...card, marginBottom: 0 }}>
+      <div style={card}>
         <div style={h2}>Top produits</div>
         {topRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : topRows.map(([name, v]) => (
           <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
@@ -1351,6 +1431,40 @@ function ProVentes({ sales }) {
             <span style={{ fontWeight: 700, color: C.jam, flexShrink: 0, marginLeft: 8 }}>{eur(v.ca)}</span>
           </div>
         ))}
+      </div>
+      <div style={{ ...card, marginBottom: 0 }}>
+        <div style={h2}>Détail par jour</div>
+        {dayList.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : dayList.map((d) => {
+          const dayCa = d.sales.reduce((a, s) => a + s.total, 0);
+          const dayMarge = d.sales.reduce((a, s) => a + saleMargin(s), 0);
+          const open = openDay === d.key;
+          return (
+            <div key={d.key} style={{ borderBottom: `1px solid ${C.line}` }}>
+              <button onClick={() => setOpenDay(open ? null : d.key)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "transparent", border: "none", cursor: "pointer", padding: "11px 0", textAlign: "left" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <ChevronDown size={16} color={C.soft} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
+                  <span style={{ minWidth: 0 }}><span style={{ fontWeight: 600, fontSize: 13.5, textTransform: "capitalize" }}>{d.label}</span><span style={{ fontSize: 11.5, color: C.soft, marginLeft: 8 }}>{d.sales.length} vente{d.sales.length > 1 ? "s" : ""}</span></span>
+                </span>
+                <span style={{ textAlign: "right", flexShrink: 0 }}><span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam }}>{eur(dayCa)}</span><span style={{ display: "block", fontSize: 10.5, color: C.ok }}>marge {eur(dayMarge)}</span></span>
+              </button>
+              {open && (
+                <div style={{ padding: "0 0 12px 24px" }}>
+                  {d.sales.map((s) => (
+                    <div key={s.id} style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "10px 12px", marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, marginBottom: 5 }}><span>{fmtTime(s.ts)}</span><span>{s.count} art. · <b style={{ color: C.jam }}>{eur(s.total)}</b></span></div>
+                      {s.items.map((i, k) => (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.ink, padding: "2px 0" }}>
+                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.qty}× {i.name}</span>
+                          <span style={{ flexShrink: 0, marginLeft: 8 }}>{eur(i.price * i.qty)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
