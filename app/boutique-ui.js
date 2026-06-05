@@ -6,6 +6,7 @@ import {
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
   Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone
 } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 const FONT = `
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&display=swap');
@@ -1169,7 +1170,14 @@ export function BoutiquePublique() {
   const count = cartLines.reduce((s, l) => s + l.qty, 0);
   const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
   const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
-  const upsertClient = (c) => { try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {} setReturning(true); setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]); };
+  const upsertClient = (c) => {
+    try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {}
+    setReturning(true);
+    setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]);
+    if (supabase && c.email) {
+      supabase.from("customers").upsert({ prenom: c.prenom, nom: c.nom, tel: c.tel, email: c.email, opt_in: !!c.optin }, { onConflict: "email", ignoreDuplicates: true }).then(() => {}, () => {});
+    }
+  };
   const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email || ""));
   const placeOrder = () => {
     if (!custOk) { setStep("coords"); return; }
@@ -1177,6 +1185,12 @@ export function BoutiquePublique() {
     const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
     setOrders((l) => [o, ...l]);
     setLastOrder({ ...o, lines: cartLines });
+    if (supabase) {
+      const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
+      supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false }).then(({ error }) => {
+        if (!error) supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price }))).then(() => {}, () => {});
+      }, () => {});
+    }
     setStep("done");
   };
   const resetClient = () => { setStep("welcome"); setIntent("order"); setCart({}); setApplied(null); setPromoInput(""); setCust({ prenom: "", nom: "", tel: "", email: "" }); setMode("retrait"); setPickupDay(""); };
