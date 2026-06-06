@@ -1262,6 +1262,7 @@ export function EspacePro() {
       {proAuth
         ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
+      <InstallBanner admin />
     </div>
   );
 }
@@ -1369,12 +1370,13 @@ function Announce() {
 }
 
 // Bannière d'installation automatique (Android : invite native ; iOS : instructions)
-function InstallBanner() {
+function InstallBanner({ admin = false }) {
   const mounted = useMounted();
   const [deferred, setDeferred] = useState(null);
   const [show, setShow] = useState(false);
   const [plat, setPlat] = useState(null);
   const [steps, setSteps] = useState(false);
+  const KEY = admin ? "ca_install_dismiss_admin" : "ca_install_dismiss";
   useEffect(() => {
     if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
     let t, t2, gotPrompt = false;
@@ -1383,63 +1385,76 @@ function InstallBanner() {
       const isIos = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       const isAndroid = /android/i.test(ua);
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-      const dismissed = localStorage.getItem("ca_install_dismiss") === "1";
+      const dismissed = localStorage.getItem(KEY) === "1";
       if (!standalone && !dismissed) {
-        if (isIos) { setPlat("ios"); t = setTimeout(() => setShow(true), 1400); }
-        else if (isAndroid) { setPlat("android"); t2 = setTimeout(() => { if (!gotPrompt) setShow(true); }, 3500); }
+        if (isIos) { setPlat("ios"); t = setTimeout(() => setShow(true), admin ? 600 : 1400); }
+        else if (isAndroid) { setPlat("android"); t2 = setTimeout(() => { if (admin || !gotPrompt) setShow(true); }, admin ? 600 : 3500); }
       }
     } catch (e) {}
-    const handler = (e) => {
-      e.preventDefault(); gotPrompt = true; setDeferred(e);
-      try { if (localStorage.getItem("ca_install_dismiss") !== "1") setShow(true); } catch (_) {}
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => { window.removeEventListener("beforeinstallprompt", handler); if (t) clearTimeout(t); if (t2) clearTimeout(t2); };
+    if (!admin) {
+      const handler = (e) => { e.preventDefault(); gotPrompt = true; setDeferred(e); try { if (localStorage.getItem(KEY) !== "1") setShow(true); } catch (_) {} };
+      window.addEventListener("beforeinstallprompt", handler);
+      return () => { window.removeEventListener("beforeinstallprompt", handler); if (t) clearTimeout(t); if (t2) clearTimeout(t2); };
+    }
+    return () => { if (t) clearTimeout(t); if (t2) clearTimeout(t2); };
   }, []);
   if (!mounted || !show) return null;
-  const close = () => { try { localStorage.setItem("ca_install_dismiss", "1"); } catch (e) {} setShow(false); setSteps(false); };
+  const close = () => { try { localStorage.setItem(KEY, "1"); } catch (e) {} setShow(false); setSteps(false); };
   const install = async () => { try { deferred.prompt(); await deferred.userChoice; } catch (e) {} setDeferred(null); setShow(false); };
   const ShareGlyph = ({ s = 20, c = C.jam }) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M8 7l4-4 4 4" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>
   );
-  const instr = deferred
-    ? <>Accès direct depuis votre écran d'accueil.</>
-    : plat === "ios"
-      ? <>Ajoutez la boutique à votre écran d'accueil en 3 étapes.</>
-      : <>Menu <b>⋮</b> du navigateur puis <b>« Installer l'application »</b>.</>;
+  const title = admin ? "Installer l'Espace Pro" : "Installer l'appli Comme Avant";
+  const sub = admin
+    ? <>Ajoutez le raccourci <b>Espace Pro</b> à votre écran d'accueil.</>
+    : deferred ? <>Accès direct depuis votre écran d'accueil.</>
+      : plat === "ios" ? <>Ajoutez la boutique à votre écran d'accueil en 3 étapes.</>
+        : <>Menu <b>⋮</b> du navigateur puis <b>« Installer l'application »</b>.</>;
+  const iosSteps = [
+    <>Touchez l'icône <b>Partager</b> en bas de Safari <span style={{ verticalAlign: "middle", display: "inline-flex" }}><ShareGlyph s={16} /></span> (en haut sur iPad).</>,
+    <>Faites défiler et choisissez <b>« Sur l'écran d'accueil »</b>.</>,
+    <>Touchez <b>Ajouter</b> — l'icône apparaît sur votre écran d'accueil.</>,
+  ];
+  const androidSteps = [
+    <>Touchez le menu <b>⋮</b> en haut à droite de Chrome.</>,
+    <>Choisissez <b>« Ajouter à l'écran d'accueil »</b>.</>,
+    <>Touchez <b>Ajouter</b> — le raccourci apparaît sur votre écran.</>,
+  ];
+  const stepsList = plat === "ios" ? iosSteps : androidSteps;
+  const showStepsBtn = admin || plat === "ios";
   return (
     <>
-      {steps && plat === "ios" && (
+      {steps && (
         <div onClick={() => setSteps(false)} style={{ position: "fixed", inset: 0, zIndex: 80, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, color: C.ink, borderRadius: 20, padding: "20px 18px", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Installer sur iPhone</div>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{admin ? "Raccourci Espace Pro" : "Installer"} · {plat === "ios" ? "iPhone" : "Android"}</div>
               <button onClick={() => setSteps(false)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
             </div>
-            {[
-              [<>Touchez l'icône <b>Partager</b> en bas de Safari <span style={{ verticalAlign: "middle", display: "inline-flex" }}><ShareGlyph s={16} /></span> (en haut sur iPad).</>],
-              [<>Faites défiler et choisissez <b>« Sur l'écran d'accueil »</b>.</>],
-              [<>Touchez <b>Ajouter</b> — l'icône apparaît sur votre écran d'accueil.</>],
-            ].map((row, i) => (
+            {stepsList.map((row, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
                 <div style={{ width: 26, height: 26, borderRadius: 13, background: C.jam, color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{i + 1}</div>
-                <div style={{ fontSize: 14, lineHeight: 1.45, paddingTop: 2 }}>{row[0]}</div>
+                <div style={{ fontSize: 14, lineHeight: 1.45, paddingTop: 2 }}>{row}</div>
               </div>
             ))}
-            <div style={{ fontSize: 12, color: C.soft, lineHeight: 1.45, background: C.cream, borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>Cette option n'existe que dans <b>Safari</b>. Si vous avez ouvert le lien depuis Instagram, un mail ou Chrome, ouvrez-le d'abord dans Safari (menu <b>···</b> → <b>Ouvrir dans Safari</b>).</div>
+            <div style={{ fontSize: 12, color: C.soft, lineHeight: 1.45, background: C.cream, borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
+              {plat === "ios"
+                ? <>Cette option n'existe que dans <b>Safari</b>. Si vous avez ouvert le lien depuis Instagram, un mail ou Chrome, ouvrez-le d'abord dans Safari (menu <b>···</b> → <b>Ouvrir dans Safari</b>).</>
+                : <>{admin ? "Le raccourci ouvrira directement votre Espace Pro." : "Si le menu ne propose pas l'option, ouvrez la page dans Chrome."}</>}
+            </div>
           </div>
         </div>
       )}
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 70, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
         <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.paper, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 16, padding: "13px 13px 13px 15px", display: "flex", gap: 12, alignItems: "center", boxShadow: "0 18px 40px -16px #16140f88" }}>
-          <div style={{ width: 42, height: 42, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Smartphone size={20} color="#fff" /></div>
+          <div style={{ width: 42, height: 42, borderRadius: 11, background: admin ? C.board : C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}>{admin ? <Lock size={18} color="#fff" /> : <Smartphone size={20} color="#fff" />}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14.5 }}>Installer l'appli Comme Avant</div>
-            <div style={{ fontSize: 13, color: C.soft, marginTop: 1, lineHeight: 1.4 }}>{instr}</div>
+            <div style={{ fontWeight: 700, fontSize: 14.5 }}>{title}</div>
+            <div style={{ fontSize: 13, color: C.soft, marginTop: 1, lineHeight: 1.4 }}>{sub}</div>
           </div>
-          {deferred
+          {(!admin && deferred)
             ? <button onClick={install} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", flexShrink: 0 }}>Installer</button>
-            : plat === "ios"
+            : showStepsBtn
               ? <button onClick={() => setSteps(true)} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}>Comment ?</button>
               : <Send size={18} color={C.jam} style={{ flexShrink: 0 }} />}
           <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={18} /></button>
