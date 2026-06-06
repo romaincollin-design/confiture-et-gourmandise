@@ -579,7 +579,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading }) {
   const [tab, setTab] = useState("caisse");
   const NAV = [["caisse", "Caisse", CreditCard], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
@@ -592,9 +592,9 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
         {tab === "ventes" && <ProVentes {...{ sales }} />}
-        {tab === "commandes" && <ProOrders {...{ orders, setOrders }} />}
+        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
-        {tab === "clients" && <ProClients {...{ clients, orders }} />}
+        {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout }} />}
@@ -604,7 +604,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
   );
 }
 const STATUSES = ["À préparer", "Prête", "Remise"];
-function ProOrders({ orders, setOrders }) {
+function ProOrders({ orders, setOrders, onRefresh, loading }) {
   const [openId, setOpenId] = useState(null);
   const setStatus = (id, s) => setOrders((l) => l.map((o) => o.id === id ? { ...o, status: s } : o));
   const groups = {};
@@ -613,7 +613,10 @@ function ProOrders({ orders, setOrders }) {
   const waNum = (t) => (t || "").replace(/\D/g, "").replace(/^0/, "33");
   return (
     <div className="ca-anim">
-      <ProHead title="Commandes" sub={`${orders.length} commande${orders.length > 1 ? "s" : ""} · ${eur(orders.reduce((s, o) => s + o.total, 0))}`} />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Commandes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{orders.length} commande{orders.length > 1 ? "s" : ""} · {eur(orders.reduce((s, o) => s + o.total, 0))}</div></div>
+        {onRefresh && <button onClick={onRefresh} disabled={loading} className="ca-tap" style={{ background: C.board, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: loading ? "default" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0, opacity: loading ? .6 : 1 }}>{loading ? "Actualisation…" : "↻ Actualiser"}</button>}
+      </div>
       {keys.length === 0 && <div style={{ fontSize: 13.5, color: C.soft, padding: "8px 2px" }}>Aucune commande pour le moment.</div>}
       {keys.map((day) => {
         const list = groups[day];
@@ -1045,18 +1048,32 @@ function ProProfile({ profile, setProfile, onLogout }) {
 
 function ProLogin({ pin, onOk }) {
   const [code, setCode] = useState("");
-  const [err, setErr] = useState(false);
-  const submit = () => { if (code === pin) onOk(); else { setErr(true); setCode(""); } };
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!code || busy) return;
+    setBusy(true); setErr("");
+    try {
+      if (supabase) {
+        const { data, error } = await supabase.rpc("admin_check", { pass: code });
+        if (error) throw error;
+        if (data === true) { onOk(code); return; }
+        setErr("Mot de passe incorrect"); setCode("");
+      } else {
+        if (code === pin) onOk(code); else { setErr("Mot de passe incorrect"); setCode(""); }
+      }
+    } catch (e) { setErr("Connexion impossible, réessayez"); }
+    finally { setBusy(false); }
+  };
   return (
     <div style={{ padding: "56px 24px", display: "grid", placeItems: "center", background: C.cream, minHeight: 620 }}>
       <div style={{ width: "100%", maxWidth: 350, background: C.paper, border: `1px solid ${C.line}`, borderRadius: 18, padding: 28, textAlign: "center" }}>
         <div style={{ width: 56, height: 56, borderRadius: 16, background: C.board, display: "grid", placeItems: "center", margin: "0 auto 14px" }}><Lock size={26} color={C.chalk} /></div>
         <h2 style={{ fontFamily: SCRIPT, fontSize: 26, margin: "0 0 4px", color: C.jam }}>Espace commerçant</h2>
         <p style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, margin: "0 0 18px" }}>Réservé à l'enseigne. Les clients qui scannent le QR code n'y ont pas accès.</p>
-        <input type="password" value={code} onChange={(e) => { setCode(e.target.value); setErr(false); }} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Code d'accès" style={{ ...inp(), textAlign: "center", letterSpacing: ".2em" }} />
-        {err && <div style={{ fontSize: 12.5, color: C.jam, fontWeight: 600, margin: "8px 0 0" }}>Code incorrect</div>}
-        <div style={{ marginTop: 12 }}><BigBtn onClick={submit}>Entrer <ChevronRight size={16} /></BigBtn></div>
-        <div style={{ fontSize: 11, color: C.soft, marginTop: 12 }}>Démo : code <b style={{ color: C.ink }}>1234</b></div>
+        <input type="password" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Mot de passe" style={{ ...inp(), textAlign: "center", letterSpacing: ".12em" }} />
+        {err && <div style={{ fontSize: 12.5, color: C.jam, fontWeight: 600, margin: "8px 0 0" }}>{err}</div>}
+        <div style={{ marginTop: 12 }}><BigBtn onClick={submit}>{busy ? "Connexion…" : <>Entrer <ChevronRight size={16} /></>}</BigBtn></div>
       </div>
     </div>
   );
@@ -1187,6 +1204,7 @@ export function BoutiquePublique() {
     setLastOrder({ ...o, lines: cartLines });
     if (supabase) {
       const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
+      supabase.from("customers").upsert({ prenom: cust.prenom, nom: cust.nom, tel: cust.tel, email: cust.email, opt_in: !!cust.optin }, { onConflict: "email", ignoreDuplicates: true }).then(() => {}, () => {});
       supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false }).then(({ error }) => {
         if (!error) supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price }))).then(() => {}, () => {});
       }, () => {});
@@ -1204,6 +1222,13 @@ export function BoutiquePublique() {
   );
 }
 
+const mapOrderRow = (o) => {
+  const d = new Date(o.created_at);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, status: o.status, paid: o.paid, lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+};
+
 export function EspacePro() {
   const [products, setProducts] = useState(SEED_PRODUCTS);
   const [orders, setOrders] = useState(SEED_ORDERS);
@@ -1213,13 +1238,30 @@ export function EspacePro() {
   const [paymentEnabled, setPaymentEnabled] = useState(false);
   const [profile, setProfile] = useState(SEED_PROFILE);
   const [proAuth, setProAuth] = useState(false);
+  const [pass, setPass] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const refresh = async (p) => {
+    const key = p || pass;
+    if (!supabase || !key) return;
+    setLoading(true);
+    try {
+      const [ro, rc] = await Promise.all([
+        supabase.rpc("admin_orders", { pass: key }),
+        supabase.rpc("admin_customers", { pass: key }),
+      ]);
+      if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
+      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in })));
+    } catch (e) {}
+    finally { setLoading(false); }
+  };
+  const onAuth = (p) => { setPass(p); setProAuth(true); refresh(p); };
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => setProAuth(false) }} />
-        : <ProLogin pin={profile.pin} onOk={() => setProAuth(true)} />}
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading }} />
+        : <ProLogin pin={profile.pin} onOk={onAuth} />}
     </div>
   );
 }
