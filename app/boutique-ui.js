@@ -579,7 +579,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass }) {
   const [tab, setTab] = useState("caisse");
   const NAV = [["caisse", "Caisse", CreditCard], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
@@ -597,7 +597,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
-        {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout }} />}
+        {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout, pass }} />}
         {tab === "reglages" && <ProSettings {...{ paymentEnabled, setPaymentEnabled }} />}
       </div>
     </div>
@@ -1006,15 +1006,42 @@ function ProSettings({ paymentEnabled, setPaymentEnabled }) {
   );
 }
 
-function ProProfile({ profile, setProfile, onLogout }) {
+function ProProfile({ profile, setProfile, onLogout, pass }) {
   const [draft, setDraft] = useState(profile);
   const [saved, setSaved] = useState(false);
   const set = (k) => (v) => { setDraft((p) => ({ ...p, [k]: v })); setSaved(false); };
   const dirty = JSON.stringify(draft) !== JSON.stringify(profile);
   const save = () => { setProfile(draft); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const [annTitle, setAnnTitle] = useState("");
+  const [annBody, setAnnBody] = useState("");
+  const [annSaved, setAnnSaved] = useState(false);
+  const [annBusy, setAnnBusy] = useState(false);
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from("profile").select("announce_title, announce_body").eq("id", 1).maybeSingle().then(({ data }) => { if (data) { setAnnTitle(data.announce_title || ""); setAnnBody(data.announce_body || ""); } }, () => {});
+  }, []);
+  const saveAnn = async (clear) => {
+    if (!supabase || !pass || annBusy) return;
+    setAnnBusy(true);
+    try {
+      const { error } = await supabase.rpc("admin_set_announce", { pass, title: clear ? "" : annTitle, body: clear ? "" : annBody });
+      if (!error) { if (clear) { setAnnTitle(""); setAnnBody(""); } setAnnSaved(true); setTimeout(() => setAnnSaved(false), 2500); }
+    } catch (e) {}
+    finally { setAnnBusy(false); }
+  };
   return (
     <div className="ca-anim" style={{ paddingBottom: 84 }}>
       <ProHead title="Profil de l'enseigne" sub="Vos infos commerce — reprises sur la boutique, la carte contact et les commandes" />
+      <div style={card()}>
+        <Section>Bandeau d'annonce (boutique)</Section>
+        <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 10, lineHeight: 1.45 }}>Message affiché en haut de la boutique. Quand un client le touche, il arrive directement sur la page pour commander.</div>
+        <Field label="Titre" value={annTitle} onChange={setAnnTitle} />
+        <div style={{ marginBottom: 12 }}><Lbl>Message</Lbl><textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginTop: 5 }} /></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => saveAnn(false)} disabled={annBusy} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 700, cursor: annBusy ? "default" : "pointer", fontSize: 13.5 }}>{annBusy ? "…" : annSaved ? "Publié ✓" : "Publier l'annonce"}</button>
+          <button onClick={() => saveAnn(true)} disabled={annBusy} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "12px 14px", fontWeight: 600, cursor: annBusy ? "default" : "pointer", fontSize: 13 }}>Retirer</button>
+        </div>
+      </div>
       <div style={card()}>
         <Section>Identité</Section>
         <Field label="Nom de l'enseigne" value={draft.name} onChange={set("name")} />
@@ -1033,8 +1060,7 @@ function ProProfile({ profile, setProfile, onLogout }) {
       </div>
       <div style={card()}>
         <Section>Accès commerçant</Section>
-        <Field label="Code d'accès à cet espace" value={draft.pin} onChange={set("pin")} />
-        <button onClick={onLogout} className="ca-tap" style={{ marginTop: 6, border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "11px 16px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><Lock size={15} /> Se déconnecter</button>
+        <button onClick={onLogout} className="ca-tap" style={{ marginTop: 2, border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "11px 16px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><Lock size={15} /> Se déconnecter</button>
       </div>
       <div style={{ position: "sticky", bottom: 0, paddingTop: 10, background: `linear-gradient(transparent, ${C.cream} 30%)` }}>
         <button onClick={save} disabled={!dirty} className="ca-tap"
@@ -1161,6 +1187,13 @@ export function BoutiquePublique() {
   const [products] = useState(SEED_PRODUCTS);
   const [promos] = useState(SEED_PROMOS);
   const [profile] = useState(SEED_PROFILE);
+  const [announce, setAnnounce] = useState(null);
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from("profile").select("announce_title, announce_body").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setAnnounce({ title: data.announce_title || "", body: data.announce_body || "" });
+    }, () => {});
+  }, []);
   const paymentEnabled = false;
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -1215,7 +1248,7 @@ export function BoutiquePublique() {
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
-      <Announce />
+      <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />
       <Header profile={profile} />
       <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile, returning }} />
     </div>
@@ -1260,7 +1293,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
       <InstallBanner admin />
     </div>
@@ -1346,24 +1379,25 @@ function InstallTip() {
   return null;
 }
 
-function Announce() {
+function Announce({ title, body, onOpen }) {
   const mounted = useMounted();
   const [show, setShow] = useState(false);
-  useEffect(() => {
-    try { if (localStorage.getItem("ca_seen_" + ANNOUNCE.id) !== "1") setShow(true); }
-    catch (e) { setShow(true); }
-  }, []);
-  if (!mounted || !show) return null;
-  const close = () => { try { localStorage.setItem("ca_seen_" + ANNOUNCE.id, "1"); } catch (e) {} setShow(false); };
+  const t = (title != null && title !== "") ? title : ANNOUNCE.title;
+  const b = (body != null && body !== "") ? body : ANNOUNCE.body;
+  const key = "ca_seen_" + (t + "|" + b).length + "_" + (t || "").slice(0, 12);
+  useEffect(() => { try { if (localStorage.getItem(key) !== "1") setShow(true); else setShow(false); } catch (e) { setShow(true); } }, [key]);
+  if (!mounted || !show || (!t && !b)) return null;
+  const close = (e) => { if (e) e.stopPropagation(); try { localStorage.setItem(key, "1"); } catch (e2) {} setShow(false); };
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90, display: "flex", justifyContent: "center", padding: "max(10px, env(safe-area-inset-top)) 12px 0", pointerEvents: "none" }}>
-      <div className="ca-anim" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "14px 14px 14px 16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc" }}>
+      <div className="ca-anim" onClick={() => onOpen && onOpen()} role={onOpen ? "button" : undefined} style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "14px 14px 14px 16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc", cursor: onOpen ? "pointer" : "default" }}>
         <div style={{ width: 40, height: 40, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={20} color={C.chalk} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15.5 }}>{ANNOUNCE.title}</div>
-          <div style={{ fontSize: 14, opacity: .9, lineHeight: 1.45, marginTop: 2 }}>{ANNOUNCE.body}</div>
+          <div style={{ fontWeight: 700, fontSize: 15.5 }}>{t}</div>
+          <div style={{ fontSize: 14, opacity: .9, lineHeight: 1.45, marginTop: 2 }}>{b}</div>
+          {onOpen && <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 9, display: "inline-flex", alignItems: "center", gap: 5, background: C.jam, color: "#fff", borderRadius: 20, padding: "5px 12px" }}>Commander <ChevronRight size={14} /></div>}
         </div>
-        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.chalk, cursor: "pointer", opacity: .7, padding: 2, lineHeight: 0 }}><X size={18} /></button>
+        <button onClick={close} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.chalk, cursor: "pointer", opacity: .7, padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={18} /></button>
       </div>
     </div>
   );
