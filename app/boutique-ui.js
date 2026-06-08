@@ -366,7 +366,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
   const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email);
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
-  const valider = (next) => { upsertClient({ ...cust, optin }); setStep(next); };
+  const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Vos coordonnées"
@@ -499,7 +499,7 @@ function Cart({ cartLines, add, sub1, sub, discount, total, promoInput, setPromo
   );
 }
 
-function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnabled, placeOrder, setStep }) {
+function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnabled, placeOrder, placing, setStep }) {
   const [pm, setPm] = useState("cb");
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const fmt = (d) => cap(d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
@@ -540,7 +540,7 @@ function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnable
         </div>
       )}
       <Totals {...{ sub, discount, total }} />
-      <div style={{ marginTop: 16 }}><BigBtn onClick={placeOrder}>{paymentEnabled ? "Payer & commander" : "Valider la réservation"} · {eur(total)}</BigBtn></div>
+      <div style={{ marginTop: 16 }}><BigBtn onClick={placeOrder}>{placing ? "Enregistrement…" : `${paymentEnabled ? "Payer & commander" : "Valider la réservation"} · ${eur(total)}`}</BigBtn></div>
     </div>
   );
 }
@@ -1220,28 +1220,33 @@ export function BoutiquePublique() {
   const count = cartLines.reduce((s, l) => s + l.qty, 0);
   const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
   const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
-  const upsertClient = (c) => {
+  const [placing, setPlacing] = useState(false);
+  const upsertClient = async (c) => {
     try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {}
     setReturning(true);
     setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]);
     if (supabase && c.email) {
-      supabase.from("customers").upsert({ prenom: c.prenom, nom: c.nom, tel: c.tel, email: c.email, opt_in: !!c.optin }, { onConflict: "email", ignoreDuplicates: true }).then(() => {}, () => {});
+      try { await supabase.from("customers").upsert({ prenom: c.prenom, nom: c.nom, tel: c.tel, email: c.email, opt_in: !!c.optin }, { onConflict: "email", ignoreDuplicates: true }); } catch (e) {}
     }
   };
   const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email || ""));
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!custOk) { setStep("coords"); return; }
+    if (placing) return;
     const id = "C-" + (1043 + orders.length);
     const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
     setOrders((l) => [o, ...l]);
     setLastOrder({ ...o, lines: cartLines });
+    setPlacing(true);
     if (supabase) {
       const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
-      supabase.from("customers").upsert({ prenom: cust.prenom, nom: cust.nom, tel: cust.tel, email: cust.email, opt_in: !!cust.optin }, { onConflict: "email", ignoreDuplicates: true }).then(() => {}, () => {});
-      supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false }).then(({ error }) => {
-        if (!error) supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price }))).then(() => {}, () => {});
-      }, () => {});
+      try {
+        await supabase.from("customers").upsert({ prenom: cust.prenom, nom: cust.nom, tel: cust.tel, email: cust.email, opt_in: !!cust.optin }, { onConflict: "email", ignoreDuplicates: true });
+        const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false });
+        if (!error) await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
+      } catch (e) {}
     }
+    setPlacing(false);
     setStep("done");
   };
   const resetClient = () => { setStep("welcome"); setIntent("order"); setCart({}); setApplied(null); setPromoInput(""); setCust({ prenom: "", nom: "", tel: "", email: "" }); setMode("retrait"); setPickupDay(""); };
@@ -1250,7 +1255,7 @@ export function BoutiquePublique() {
       <style>{FONT}</style>
       <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile, returning }} />
+      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning }} />
     </div>
   );
 }
@@ -1278,12 +1283,14 @@ export function EspacePro() {
     if (!supabase || !key) return;
     setLoading(true);
     try {
-      const [ro, rc] = await Promise.all([
+      const [ro, rc, rs] = await Promise.all([
         supabase.rpc("admin_orders", { pass: key }),
         supabase.rpc("admin_customers", { pass: key }),
+        supabase.rpc("admin_sales", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in })));
+      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
     } catch (e) {}
     finally { setLoading(false); }
   };
@@ -1390,7 +1397,7 @@ function Announce({ title, body, onOpen }) {
   const close = (e) => { if (e) e.stopPropagation(); try { localStorage.setItem(key, "1"); } catch (e2) {} setShow(false); };
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90, display: "flex", justifyContent: "center", padding: "max(10px, env(safe-area-inset-top)) 12px 0", pointerEvents: "none" }}>
-      <div className="ca-anim" onClick={() => onOpen && onOpen()} role={onOpen ? "button" : undefined} style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "14px 14px 14px 16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc", cursor: onOpen ? "pointer" : "default" }}>
+      <div className="ca-anim" onClick={() => { if (onOpen) { onOpen(); setShow(false); } }} role={onOpen ? "button" : undefined} style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.board, color: C.chalk, borderRadius: 15, padding: "14px 14px 14px 16px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: "0 16px 34px -14px #16140fcc", cursor: onOpen ? "pointer" : "default" }}>
         <div style={{ width: 40, height: 40, borderRadius: 11, background: C.jam, display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={20} color={C.chalk} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15.5 }}>{t}</div>
@@ -1645,7 +1652,9 @@ function ProCaisse({ products, sales, setSales }) {
   const closeOrder = () => {
     if (tCount === 0) return;
     const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
-    setSales((o) => [{ id: Date.now() + "-" + Math.random().toString(36).slice(2, 6), items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
+    const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+    setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
+    if (supabase) { supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items }).then(() => {}, () => {}); }
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
   };
   const cancelOrder = (id) => setSales((o) => o.filter((x) => x.id !== id));
