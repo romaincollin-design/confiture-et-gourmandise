@@ -1137,8 +1137,8 @@ const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, b
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }
 function Pill({ children }) { return <span style={{ fontSize: 11.5, fontWeight: 600, color: C.soft, background: C.cream, padding: "6px 10px", borderRadius: 9, flexShrink: 0 }}>{children}</span>; }
 function Stars({ value, size = 16, onChange }) {
-  return <span style={{ display: "inline-flex", gap: 3 }}>{[1, 2, 3, 4, 5].map((n) => (
-    <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? "#E0A82E" : "#D8CDB5", fontSize: size, lineHeight: 1 }}>★</span>
+  return <span style={{ display: "inline-flex", gap: size > 24 ? 8 : 3 }}>{[1, 2, 3, 4, 5].map((n) => (
+    <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? C.jam : "#DDD3C1", fontSize: size, lineHeight: 1, transition: "color .15s" }}>♥</span>
   ))}</span>;
 }
 function ShareBtn({ cust, label = "Partager Comme Avant" }) {
@@ -1151,58 +1151,68 @@ function ShareBtn({ cust, label = "Partager Comme Avant" }) {
   };
   return <GhostBtn onClick={share}><Send size={15} /> {label}</GhostBtn>;
 }
-function Reviews({ setStep, reviews, addReview, cust }) {
+function Reviews({ setStep, setIntent, reviews, addReview, cust }) {
+  const registered = !!(cust && cust.prenom && cust.prenom.trim() && cust.email && /\S+@\S+\.\S+/.test(cust.email));
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [prenom, setPrenom] = useState(cust?.prenom || "");
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  const prenom = (cust?.prenom || "").trim();
   const submit = async () => {
     if (!rating || busy) return;
     setBusy(true);
-    await addReview({ prenom: prenom.trim() || "Client", rating, comment: comment.trim() });
-    setBusy(false); setDone(true);
+    await addReview({ prenom: prenom || "Client", rating, comment: comment.trim() });
+    setBusy(false); setDone(true); setRating(0); setComment("");
   };
   const avg = reviews && reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
+  const ReviewList = () => (reviews && reviews.length > 0) ? (
+    <div style={{ marginTop: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>Ils ont aimé</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.soft }}><Stars value={Math.round(avg)} size={13} /> {avg.toFixed(1)} · {reviews.length} avis</span>
+      </div>
+      {reviews.slice(0, 20).map((r) => (
+        <div key={r.id} style={{ borderTop: `1px solid ${C.line}`, padding: "10px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <b style={{ fontSize: 13.5 }}>{r.prenom || "Client"}</b>
+            <Stars value={r.rating} size={13} />
+          </div>
+          {r.comment && <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.45, marginTop: 3 }}>{r.comment}</div>}
+        </div>
+      ))}
+    </div>
+  ) : null;
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("welcome")} title="Votre avis" sub="Votre plaisir, en quelques mots" />
-      {done ? (
+      {!registered ? (
+        <div style={{ textAlign: "center", padding: "14px 0 4px" }}>
+          <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, marginBottom: 8 }}>Faisons connaissance</div>
+          <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Pour laisser un avis, créez d'abord votre fiche (prénom et contact). C'est rapide, et ça nous permet de vous reconnaître à chaque visite.</p>
+          <BigBtn onClick={() => { if (setIntent) setIntent("lead"); setStep("coords"); }}>M'inscrire <ChevronRight size={16} /></BigBtn>
+          <ReviewList />
+        </div>
+      ) : done ? (
         <div style={{ textAlign: "center", padding: "10px 0 4px" }}>
           <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 6 }}>Merci {prenom} !</div>
           <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 4px" }}>Votre avis nous touche. Découvrez nos <b>saveurs et compositions du moment</b> :</p>
           <div style={{ marginTop: 14 }}><BigBtn onClick={() => setStep("shop")}>Commander nos saveurs du moment <ChevronRight size={16} /></BigBtn></div>
+          <button onClick={() => setDone(false)} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "11px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Laisser un autre avis</button>
           <div style={{ marginTop: 8 }}><ShareBtn cust={cust} label="Faire découvrir à un proche" /></div>
+          <ReviewList />
         </div>
       ) : (
         <>
-          <div style={{ textAlign: "center", margin: "4px 0 16px" }}>
-            <div style={{ fontSize: 12, color: C.soft, marginBottom: 9 }}>Votre plaisir, de 1 à 5</div>
-            <Stars value={rating} size={36} onChange={setRating} />
+          <div style={{ textAlign: "center", margin: "6px 0 18px" }}>
+            <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, marginBottom: 12 }}>Votre niveau de plaisir</div>
+            <Stars value={rating} size={40} onChange={setRating} />
           </div>
-          <Lbl htmlFor="rv_prenom">Prénom</Lbl>
-          <input id="rv_prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Votre prénom" style={{ ...inp(), marginBottom: 12 }} />
+          <div style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "10px 14px", marginBottom: 14, fontSize: 13.5 }}>Avis publié au nom de <b style={{ color: C.jam }}>{prenom}</b></div>
           <Lbl htmlFor="rv_com">Commentaire</Lbl>
           <textarea id="rv_com" value={comment} onChange={(e) => setComment(e.target.value)} rows={4} placeholder="Un mot sur ce que vous avez aimé…" style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginBottom: 14 }} />
           <BigBtn onClick={submit} disabled={!rating || busy}>{busy ? "Envoi…" : "Publier mon avis"}</BigBtn>
+          <ReviewList />
         </>
-      )}
-      {reviews && reviews.length > 0 && (
-        <div style={{ marginTop: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>Ils ont aimé</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.soft }}><Stars value={Math.round(avg)} size={13} /> {avg.toFixed(1)} · {reviews.length} avis</span>
-          </div>
-          {reviews.slice(0, 20).map((r) => (
-            <div key={r.id} style={{ borderTop: `1px solid ${C.line}`, padding: "10px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <b style={{ fontSize: 13.5 }}>{r.prenom || "Client"}</b>
-                <Stars value={r.rating} size={13} />
-              </div>
-              {r.comment && <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.45, marginTop: 3 }}>{r.comment}</div>}
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );
