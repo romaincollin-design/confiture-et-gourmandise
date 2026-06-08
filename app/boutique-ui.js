@@ -1184,7 +1184,7 @@ function Reviews({ setStep, setIntent, reviews, addReview, cust }) {
   ) : null;
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
-      <StepHead onBack={() => setStep("welcome")} title="Votre avis" sub="Votre plaisir, en quelques mots" />
+      <StepHead onBack={() => setStep("welcome")} title="Votre avis" />
       {!registered ? (
         <div style={{ textAlign: "center", padding: "14px 0 4px" }}>
           <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, marginBottom: 8 }}>Faisons connaissance</div>
@@ -1250,7 +1250,7 @@ function StepHead({ onBack, title, sub }) {
     <div style={{ padding: "6px 0 14px" }}>
       <button onClick={onBack} className="ca-tap" style={{ ...backBtn(), marginBottom: 10 }}><ChevronLeft size={16} /> Retour</button>
       <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{title}</h2>
-      <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>{sub}</div>
+      {sub ? <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>{sub}</div> : null}
     </div>
   );
 }
