@@ -597,7 +597,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
-        {tab === "ventes" && <ProVentes {...{ sales, orders }} />}
+        {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
@@ -1594,9 +1594,37 @@ function InstallBanner({ admin = false }) {
 }
 
 /* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
-function ProVentes({ sales, orders }) {
+function ProVentes({ sales, setSales, orders, pass }) {
   const [per, setPer] = useState("jour");
   const [openDay, setOpenDay] = useState(null);
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const pad = (n) => String(n).padStart(2, "0");
+  const isCaisse = (s) => !String(s.id).startsWith("o-");
+  const openEdit = (s) => {
+    const d = new Date(s.ts);
+    setEdit({ id: s.id, items: s.items.map((i) => ({ ...i })), date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` });
+  };
+  const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
+  const setQty = (k, delta) => setEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + delta) } : i) }));
+  const rmLine = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
+  const saveEdit = async () => {
+    if (busy) return;
+    setBusy(true);
+    const items = edit.items.filter((i) => i.qty > 0);
+    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
+    const count = items.reduce((a, i) => a + i.qty, 0);
+    const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
+    if (items.length === 0) { await delSale(); return; }
+    if (setSales) setSales((list) => list.map((s) => s.id === edit.id ? { ...s, items, total, count, ts } : s));
+    if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: count, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
+    setBusy(false); setEdit(null);
+  };
+  const delSale = async () => {
+    if (setSales) setSales((list) => list.filter((s) => s.id !== edit.id));
+    if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} }
+    setBusy(false); setEdit(null);
+  };
   const now = new Date();
   const orderSales = (orders || []).map((o) => ({ id: "o-" + o.id, ts: o.ts || Date.now(), total: o.total, count: o.items, items: (o.lines || []).map((l) => ({ name: l.name, qty: l.qty, price: l.price, cost: 0 })) }));
   const allSales = [...(sales || []), ...orderSales];
@@ -1707,6 +1735,9 @@ function ProVentes({ sales, orders }) {
                           <span style={{ flexShrink: 0, marginLeft: 8 }}>{eur(i.price * i.qty)}</span>
                         </div>
                       ))}
+                      {isCaisse(s)
+                        ? <button onClick={() => openEdit(s)} className="ca-tap" style={{ marginTop: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, borderRadius: 9, padding: "7px 12px", fontWeight: 600, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Settings size={13} /> Modifier / corriger</button>
+                        : <div style={{ marginTop: 6, fontSize: 11, color: C.soft }}>Commande client — à gérer dans l'onglet Commandes</div>}
                     </div>
                   ))}
                 </div>
@@ -1715,11 +1746,43 @@ function ProVentes({ sales, orders }) {
           );
         })}
       </div>
+      {edit && (
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la vente</div>
+              <button onClick={() => !busy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}><Lbl>Date</Lbl><input type="date" value={edit.date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEdit({ ...edit, date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ width: 120 }}><Lbl>Heure</Lbl><input type="time" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            </div>
+            <Lbl>Articles</Lbl>
+            <div style={{ marginTop: 6 }}>
+              {edit.items.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "8px 0" }}>Plus aucun article — la vente sera supprimée à la validation.</div> : edit.items.map((i, k) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.soft }}>{eur(i.price)} l'unité · {eur(i.price * i.qty)}</div>
+                  </div>
+                  <button onClick={() => setQty(k, -1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: "center", fontWeight: 700 }}>{i.qty}</span>
+                  <button onClick={() => setQty(k, 1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
+                  <button onClick={() => rmLine(k)} aria-label="Retirer" className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
+              <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(editTotal)}</span>
+            </div>
+            <button onClick={saveEdit} disabled={busy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Valider les modifications"}</button>
+            <button onClick={delSale} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", color: C.jam, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Trash2 size={15} /> Supprimer cette vente</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-/* ---------------- Caisse — vente sur place (maquette fonctionnelle) ---------------- */
 function ProCaisse({ products, sales, setSales }) {
   const [ticket, setTicket] = useState({});   // pid -> { name, unit, price, qty }
   const [flash, setFlash] = useState(null);
