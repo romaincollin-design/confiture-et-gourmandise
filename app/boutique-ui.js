@@ -411,7 +411,7 @@ function LeadDone({ setStep, resetClient, cust }) {
   );
 }
 
-function Shop({ products, cart, add, sub1, count, total, setStep }) {
+function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
   const extra = [...new Set(products.filter((p) => p.active !== false && !CAT_ORDER.includes(p.cat)).map((p) => p.cat))];
   const cats = [...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c));
   const [open, setOpen] = useState({});
@@ -465,6 +465,9 @@ function Shop({ products, cart, add, sub1, count, total, setStep }) {
           </div>
         );
       })}
+      <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginTop: 4 }}>
+        <ReviewsCarousel reviews={reviews} setStep={setStep} />
+      </div>
       {count > 0 && (
         <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, display: "flex", justifyContent: "center", padding: "0 14px max(14px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
           <button onClick={() => setStep("cart")} className="ca-tap" style={{ pointerEvents: "auto", width: "100%", maxWidth: 432, background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", boxShadow: "0 12px 30px -10px #16140faa" }}>
@@ -551,8 +554,10 @@ function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnable
   );
 }
 
-function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
+function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, setStep }) {
   const [copied, setCopied] = useState(false);
+  const [ask, setAsk] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAsk(true), 1600); return () => clearTimeout(t); }, []);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
   const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
@@ -579,7 +584,19 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile }) {
       <a href={wa} target="_blank" rel="noreferrer" className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><MessageCircle size={17} /> Envoyer par WhatsApp</a>
       <a href={mailto} className="ca-tap" style={{ width: "100%", marginTop: 10, background: C.board, color: C.chalk, borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><Mail size={16} /> Envoyer par email</a>
       <button onClick={copy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.jam, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{copied ? <><Check size={15} /> Copié</> : <><Copy size={15} /> Copier le récapitulatif</>}</button>
+      <button onClick={() => setStep("avis")} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Stars value={5} size={15} /> Donner mon avis</button>
       <button onClick={resetClient} className="ca-tap" style={{ ...backBtn(), margin: "16px auto 0" }}>Nouvelle commande</button>
+      {ask && (
+        <div onClick={() => setAsk(false)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "22px 18px", textAlign: "center", boxShadow: "0 24px 60px -16px #000" }}>
+            <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 4 }}>Merci {cust?.prenom || ""} !</div>
+            <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique 🍓</p>
+            <div style={{ marginBottom: 16 }}><Stars value={0} size={36} onChange={() => { setAsk(false); setStep("avis"); }} /></div>
+            <BigBtn onClick={() => { setAsk(false); setStep("avis"); }}>Donner mon avis <ChevronRight size={16} /></BigBtn>
+            <button onClick={() => setAsk(false)} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: "none", color: C.soft, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Plus tard</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1187,6 +1204,31 @@ function Reviews({ setStep, reviews, addReview, cust }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+function ReviewsCarousel({ reviews, setStep, title = "Ils ont aimé" }) {
+  const list = reviews || [];
+  const avg = list.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", marginBottom: 10 }}>
+        <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>{title}</span>
+        {list.length > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.soft }}><Stars value={Math.round(avg)} size={13} /> {avg.toFixed(1)} · {list.length}</span>}
+      </div>
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", padding: "0 22px 8px", scrollSnapType: "x mandatory" }}>
+        {list.map((r) => (
+          <div key={r.id} style={{ flex: "0 0 76%", maxWidth: 280, scrollSnapAlign: "start", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <b style={{ fontSize: 13.5 }}>{r.prenom || "Client"}</b><Stars value={r.rating} size={13} />
+            </div>
+            {r.comment && <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.45 }}>{r.comment}</div>}
+          </div>
+        ))}
+        <button onClick={() => setStep("avis")} className="ca-tap" style={{ flex: "0 0 auto", scrollSnapAlign: "start", background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "14px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, minWidth: 130 }}>
+          <Stars value={5} size={16} /> {list.length ? "Donner mon avis" : "Soyez le premier à donner votre avis"}
+        </button>
+      </div>
     </div>
   );
 }
