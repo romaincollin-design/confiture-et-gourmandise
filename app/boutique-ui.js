@@ -226,6 +226,7 @@ function ClientView(props) {
         {step === "cart" && <Cart {...props} />}
         {step === "checkout" && <Checkout {...props} />}
         {step === "done" && <Done {...props} />}
+        {step === "avis" && <Reviews {...props} />}
       </div>
     </div>
   );
@@ -282,8 +283,9 @@ function Hero() {
   );
 }
 
-function Welcome({ setStep, setIntent, profile, returning, cust }) {
+function Welcome({ setStep, setIntent, profile, returning, cust, reviews }) {
   const steps = [["1", "Coordonnées"], ["2", "Saveurs"], ["3", "Commande"]];
+  const avg = reviews && reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
   return (
     <div className="ca-anim">
       <div style={{ background: "#ECE1CC", borderBottom: `1px solid ${C.line}`, padding: "22px 24px 12px", textAlign: "center" }}>
@@ -316,6 +318,10 @@ function Welcome({ setStep, setIntent, profile, returning, cust }) {
           <BigBtn onClick={() => { setIntent("order"); setStep("coords"); }}>Entrer dans la boutique <ChevronRight size={16} /></BigBtn>
         )}
         <WhatsAppBtn profile={profile} />
+        <ShareBtn cust={cust} />
+        <button onClick={() => setStep("avis")} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Stars value={avg ? Math.round(avg) : 5} size={15} /> {reviews && reviews.length ? `${avg.toFixed(1)} · ${reviews.length} avis — donner le mien` : "Donner votre avis"}
+        </button>
         <InstallBanner />
         <button onClick={() => setStep("contact")} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
       </div>
@@ -652,6 +658,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading }) {
                           <span style={{ flexShrink: 0, marginLeft: 8 }}>{eur(l.price * l.qty)}</span>
                         </div>
                       )) : <div style={{ fontSize: 12.5, color: C.soft }}>{o.items} article(s) — le détail produit par produit est enregistré pour les nouvelles commandes.</div>}
+                      {o.parrain && <div style={{ fontSize: 12, color: C.caramel, fontWeight: 600, marginTop: 8 }}>Parrainé par : {o.parrain}</div>}
                       <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {o.tel && <a href={`tel:${o.tel.replace(/\s/g, "")}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Phone size={14} /> {o.tel}</a>}
                         {o.tel && <a href={`https://wa.me/${waNum(o.tel)}`} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#1FA855", textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><MessageCircle size={14} /> WhatsApp</a>}
@@ -1112,6 +1119,77 @@ const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid $
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }
 function Pill({ children }) { return <span style={{ fontSize: 11.5, fontWeight: 600, color: C.soft, background: C.cream, padding: "6px 10px", borderRadius: 9, flexShrink: 0 }}>{children}</span>; }
+function Stars({ value, size = 16, onChange }) {
+  return <span style={{ display: "inline-flex", gap: 3 }}>{[1, 2, 3, 4, 5].map((n) => (
+    <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? "#E0A82E" : "#D8CDB5", fontSize: size, lineHeight: 1 }}>★</span>
+  ))}</span>;
+}
+function ShareBtn({ cust, label = "Partager Comme Avant" }) {
+  const ref = cust?.email ? "?ref=" + encodeURIComponent(cust.email) : "";
+  const url = "https://confiture-et-gourmandise.vercel.app/" + ref;
+  const msg = `J'ai découvert cette petite fabrique locale, Comme Avant 🍓\nIl faut que tu essayes, c'est trop bon !\nConfitures, gourmandises & produits locaux : ${url}`;
+  const share = async () => {
+    try { if (navigator.share) { await navigator.share({ title: "Comme Avant", text: msg, url }); return; } } catch (e) { return; }
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+  return <GhostBtn onClick={share}><Send size={15} /> {label}</GhostBtn>;
+}
+function Reviews({ setStep, reviews, addReview, cust }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [prenom, setPrenom] = useState(cust?.prenom || "");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!rating || busy) return;
+    setBusy(true);
+    await addReview({ prenom: prenom.trim() || "Client", rating, comment: comment.trim() });
+    setBusy(false); setDone(true);
+  };
+  const avg = reviews && reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
+  return (
+    <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
+      <StepHead onBack={() => setStep("welcome")} title="Votre avis" sub="Votre plaisir, en quelques mots" />
+      {done ? (
+        <div style={{ textAlign: "center", padding: "10px 0 4px" }}>
+          <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 6 }}>Merci {prenom} !</div>
+          <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 4px" }}>Votre avis nous touche. Découvrez nos <b>saveurs et compositions du moment</b> :</p>
+          <div style={{ marginTop: 14 }}><BigBtn onClick={() => setStep("shop")}>Commander nos saveurs du moment <ChevronRight size={16} /></BigBtn></div>
+          <div style={{ marginTop: 8 }}><ShareBtn cust={cust} label="Faire découvrir à un proche" /></div>
+        </div>
+      ) : (
+        <>
+          <div style={{ textAlign: "center", margin: "4px 0 16px" }}>
+            <div style={{ fontSize: 12, color: C.soft, marginBottom: 9 }}>Votre plaisir, de 1 à 5</div>
+            <Stars value={rating} size={36} onChange={setRating} />
+          </div>
+          <Lbl htmlFor="rv_prenom">Prénom</Lbl>
+          <input id="rv_prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Votre prénom" style={{ ...inp(), marginBottom: 12 }} />
+          <Lbl htmlFor="rv_com">Commentaire</Lbl>
+          <textarea id="rv_com" value={comment} onChange={(e) => setComment(e.target.value)} rows={4} placeholder="Un mot sur ce que vous avez aimé…" style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginBottom: 14 }} />
+          <BigBtn onClick={submit} disabled={!rating || busy}>{busy ? "Envoi…" : "Publier mon avis"}</BigBtn>
+        </>
+      )}
+      {reviews && reviews.length > 0 && (
+        <div style={{ marginTop: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>Ils ont aimé</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.soft }}><Stars value={Math.round(avg)} size={13} /> {avg.toFixed(1)} · {reviews.length} avis</span>
+          </div>
+          {reviews.slice(0, 20).map((r) => (
+            <div key={r.id} style={{ borderTop: `1px solid ${C.line}`, padding: "10px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <b style={{ fontSize: 13.5 }}>{r.prenom || "Client"}</b>
+                <Stars value={r.rating} size={13} />
+              </div>
+              {r.comment && <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.45, marginTop: 3 }}>{r.comment}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function BigBtn({ children, onClick, disabled }) { return <button onClick={onClick} disabled={disabled} className="ca-tap" style={{ width: "100%", background: disabled ? C.line : C.board, color: disabled ? C.soft : C.chalk, border: "none", borderRadius: 13, padding: "15px 18px", fontWeight: 600, fontSize: 14, cursor: disabled ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{children}</button>; }
 function GhostBtn({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", color: C.jam, border: `1.5px solid ${C.line}`, borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{children}</button>; }
 function JamBtn({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: "100%", marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{children}</button>; }
@@ -1188,12 +1266,22 @@ export function BoutiquePublique() {
   const [promos] = useState(SEED_PROMOS);
   const [profile] = useState(SEED_PROFILE);
   const [announce, setAnnounce] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [parrain, setParrain] = useState("");
   useEffect(() => {
+    try { const r = new URLSearchParams(window.location.search).get("ref"); if (r) setParrain(r); } catch (e) {}
     if (!supabase) return;
     supabase.from("profile").select("announce_title, announce_body").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setAnnounce({ title: data.announce_title || "", body: data.announce_body || "" });
     }, () => {});
+    supabase.from("reviews").select("id, prenom, rating, comment, created_at").order("created_at", { ascending: false }).limit(50).then(({ data }) => {
+      if (Array.isArray(data)) setReviews(data);
+    }, () => {});
   }, []);
+  const addReview = async (r) => {
+    setReviews((l) => [{ id: "tmp" + Date.now(), prenom: r.prenom, rating: r.rating, comment: r.comment, created_at: new Date().toISOString() }, ...l]);
+    if (supabase) { try { await supabase.from("reviews").insert({ prenom: r.prenom, rating: r.rating, comment: r.comment }); } catch (e) {} }
+  };
   const paymentEnabled = false;
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
@@ -1242,7 +1330,7 @@ export function BoutiquePublique() {
       const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
       try {
         await supabase.from("customers").upsert({ prenom: cust.prenom, nom: cust.nom, tel: cust.tel, email: cust.email, opt_in: !!cust.optin }, { onConflict: "email", ignoreDuplicates: true });
-        const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false });
+        const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false, parrain: parrain || "" });
         if (!error) await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
       } catch (e) {}
     }
@@ -1255,7 +1343,7 @@ export function BoutiquePublique() {
       <style>{FONT}</style>
       <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning }} />
+      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
     </div>
   );
 }
@@ -1264,7 +1352,7 @@ const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
   const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
-  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, status: o.status, paid: o.paid, lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
 };
 
 export function EspacePro() {
