@@ -597,7 +597,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
-        {tab === "ventes" && <ProVentes {...{ sales }} />}
+        {tab === "ventes" && <ProVentes {...{ sales, orders }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
@@ -1352,7 +1352,7 @@ const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
   const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
-  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
 };
 
 export function EspacePro() {
@@ -1594,12 +1594,14 @@ function InstallBanner({ admin = false }) {
 }
 
 /* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
-function ProVentes({ sales }) {
+function ProVentes({ sales, orders }) {
   const [per, setPer] = useState("jour");
   const [openDay, setOpenDay] = useState(null);
   const now = new Date();
+  const orderSales = (orders || []).map((o) => ({ id: "o-" + o.id, ts: o.ts || Date.now(), total: o.total, count: o.items, items: (o.lines || []).map((l) => ({ name: l.name, qty: l.qty, price: l.price, cost: 0 })) }));
+  const allSales = [...(sales || []), ...orderSales];
   const inPeriod = (ts) => { const d = new Date(ts); if (per === "jour") return d.toDateString() === now.toDateString(); if (per === "semaine") return (now - d) <= 7 * 86400000 && d <= now; if (per === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); return d.getFullYear() === now.getFullYear(); };
-  const list = sales.filter((s) => inPeriod(s.ts));
+  const list = allSales.filter((s) => inPeriod(s.ts));
   const ca = list.reduce((a, s) => a + s.total, 0);
   const marge = list.reduce((a, s) => a + s.items.reduce((m, i) => m + (i.price - (i.cost || 0)) * i.qty, 0), 0);
   const nb = list.length;
