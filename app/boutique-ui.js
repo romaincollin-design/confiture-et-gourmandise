@@ -1725,6 +1725,14 @@ function ProCaisse({ products, sales, setSales }) {
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
+  const [retro, setRetro] = useState(false);
+  const [saleDate, setSaleDate] = useState("");
+  const [saleTime, setSaleTime] = useState("10:00");
+  const tsFor = () => {
+    if (!retro || !saleDate) return Date.now();
+    const d = new Date(saleDate + "T" + (saleTime || "10:00") + ":00");
+    return isNaN(d.getTime()) ? Date.now() : d.getTime();
+  };
   const sellable = products.filter((p) => !p.soon && p.active !== false);
   const cats = CAT_ORDER.filter((c) => sellable.some((p) => p.cat === c));
   const activeCat = cat && cats.includes(cat) ? cat : cats[0];
@@ -1743,8 +1751,9 @@ function ProCaisse({ products, sales, setSales }) {
     if (tCount === 0) return;
     const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
     const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
-    setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts: Date.now() }, ...o]);
-    if (supabase) { supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items }).then(() => {}, () => {}); }
+    const ts = tsFor();
+    setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
+    if (supabase) { supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }).then(() => {}, () => {}); }
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
   };
   const cancelOrder = (id) => setSales((o) => o.filter((x) => x.id !== id));
@@ -1776,6 +1785,23 @@ function ProCaisse({ products, sales, setSales }) {
     <div className="ca-anim" style={{ paddingBottom: tCount > 0 ? 92 : 8 }}>
       <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
       <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la commande » pour l'enregistrer.</div>
+
+      <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: C.ink }}>
+          <input type="checkbox" checked={retro} onChange={(e) => { setRetro(e.target.checked); if (e.target.checked && !saleDate) setSaleDate(new Date().toISOString().slice(0, 10)); }} style={{ width: 18, height: 18, accentColor: C.jam }} />
+          Saisie rétroactive — vente déjà faite un autre jour
+        </label>
+        {retro && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}><Lbl>Date de la vente</Lbl><input type="date" value={saleDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setSaleDate(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ width: 120 }}><Lbl>Heure</Lbl><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.jam, fontWeight: 700, marginTop: 9, lineHeight: 1.4 }}>{saleDate ? `Cette vente sera enregistrée pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })} à ${saleTime}.` : "Choisissez la date."}</div>
+            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 4, lineHeight: 1.4 }}>Ajoutez les produits réellement vendus (pissaladière, caramels…) puis fermez la commande — autant de fois que nécessaire pour ce jour.</div>
+          </div>
+        )}
+      </div>
 
       <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
@@ -1879,7 +1905,7 @@ function ProCaisse({ products, sales, setSales }) {
       {tCount > 0 && (
         <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
           <button onClick={closeOrder} className="ca-tap" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 14px 30px -10px #16140faa" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> Fermer la commande · {tCount} art.</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
             <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
           </button>
         </div>
