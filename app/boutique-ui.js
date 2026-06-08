@@ -296,7 +296,7 @@ function Welcome({ setStep, setIntent, profile, returning, cust, reviews }) {
         <Hero />
       </div>
       <div style={{ padding: "18px 24px 28px", textAlign: "center" }}>
-        <p style={{ color: C.ink, fontSize: 14.5, lineHeight: 1.55, margin: "0 0 14px" }}>{profile.tagline}</p>
+        <p style={{ fontFamily: SCRIPT, color: C.jam, fontSize: 22, lineHeight: 1.35, margin: "0 0 16px" }}>{profile.tagline}</p>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, marginBottom: 18 }}>
           {["Circuit court", "Fait main", "Producteurs indépendants"].map((t) => (<span key={t} style={{ fontSize: 11, fontWeight: 600, color: C.jam, background: "#7A2B3312", padding: "5px 11px", borderRadius: 20 }}>{t}</span>))}
         </div>
