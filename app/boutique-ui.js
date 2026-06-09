@@ -613,7 +613,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         ))}
       </div>
       <div className="ca-scroll pro-content">
-        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
+        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
@@ -1506,6 +1506,15 @@ export function EspacePro() {
     finally { setLoading(false); }
   };
   const onAuth = (p) => { setPass(p); setProAuth(true); refresh(p); };
+  useEffect(() => {
+    if (!proAuth || !pass) return;
+    const onFocus = () => refresh(pass);
+    const onVis = () => { if (!document.hidden) refresh(pass); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    const iv = setInterval(() => { if (!document.hidden) refresh(pass); }, 60000);
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); clearInterval(iv); };
+  }, [proAuth, pass]);
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
@@ -1916,7 +1925,7 @@ function ProVentes({ sales, setSales, orders, products, pass }) {
     </div>
   );
 }
-function ProCaisse({ products, sales, setSales }) {
+function ProCaisse({ products, sales, setSales, pass }) {
   const [ticket, setTicket] = useState(() => {
     try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
     return {};
@@ -1925,9 +1934,10 @@ function ProCaisse({ products, sales, setSales }) {
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
-  const [retro, setRetro] = useState(false);
-  const [saleDate, setSaleDate] = useState("");
-  const [saleTime, setSaleTime] = useState("10:00");
+  const [retro, setRetro] = useState(() => { try { return typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").retro || false; } catch (e) { return false; } });
+  const [saleDate, setSaleDate] = useState(() => { try { return (typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").saleDate) || ""; } catch (e) { return ""; } });
+  const [saleTime, setSaleTime] = useState(() => { try { return (typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").saleTime) || "10:00"; } catch (e) { return "10:00"; } });
+  useEffect(() => { try { localStorage.setItem("ca_caisse_retro", JSON.stringify({ retro, saleDate, saleTime })); } catch (e) {} }, [retro, saleDate, saleTime]);
   const tsFor = () => {
     if (!retro || !saleDate) return Date.now();
     const d = new Date(saleDate + "T" + (saleTime || "10:00") + ":00");
@@ -1956,7 +1966,26 @@ function ProCaisse({ products, sales, setSales }) {
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
     if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
   };
-  const cancelOrder = (id) => setSales((o) => o.filter((x) => x.id !== id));
+  const cancelOrder = (id) => { setSales((o) => o.filter((x) => x.id !== id)); if (supabase && pass) { try { supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} } };
+  const [edit, setEdit] = useState(null);
+  const [ebusy, setEbusy] = useState(false);
+  const pad = (n) => String(n).padStart(2, "0");
+  const openEdit = (s) => { const d = new Date(s.ts); setEdit({ id: s.id, items: s.items.map((i) => ({ ...i })), date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }); };
+  const eTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
+  const eQty = (k, d) => setEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + d) } : i) }));
+  const eRm = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
+  const eAdd = (p) => setEdit((e) => { const idx = e.items.findIndex((i) => i.name === p.name); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, qty: 1, price: p.price, cost: p.cost || 0 }] }; });
+  const eSave = async () => {
+    if (ebusy) return; setEbusy(true);
+    const items = edit.items.filter((i) => i.qty > 0);
+    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
+    const cnt = items.reduce((a, i) => a + i.qty, 0);
+    const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
+    if (items.length === 0) { setSales((l) => l.filter((x) => x.id !== edit.id)); if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} } setEbusy(false); setEdit(null); return; }
+    setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
+    if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
+    setEbusy(false); setEdit(null);
+  };
 
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -2069,6 +2098,7 @@ function ProCaisse({ products, sales, setSales }) {
             <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
             <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + (it.qty > 1 ? " ×" + it.qty : "")).join(", ")}</span></span>
             <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(o.total)}</span>
+            <button onClick={() => openEdit(o)} className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Settings size={13} /> Modifier</button>
             <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annuler</button>
           </div>
         ))}
@@ -2105,6 +2135,43 @@ function ProCaisse({ products, sales, setSales }) {
           </div>
         ))}
       </div>
+      {edit && (
+        <div onClick={() => !ebusy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la vente</div>
+              <button onClick={() => !ebusy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}><Lbl>Date</Lbl><input type="date" value={edit.date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEdit({ ...edit, date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ width: 120 }}><Lbl>Heure</Lbl><input type="time" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            </div>
+            <Lbl>Articles</Lbl>
+            <div style={{ marginTop: 6 }}>
+              {edit.items.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "8px 0" }}>Plus aucun article — la vente sera supprimée.</div> : edit.items.map((i, k) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.soft }}>{eur(i.price)} l'unité · {eur(i.price * i.qty)}</div>
+                  </div>
+                  <button onClick={() => eQty(k, -1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: "center", fontWeight: 700 }}>{i.qty}</span>
+                  <button onClick={() => eQty(k, 1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
+                  <button onClick={() => eRm(k)} aria-label="Retirer" className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <select value="" onChange={(e) => { const p = sellable.find((x) => x.id === e.target.value); if (p) eAdd(p); e.target.value = ""; }} style={{ ...inp(), marginTop: 12, color: C.jam, fontWeight: 600 }}>
+              <option value="">+ Ajouter un article…</option>
+              {sellable.map((p) => <option key={p.id} value={p.id} style={{ color: C.ink, fontWeight: 400 }}>{p.name} · {p.unit} · {eur(p.price)}</option>)}
+            </select>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
+              <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(eTotal)}</span>
+            </div>
+            <button onClick={eSave} disabled={ebusy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: ebusy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {ebusy ? "…" : "Valider les modifications"}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
