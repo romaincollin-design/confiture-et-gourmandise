@@ -614,8 +614,8 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
-        {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, pass }} />}
-        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass }} />}
+        {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
+        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -627,10 +627,16 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
   );
 }
 const STATUSES = ["À préparer", "Prête", "Remise"];
-function ProOrders({ orders, setOrders, onRefresh, loading, pass }) {
+function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
+  const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
   const [openId, setOpenId] = useState(null);
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
+  const addItem = (p) => setEdit((e) => {
+    const idx = e.items.findIndex((i) => i.name === p.name && i.unit === p.unit);
+    if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
+    return { ...e, items: [...e.items, { name: p.name, unit: p.unit, price: p.price, qty: 1 }] };
+  });
   const persistStatus = async (o, s) => {
     setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: s } : x));
     if (supabase && pass && o.oid) { try { await supabase.rpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: s }); } catch (e) {} }
@@ -740,6 +746,10 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass }) {
                 </div>
               ))}
             </div>
+            <select value="" onChange={(e) => { const p = sellable.find((x) => x.id === e.target.value); if (p) addItem(p); e.target.value = ""; }} style={{ ...inp(), marginTop: 12, color: C.jam, fontWeight: 600 }}>
+              <option value="">+ Ajouter un article…</option>
+              {sellable.map((p) => <option key={p.id} value={p.id} style={{ color: C.ink, fontWeight: 400 }}>{p.name} · {p.unit} · {eur(p.price)}</option>)}
+            </select>
             <div style={{ marginTop: 14 }}><Lbl>Jour de retrait</Lbl><input value={edit.pickup} onChange={(e) => setEdit({ ...edit, pickup: e.target.value })} placeholder="ex. Samedi 14 juin" style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ marginTop: 12 }}><Lbl>Statut</Lbl><select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })} style={{ ...inp(), marginTop: 4 }}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
@@ -1707,11 +1717,17 @@ function InstallBanner({ admin = false }) {
 }
 
 /* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
-function ProVentes({ sales, setSales, orders, pass }) {
+function ProVentes({ sales, setSales, orders, products, pass }) {
+  const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
   const [per, setPer] = useState("jour");
   const [openDay, setOpenDay] = useState(null);
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
+  const addItem = (p) => setEdit((e) => {
+    const idx = e.items.findIndex((i) => i.name === p.name);
+    if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
+    return { ...e, items: [...e.items, { pid: p.id, name: p.name, qty: 1, price: p.price, cost: p.cost || 0 }] };
+  });
   const pad = (n) => String(n).padStart(2, "0");
   const isCaisse = (s) => !String(s.id).startsWith("o-");
   const openEdit = (s) => {
@@ -1885,6 +1901,10 @@ function ProVentes({ sales, setSales, orders, pass }) {
                 </div>
               ))}
             </div>
+            <select value="" onChange={(e) => { const p = sellable.find((x) => x.id === e.target.value); if (p) addItem(p); e.target.value = ""; }} style={{ ...inp(), marginTop: 12, color: C.jam, fontWeight: 600 }}>
+              <option value="">+ Ajouter un article…</option>
+              {sellable.map((p) => <option key={p.id} value={p.id} style={{ color: C.ink, fontWeight: 400 }}>{p.name} · {p.unit} · {eur(p.price)}</option>)}
+            </select>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
               <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(editTotal)}</span>
             </div>
