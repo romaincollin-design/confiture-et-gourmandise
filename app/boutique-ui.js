@@ -613,7 +613,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         ))}
       </div>
       <div className="ca-scroll pro-content">
-        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass }} />}
+        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
@@ -1935,7 +1935,7 @@ function ProVentes({ sales, setSales, orders, products, pass }) {
     </div>
   );
 }
-function ProCaisse({ products, sales, setSales, pass }) {
+function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const [ticket, setTicket] = useState(() => {
     try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
     return {};
@@ -1997,6 +1997,11 @@ function ProCaisse({ products, sales, setSales, pass }) {
     setEbusy(false); setEdit(null);
   };
 
+  const validateOrder = (o) => {
+    if (setOrders) setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: "Remise", paid: true } : x));
+    if (supabase && pass && o.oid) { try { supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }).then(() => {}, () => {}); } catch (e) {} }
+  };
+  const pending = (orders || []).filter((o) => o.status !== "Remise");
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const todayK = dayKey(Date.now());
@@ -2052,6 +2057,23 @@ function ProCaisse({ products, sales, setSales, pass }) {
           <div style={{ fontSize: 11, opacity: .65 }}>commande{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
         </div>
       </div>
+
+      {pending.length > 0 && (
+        <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
+          <div style={{ ...h2, color: C.caramel }}>Commandes à retirer ({pending.length})</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 8 }}>Quand le client passe, touchez « Valider le retrait » : la commande est marquée remise et payée.</div>
+          {pending.map((o) => (
+            <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
+                <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.pickup ? o.pickup + " · " : ""}{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+              </div>
+              <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
+              <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Check size={14} /> Valider le retrait</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
         {cats.map((c) => {
