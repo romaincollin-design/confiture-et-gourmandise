@@ -1897,7 +1897,11 @@ function ProVentes({ sales, setSales, orders, pass }) {
   );
 }
 function ProCaisse({ products, sales, setSales }) {
-  const [ticket, setTicket] = useState({});   // pid -> { name, unit, price, qty }
+  const [ticket, setTicket] = useState(() => {
+    try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
+    return {};
+  });
+  useEffect(() => { try { localStorage.setItem("ca_caisse_ticket", JSON.stringify(ticket)); } catch (e) {} }, [ticket]);
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
@@ -2016,7 +2020,7 @@ function ProCaisse({ products, sales, setSales }) {
 
       {tCount > 0 && (
         <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-          <div style={h2}>Commande en cours</div>
+          <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Commande en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
           {lines.map(([pid, l]) => (
             <div key={pid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
               <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name} <span style={{ color: C.soft }}>· {eur(l.price)}</span></span>
