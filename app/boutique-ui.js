@@ -2002,6 +2002,24 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
     if (supabase && pass && o.oid) { try { supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }).then(() => {}, () => {}); } catch (e) {} }
   };
   const pending = (orders || []).filter((o) => o.status !== "Remise");
+  const pendingByDate = {};
+  pending.forEach((o) => { const k = o.date || "—"; (pendingByDate[k] = pendingByDate[k] || []).push(o); });
+  const [oEdit, setOEdit] = useState(null);
+  const [obusy, setObusy] = useState(false);
+  const oOpen = (o) => setOEdit({ id: o.id, oid: o.oid, name: o.name, items: (o.lines || []).map((l) => ({ ...l })), pickup: o.pickup || "", status: o.status || "À préparer" });
+  const oTotal = oEdit ? oEdit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
+  const oQ = (k, d) => setOEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + d) } : i) }));
+  const oRm = (k) => setOEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
+  const oAdd = (p) => setOEdit((e) => { const idx = e.items.findIndex((i) => i.name === p.name && i.unit === p.unit); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { name: p.name, unit: p.unit, price: p.price, qty: 1 }] }; });
+  const oSave = async () => {
+    if (obusy) return; setObusy(true);
+    const items = oEdit.items.filter((i) => i.qty > 0);
+    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
+    const count = items.reduce((a, i) => a + i.qty, 0);
+    if (setOrders) setOrders((l) => l.map((x) => x.id === oEdit.id ? { ...x, lines: items, total, items: count, pickup: oEdit.pickup } : x));
+    if (supabase && pass && oEdit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: oEdit.oid, p_items: items, p_total: total, p_count: count, p_pickup: oEdit.pickup, p_status: oEdit.status }); } catch (e) {} }
+    setObusy(false); setOEdit(null);
+  };
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const todayK = dayKey(Date.now());
@@ -2060,16 +2078,26 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
 
       {pending.length > 0 && (
         <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
-          <div style={{ ...h2, color: C.caramel }}>Commandes à retirer ({pending.length})</div>
-          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 8 }}>Quand le client passe, touchez « Valider le retrait » : la commande est marquée remise et payée.</div>
-          {pending.map((o) => (
-            <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
-                <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.pickup ? o.pickup + " · " : ""}{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
-              </div>
-              <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
-              <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Check size={14} /> Valider le retrait</button>
+          <div style={{ ...h2, color: C.caramel }}>Commandes en cours ({pending.length})</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Par date. « Modifier » pour ajouter/retirer un article ; « Valider le retrait » quand le client repart (remise + payée).</div>
+          {Object.keys(pendingByDate).map((d) => (
+            <div key={d} style={{ marginBottom: 6 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, textTransform: "capitalize", margin: "6px 0 2px" }}>{d}</div>
+              {pendingByDate[d].map((o) => (
+                <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
+                      <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+                    </div>
+                    <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button onClick={() => oOpen(o)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
+                    <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={14} /> Valider le retrait</button>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -2201,6 +2229,41 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
               <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(eTotal)}</span>
             </div>
             <button onClick={eSave} disabled={ebusy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: ebusy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {ebusy ? "…" : "Valider les modifications"}</button>
+          </div>
+        </div>
+      )}
+      {oEdit && (
+        <div onClick={() => !obusy && setOEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la commande</div>
+              <button onClick={() => !obusy && setOEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 12 }}>{oEdit.name} · {oEdit.id}</div>
+            <Lbl>Articles</Lbl>
+            <div style={{ marginTop: 6 }}>
+              {oEdit.items.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "8px 0" }}>Plus aucun article.</div> : oEdit.items.map((i, k) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}{i.unit ? <span style={{ color: C.soft }}> · {i.unit}</span> : null}</div>
+                    <div style={{ fontSize: 11.5, color: C.soft }}>{eur(i.price)} l'unité · {eur(i.price * i.qty)}</div>
+                  </div>
+                  <button onClick={() => oQ(k, -1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: "center", fontWeight: 700 }}>{i.qty}</span>
+                  <button onClick={() => oQ(k, 1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
+                  <button onClick={() => oRm(k)} aria-label="Retirer" className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <select value="" onChange={(e) => { const p = sellable.find((x) => x.id === e.target.value); if (p) oAdd(p); e.target.value = ""; }} style={{ ...inp(), marginTop: 12, color: C.jam, fontWeight: 600 }}>
+              <option value="">+ Ajouter un article…</option>
+              {sellable.map((p) => <option key={p.id} value={p.id} style={{ color: C.ink, fontWeight: 400 }}>{p.name} · {p.unit} · {eur(p.price)}</option>)}
+            </select>
+            <div style={{ marginTop: 14 }}><Lbl>Jour de retrait</Lbl><input value={oEdit.pickup} onChange={(e) => setOEdit({ ...oEdit, pickup: e.target.value })} placeholder="ex. Samedi 14 juin" style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
+              <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(oTotal)}</span>
+            </div>
+            <button onClick={oSave} disabled={obusy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: obusy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {obusy ? "…" : "Enregistrer la commande"}</button>
           </div>
         </div>
       )}
