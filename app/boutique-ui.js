@@ -615,7 +615,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, pass }} />}
-        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading }} />}
+        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -627,9 +627,33 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
   );
 }
 const STATUSES = ["À préparer", "Prête", "Remise"];
-function ProOrders({ orders, setOrders, onRefresh, loading }) {
+function ProOrders({ orders, setOrders, onRefresh, loading, pass }) {
   const [openId, setOpenId] = useState(null);
-  const setStatus = (id, s) => setOrders((l) => l.map((o) => o.id === id ? { ...o, status: s } : o));
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const persistStatus = async (o, s) => {
+    setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: s } : x));
+    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: s }); } catch (e) {} }
+  };
+  const openEdit = (o) => setEdit({ id: o.id, ref: o.id, oid: o.oid, name: o.name, items: (o.lines || []).map((l) => ({ ...l })), pickup: o.pickup || "", status: o.status || STATUSES[0] });
+  const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
+  const setQty = (k, d) => setEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + d) } : i) }));
+  const rmLine = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
+  const saveEdit = async () => {
+    if (busy) return; setBusy(true);
+    const items = edit.items.filter((i) => i.qty > 0);
+    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
+    const count = items.reduce((a, i) => a + i.qty, 0);
+    if (items.length === 0) { await delOrder(); return; }
+    setOrders((l) => l.map((x) => x.id === edit.id ? { ...x, lines: items, total, items: count, pickup: edit.pickup, status: edit.status } : x));
+    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: edit.oid, p_items: items, p_total: total, p_count: count, p_pickup: edit.pickup, p_status: edit.status }); } catch (e) {} }
+    setBusy(false); setEdit(null);
+  };
+  const delOrder = async () => {
+    setOrders((l) => l.filter((x) => x.id !== edit.id));
+    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_delete_order", { pass, p_oid: edit.oid }); } catch (e) {} }
+    setBusy(false); setEdit(null);
+  };
   const groups = {};
   orders.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
   const keys = Object.keys(groups);
@@ -664,7 +688,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading }) {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
                       <span style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam }}>{eur(o.total)}</span>
-                      <select value={o.status} onChange={(e) => setStatus(o.id, e.target.value)} style={sel(o.status)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
+                      <select value={o.status} onChange={(e) => persistStatus(o, e.target.value)} style={sel(o.status)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
                     </div>
                   </div>
                   {open && (
@@ -681,6 +705,10 @@ function ProOrders({ orders, setOrders, onRefresh, loading }) {
                         {o.tel && <a href={`https://wa.me/${waNum(o.tel)}`} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#1FA855", textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><MessageCircle size={14} /> WhatsApp</a>}
                         {o.email && <a href={`mailto:${o.email}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Mail size={14} /> {o.email}</a>}
                       </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                        <button onClick={() => openEdit(o)} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: C.jam, background: "#fff", border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", cursor: "pointer" }}><Settings size={14} /> Modifier la commande</button>
+                        <button onClick={() => persistStatus(o, "Prête")} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "#fff", background: C.ok, border: "none", borderRadius: 10, padding: "9px 14px", cursor: "pointer", opacity: o.status === "Prête" || o.status === "Remise" ? .5 : 1 }}><Check size={14} /> {o.status === "Prête" || o.status === "Remise" ? "Validée" : "Valider la commande"}</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -689,6 +717,39 @@ function ProOrders({ orders, setOrders, onRefresh, loading }) {
           </div>
         );
       })}
+      {edit && (
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la commande</div>
+              <button onClick={() => !busy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 12 }}>{edit.name} · {edit.ref}</div>
+            <Lbl>Articles</Lbl>
+            <div style={{ marginTop: 6 }}>
+              {edit.items.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "8px 0" }}>Plus aucun article — la commande sera supprimée à la validation.</div> : edit.items.map((i, k) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}{i.unit ? <span style={{ color: C.soft }}> · {i.unit}</span> : null}</div>
+                    <div style={{ fontSize: 11.5, color: C.soft }}>{eur(i.price)} l'unité · {eur(i.price * i.qty)}</div>
+                  </div>
+                  <button onClick={() => setQty(k, -1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>−</button>
+                  <span style={{ minWidth: 20, textAlign: "center", fontWeight: 700 }}>{i.qty}</span>
+                  <button onClick={() => setQty(k, 1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", color: C.jam, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
+                  <button onClick={() => rmLine(k)} aria-label="Retirer" className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 14 }}><Lbl>Jour de retrait</Lbl><input value={edit.pickup} onChange={(e) => setEdit({ ...edit, pickup: e.target.value })} placeholder="ex. Samedi 14 juin" style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ marginTop: 12 }}><Lbl>Statut</Lbl><select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })} style={{ ...inp(), marginTop: 4 }}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
+              <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(editTotal)}</span>
+            </div>
+            <button onClick={saveEdit} disabled={busy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Valider les modifications"}</button>
+            <button onClick={delOrder} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", color: C.jam, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Trash2 size={15} /> Supprimer la commande</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1404,7 +1465,7 @@ const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
   const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
-  return { id: o.ref, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+  return { id: o.ref, oid: o.id, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
 };
 
 export function EspacePro() {
