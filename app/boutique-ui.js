@@ -1862,14 +1862,14 @@ function ProCaisse({ products, sales, setSales }) {
   const lines = Object.entries(ticket);
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
-  const closeOrder = () => {
+  const closeOrder = async () => {
     if (tCount === 0) return;
     const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
     const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
     const ts = tsFor();
     setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
-    if (supabase) { supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }).then(() => {}, () => {}); }
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
+    if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
   };
   const cancelOrder = (id) => setSales((o) => o.filter((x) => x.id !== id));
 
@@ -1978,18 +1978,18 @@ function ProCaisse({ products, sales, setSales }) {
         ) : todayOrders.map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
             <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
-            <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + (it.qty > 1 ? " \u00d7" + it.qty : "")).join(", ")}</span></span>
+            <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + (it.qty > 1 ? " ×" + it.qty : "")).join(", ")}</span></span>
             <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(o.total)}</span>
-            <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annul\u00e9</button>
+            <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annuler</button>
           </div>
         ))}
       </div>
 
       <div style={card}>
         <div style={h2}>Par produit · aujourd'hui</div>
-        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>\u2014</div> : prodRows.map(([name, v]) => (
+        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([name, v]) => (
           <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>\u00d7{v.qty}</span></span>
+            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>× {v.qty}</span></span>
             <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
           </div>
         ))}
@@ -2009,7 +2009,7 @@ function ProCaisse({ products, sales, setSales }) {
 
       <div style={{ ...card, marginBottom: 0 }}>
         <div style={h2}>Historique par jour</div>
-        {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>\u2014</div> : dayRows.map(([k, v]) => (
+        {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : dayRows.map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
             <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} cmd</span></span>
             <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
