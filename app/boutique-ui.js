@@ -1897,7 +1897,7 @@ function ProCaisse({ products, sales, setSales }) {
   const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 };
 
   return (
-    <div className="ca-anim" style={{ paddingBottom: tCount > 0 ? 92 : 8 }}>
+    <div className="ca-anim" style={{ paddingBottom: 24 }}>
       <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
       <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la commande » pour l'enregistrer.</div>
 
@@ -1965,7 +1965,11 @@ function ProCaisse({ products, sales, setSales }) {
               <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
             </div>
           ))}
-          <button onClick={() => setTicket({})} className="ca-tap" style={{ marginTop: 10, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
+          <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
+            <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
+          </button>
+          <button onClick={() => setTicket({})} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
         </div>
       )}
 
@@ -2016,15 +2020,6 @@ function ProCaisse({ products, sales, setSales }) {
           </div>
         ))}
       </div>
-
-      {tCount > 0 && (
-        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, display: "flex", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))", pointerEvents: "none" }}>
-          <button onClick={closeOrder} className="ca-tap" style={{ pointerEvents: "auto", width: "100%", maxWidth: 460, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 14px 30px -10px #16140faa" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
-            <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
