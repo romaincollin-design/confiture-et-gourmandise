@@ -616,7 +616,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -763,7 +763,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
     </div>
   );
 }
-function ProProducts({ products, setProducts }) {
+function ProProducts({ products, setProducts, pass }) {
   const ILLUS = ["orange", "lemon", "plum", "mure", "apple", "quince", "berry", "apricot", "caramel", "cake", "loaf", "pissa", "miel", "marron"];
   const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "orange", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
@@ -771,19 +771,23 @@ function ProProducts({ products, setProducts }) {
   const [openId, setOpenId] = useState(null);
   const [openCat, setOpenCat] = useState({});
 
-  const updField = (id, key, val) => setProducts((l) => l.map((p) => p.id === id ? { ...p, [key]: (key === "price" || key === "stock" || key === "cost") ? (val === "" ? 0 : +val) : val } : p));
+  const persist = (np) => { if (supabase && pass) { supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }).then(() => {}, () => {}); } };
+  const apply = (id, fn) => { const cur = products.find((p) => p.id === id); if (!cur) return; const np = fn(cur); setProducts((l) => l.map((p) => p.id === id ? np : p)); persist(np); };
+  const updField = (id, key, val) => apply(id, (p) => ({ ...p, [key]: (key === "price" || key === "stock" || key === "cost") ? (val === "" ? 0 : +val) : val }));
   // prix d'achat × coef = prix de vente (liaison à double sens)
-  const onCost = (p, val) => { const cost = val === "" ? 0 : +val; const coef = p.coef || (p.cost ? +(p.price / p.cost).toFixed(2) : 0); setProducts((l) => l.map((x) => x.id === p.id ? { ...x, cost, coef, price: coef ? +(cost * coef).toFixed(2) : x.price } : x)); };
-  const onCoef = (p, val) => { const coef = val === "" ? 0 : +val; setProducts((l) => l.map((x) => x.id === p.id ? { ...x, coef, price: x.cost ? +(x.cost * coef).toFixed(2) : x.price } : x)); };
-  const onPrice = (p, val) => { const price = val === "" ? 0 : +val; setProducts((l) => l.map((x) => x.id === p.id ? { ...x, price, coef: x.cost ? +(price / x.cost).toFixed(2) : x.coef } : x)); };
-  const toggle = (id) => setProducts((l) => l.map((p) => p.id === id ? { ...p, active: p.active === false ? true : false } : p));
-  const remove = (id) => setProducts((l) => l.filter((p) => p.id !== id));
+  const onCost = (p, val) => apply(p.id, (x) => { const cost = val === "" ? 0 : +val; const coef = x.coef || (x.cost ? +(x.price / x.cost).toFixed(2) : 0); return { ...x, cost, coef, price: coef ? +(cost * coef).toFixed(2) : x.price }; });
+  const onCoef = (p, val) => apply(p.id, (x) => { const coef = val === "" ? 0 : +val; return { ...x, coef, price: x.cost ? +(x.cost * coef).toFixed(2) : x.price }; });
+  const onPrice = (p, val) => apply(p.id, (x) => { const price = val === "" ? 0 : +val; return { ...x, price, coef: x.cost ? +(price / x.cost).toFixed(2) : x.coef }; });
+  const toggle = (id) => apply(id, (p) => ({ ...p, active: p.active === false ? true : false }));
+  const remove = (id) => { setProducts((l) => l.filter((p) => p.id !== id)); if (supabase && pass) { supabase.rpc("admin_delete_product", { pass, p_id: id }).then(() => {}, () => {}); } };
   const canCreate = nw.name && (nw.price !== "" || (nw.cost !== "" && nw.coef !== ""));
   const create = () => {
     const cost = +nw.cost || 0; const coef = +nw.coef || 0;
     const price = nw.price !== "" ? +nw.price : (cost && coef ? +(cost * coef).toFixed(2) : 0);
     if (!nw.name || !price) return;
-    setProducts((l) => [{ id: "x" + Date.now(), name: nw.name, cat: nw.cat, unit: nw.unit, price, cost, coef, stock: +nw.stock || 0, illu: nw.illu, col: nw.col }, ...l]);
+    const slug = (nw.name || "prod").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "prod";
+    const np = { id: slug + "-" + Date.now().toString(36).slice(-4), name: nw.name, cat: nw.cat, unit: nw.unit, price, cost, coef, stock: +nw.stock || 0, illu: nw.illu, col: nw.col, soon: false, active: true };
+    setProducts((l) => [np, ...l]); persist(np);
     setOpenCat((o) => ({ ...o, [nw.cat]: true }));
     setNw(blank); setCreating(false);
   };
@@ -1385,7 +1389,7 @@ function Header({ profile, badge }) {
 }
 
 export function BoutiquePublique() {
-  const [products] = useState(SEED_PRODUCTS);
+  const [products, setProducts] = useState(SEED_PRODUCTS);
   const [promos] = useState(SEED_PROMOS);
   const [profile] = useState(SEED_PROFILE);
   const [announce, setAnnounce] = useState(null);
@@ -1399,6 +1403,9 @@ export function BoutiquePublique() {
     }, () => {});
     supabase.from("reviews").select("id, prenom, rating, comment, created_at").order("created_at", { ascending: false }).limit(50).then(({ data }) => {
       if (Array.isArray(data)) setReviews(data);
+    }, () => {});
+    supabase.from("products").select("*").order("sort", { ascending: true }).then(({ data }) => {
+      if (Array.isArray(data) && data.length) setProducts(data.map(mapProduct));
     }, () => {});
   }, []);
   const addReview = async (r) => {
@@ -1471,6 +1478,7 @@ export function BoutiquePublique() {
   );
 }
 
+const mapProduct = (p) => ({ id: p.id, name: p.name, cat: p.cat, unit: p.unit, price: Number(p.price) || 0, cost: Number(p.cost) || 0, coef: Number(p.coef) || 0, stock: p.stock == null ? 0 : p.stock, illu: p.illu, col: p.col, soon: !!p.soon, active: p.active !== false });
 const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
@@ -1494,14 +1502,16 @@ export function EspacePro() {
     if (!supabase || !key) return;
     setLoading(true);
     try {
-      const [ro, rc, rs] = await Promise.all([
+      const [ro, rc, rs, rp] = await Promise.all([
         supabase.rpc("admin_orders", { pass: key }),
         supabase.rpc("admin_customers", { pass: key }),
         supabase.rpc("admin_sales", { pass: key }),
+        supabase.from("products").select("*").order("sort", { ascending: true }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in })));
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
+      if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
     } catch (e) {}
     finally { setLoading(false); }
   };
