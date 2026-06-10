@@ -4,7 +4,7 @@ import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
-  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -621,7 +621,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout, pass }} />}
-        {tab === "reglages" && <ProSettings {...{ paymentEnabled, setPaymentEnabled }} />}
+        {tab === "reglages" && <ProSettings {...{ paymentEnabled, setPaymentEnabled, pass }} />}
       </div>
     </div>
   );
@@ -1057,8 +1057,103 @@ function ProPromos({ promos, setPromos }) {
     </div>
   );
 }
-function ProSettings({ paymentEnabled, setPaymentEnabled }) {
+function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
   const [pm, setPm] = useState({ wero: true, cb: true, especes: true, cheque: false, virement: false });
+  const [bk, setBk] = useState({ busy: false, msg: "" });
+  const exportExcel = async () => {
+    if (!supabase || !pass || bk.busy) return;
+    setBk({ busy: true, msg: "Préparation de la sauvegarde…" });
+    try {
+      const XLSX = await import("xlsx");
+      const [rc, ro, rs, rp, rv] = await Promise.all([
+        supabase.rpc("admin_customers", { pass }),
+        supabase.rpc("admin_orders", { pass }),
+        supabase.rpc("admin_sales", { pass }),
+        supabase.from("products").select("*").order("cat", { ascending: true }).order("name", { ascending: true }),
+        supabase.from("reviews").select("created_at, prenom, rating, comment").order("created_at", { ascending: false }),
+      ]);
+      const clients = Array.isArray(rc.data) ? rc.data : [];
+      const orders = Array.isArray(ro.data) ? ro.data : [];
+      const sales = Array.isArray(rs.data) ? rs.data : [];
+      const prods = Array.isArray(rp.data) ? rp.data : [];
+      const avis = Array.isArray(rv.data) ? rv.data : [];
+      const n2 = (x) => Math.round((Number(x) || 0) * 100) / 100;
+      const dfr = (d) => d ? new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+      const dday = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+      const wb = XLSX.utils.book_new();
+      const add = (name, rows, cols) => { const ws = XLSX.utils.aoa_to_sheet(rows); if (cols) ws["!cols"] = cols.map((w) => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, name); };
+
+      add("Lisez-moi", [
+        ["COMME AVANT — Sauvegarde des données"],
+        ["Export réalisé le", dfr(new Date())],
+        [],
+        ["Onglet", "Contenu"],
+        ["Clients", "Coordonnées clients (CRM) : prénom, nom, téléphone, email, nb de commandes, total dépensé"],
+        ["Commandes", "Une ligne par commande (en-tête : client, total, statut, retrait…)"],
+        ["Commandes_articles", "Une ligne par article commandé — pour analyses et tableaux croisés"],
+        ["Produits", "Prix d'achat, prix de vente, coefficient, marge € et marge %"],
+        ["Ventes_caisse", "Ventes enregistrées à la caisse sur le marché"],
+        ["Avis", "Avis clients (note et commentaire)"],
+        ["Synthèse", "Totaux : chiffre d'affaires, nb de clients, de commandes…"],
+        [],
+        ["Comment réutiliser", "Chaque onglet = un tableau propre (en-têtes en 1re ligne). Triez, filtrez, ou créez un tableau croisé dynamique."],
+        ["Mise à jour", "Ce fichier est une photographie à l'instant de l'export. Relancez la sauvegarde pour des données à jour."],
+        ["Confidentialité (RGPD)", "Contient des données personnelles. Conservez ce fichier en lieu sûr et ne le diffusez pas."],
+      ], [24, 70]);
+
+      add("Clients", [
+        ["Prénom", "Nom", "Téléphone", "Email", "Newsletter", "Nb commandes", "Total dépensé (€)"],
+        ...clients.map((c) => [c.prenom || "", c.nom || "", c.tel || "", c.email || "", c.opt_in ? "oui" : "non", c.orders || 0, n2(c.spent)]),
+      ], [14, 16, 16, 28, 11, 13, 16]);
+
+      add("Commandes", [
+        ["Référence", "Date", "Client", "Téléphone", "Email", "Nb articles", "Total (€)", "Statut", "Payé", "Retrait", "Parrainé par"],
+        ...orders.map((o) => [o.ref || "", dfr(o.created_at), o.name || "", o.tel || "", o.email || "", o.items_count || 0, n2(o.total), o.status || "", o.paid ? "oui" : "non", o.pickup || "", o.parrain || ""]),
+      ], [12, 16, 18, 15, 26, 10, 10, 13, 7, 16, 22]);
+
+      const lines = [];
+      orders.forEach((o) => (o.items || []).forEach((it) => lines.push([o.ref || "", dfr(o.created_at), o.name || "", it.name || "", it.unit || "", it.qty || 0, n2(it.price), n2((it.qty || 0) * (Number(it.price) || 0))])));
+      add("Commandes_articles", [
+        ["Référence", "Date", "Client", "Article", "Unité", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
+        ...lines,
+      ], [12, 16, 18, 24, 13, 9, 16, 15]);
+
+      add("Produits", [
+        ["Produit", "Catégorie", "Unité", "Prix d'achat (€)", "Prix de vente (€)", "Coefficient", "Marge (€)", "Marge (%)", "Stock", "Actif"],
+        ...prods.map((p) => { const cost = Number(p.cost) || 0, price = Number(p.price) || 0; return [p.name || "", p.cat || "", p.unit || "", n2(cost), n2(price), Number(p.coef) || 0, n2(price - cost), price > 0 ? n2((price - cost) / price * 100) : 0, p.stock == null ? "" : p.stock, p.active === false ? "non" : "oui"]; }),
+      ], [22, 16, 13, 16, 16, 12, 11, 10, 7, 7]);
+
+      add("Ventes_caisse", [
+        ["Date", "Heure", "Nb articles", "Total (€)", "Détail"],
+        ...sales.map((s) => [dday(s.ts), new Date(s.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), s.count || 0, n2(s.total), (s.items || []).map((i) => `${i.qty}× ${i.name}`).join(", ")]),
+      ], [12, 9, 12, 10, 52]);
+
+      add("Avis", [
+        ["Date", "Prénom", "Note (/5)", "Commentaire"],
+        ...avis.map((a) => [dday(a.created_at), a.prenom || "", a.rating || "", a.comment || ""]),
+      ], [12, 14, 10, 52]);
+
+      const caCmd = orders.reduce((a, o) => a + (Number(o.total) || 0), 0);
+      const caCaisse = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+      add("Synthèse", [
+        ["Indicateur", "Valeur"],
+        ["Nombre de clients", clients.length],
+        ["Nombre de commandes", orders.length],
+        ["CA commandes (€)", n2(caCmd)],
+        ["Nombre de ventes caisse", sales.length],
+        ["CA caisse (€)", n2(caCaisse)],
+        ["CA total (€)", n2(caCmd + caCaisse)],
+        ["Nombre de produits", prods.length],
+        ["Nombre d'avis", avis.length],
+        ["Export réalisé le", dfr(new Date())],
+      ], [26, 20]);
+
+      XLSX.writeFile(wb, `comme-avant-sauvegarde-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      setBk({ busy: false, msg: "Sauvegarde téléchargée ✓" });
+    } catch (e) {
+      setBk({ busy: false, msg: "Erreur pendant l'export — réessayez." });
+    }
+  };
   const METHODS = [
     { k: "wero", label: "Wero", desc: "paiement mobile (banques FR)", bg: "linear-gradient(135deg,#E5007D,#7B2FF7)", fg: "#fff", tag: "wero" },
     { k: "cb", label: "Carte bancaire", desc: "au stand (TPE)", bg: "#1A2B4A", fg: "#fff", tag: "CB" },
@@ -1100,6 +1195,20 @@ function ProSettings({ paymentEnabled, setPaymentEnabled }) {
           <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 4 }}>À imprimer et poser sur le stand. Il ouvre votre boutique à l'adresse :</div>
           <div style={{ marginTop: 8, fontFamily: SCRIPT, fontSize: 16, color: C.jam }}>confiture-et-gourmandise.vercel.app</div>
         </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ fontWeight: 600, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}><Download size={17} color={C.jam} /> Sauvegarde Excel</div>
+        <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>Télécharge un classeur Excel complet sur cet appareil : clients, commandes (et détail par article), produits avec prix d'achat / vente / marge, ventes caisse, avis et une synthèse. Une copie qui vous appartient, indépendante du cloud.</div>
+        <button onClick={exportExcel} disabled={bk.busy} className="ca-tap" style={{ marginTop: 12, width: "100%", background: bk.busy ? C.soft : C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: bk.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Download size={18} /> {bk.busy ? "Préparation…" : "Télécharger la sauvegarde Excel"}</button>
+        {bk.msg && !bk.busy && <div style={{ fontSize: 12.5, color: bk.msg.includes("Erreur") ? C.jam : C.ok, fontWeight: 600, marginTop: 8, textAlign: "center" }}>{bk.msg}</div>}
+        <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Conseil : faites-le régulièrement (par ex. chaque semaine). Le fichier contient des données personnelles — gardez-le en lieu sûr (RGPD).</div>
+      </div>
+
+      <div style={{ ...card(), background: "#FBF6EA" }}>
+        <div style={{ fontWeight: 600, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}><Database size={17} color={C.caramel} /> Connexion Excel « live » (avancé)</div>
+        <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>Pour qu'Excel se branche directement sur la base et s'actualise d'un clic (Données → Obtenir des données → Base de données PostgreSQL). Des tableaux propres sont déjà préparés dans le schéma <b style={{ color: C.ink }}>reporting</b> (clients, commandes, commandes_articles, produits, ventes_caisse, avis).</div>
+        <div style={{ fontSize: 12.5, color: C.soft, lineHeight: 1.6, marginTop: 8 }}>Identifiants à récupérer dans Supabase → Project Settings → Database → « Connection string ». Il faut le <b style={{ color: C.ink }}>mot de passe de la base</b> (différent du mot de passe commerçant). C'est l'option technique : le bouton ci-dessus reste le moyen recommandé.</div>
       </div>
     </div>
   );
