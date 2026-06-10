@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
@@ -1060,6 +1060,39 @@ function ProPromos({ promos, setPromos }) {
 function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
   const [pm, setPm] = useState({ wero: true, cb: true, especes: true, cheque: false, virement: false });
   const [bk, setBk] = useState({ busy: false, msg: "" });
+  const [imp, setImp] = useState({ busy: false, msg: "" });
+  const fileRef = useRef(null);
+  const onImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file || !supabase || !pass || imp.busy) return;
+    setImp({ busy: true, msg: "Lecture du fichier…" });
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const ws = wb.Sheets["Produits"];
+      if (!ws) { setImp({ busy: false, msg: "Onglet « Produits » introuvable dans ce fichier." }); return; }
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      const num = (v) => { if (v === "" || v == null) return 0; const n = parseFloat(String(v).replace(",", ".").replace(/[^0-9.\-]/g, "")); return isNaN(n) ? 0 : n; };
+      const slug = (s) => ((s || "prod").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "prod");
+      let ok = 0, skip = 0;
+      for (const row of rows) {
+        const name = String(row["Produit"] || "").trim();
+        if (!name) { skip++; continue; }
+        let id = String(row["ID (ne pas modifier)"] || row["ID"] || "").trim();
+        if (!id) id = slug(name) + "-" + Date.now().toString(36).slice(-4) + Math.floor(Math.random() * 100);
+        const actifRaw = String(row["Actif (oui/non)"] ?? row["Actif"] ?? "oui").trim().toLowerCase();
+        const active = !(actifRaw === "non" || actifRaw === "no" || actifRaw === "false" || actifRaw === "0");
+        try {
+          await supabase.rpc("admin_import_product", { pass, p_id: id, p_name: name, p_cat: String(row["Catégorie"] || "").trim() || "Confitures", p_unit: String(row["Unité"] || "").trim(), p_price: num(row["Prix de vente (€)"]), p_cost: num(row["Prix d'achat (€)"]), p_coef: num(row["Coefficient"]), p_stock: Math.round(num(row["Stock"])), p_active: active });
+          ok++;
+        } catch (err) { skip++; }
+      }
+      setImp({ busy: false, msg: `Import terminé : ${ok} produit(s) mis à jour${skip ? `, ${skip} ligne(s) ignorée(s)` : ""}.` });
+    } catch (e2) {
+      setImp({ busy: false, msg: "Fichier illisible — utilisez le classeur de sauvegarde (.xlsx)." });
+    }
+  };
   const exportExcel = async () => {
     if (!supabase || !pass || bk.busy) return;
     setBk({ busy: true, msg: "Préparation de la sauvegarde…" });
@@ -1097,9 +1130,21 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
         ["Synthèse", "Totaux : chiffre d'affaires, nb de clients, de commandes…"],
         [],
         ["Comment réutiliser", "Chaque onglet = un tableau propre (en-têtes en 1re ligne). Triez, filtrez, ou créez un tableau croisé dynamique."],
+        ["Modifier les prix / marges", "Onglet Produits : renseignez Prix d'achat et Coefficient (ou directement le Prix de vente). Les colonnes Marge € et Marge % se calculent toutes seules. Enregistrez le fichier."],
+        ["Réimporter dans la boutique", "Réglages → Importer un fichier Excel. Les produits sont mis à jour d'après l'onglet Produits (illustrations et couleurs conservées)."],
+        ["Colonne ID", "Sert à retrouver chaque produit à l'import : ne pas la modifier. Pour créer un produit, ajoutez une ligne en laissant l'ID vide."],
         ["Mise à jour", "Ce fichier est une photographie à l'instant de l'export. Relancez la sauvegarde pour des données à jour."],
         ["Confidentialité (RGPD)", "Contient des données personnelles. Conservez ce fichier en lieu sûr et ne le diffusez pas."],
       ], [24, 70]);
+
+      {
+        const head = ["ID (ne pas modifier)", "Produit", "Catégorie", "Unité", "Prix d'achat (€)", "Coefficient", "Prix de vente (€)", "Marge (€)", "Marge (%)", "Stock", "Actif (oui/non)"];
+        const rows = [head, ...prods.map((p) => [p.id || "", p.name || "", p.cat || "", p.unit || "", n2(Number(p.cost) || 0), Number(p.coef) || 0, n2(Number(p.price) || 0), null, null, p.stock == null ? 0 : p.stock, p.active === false ? "non" : "oui"])];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws["!cols"] = [22, 22, 16, 13, 16, 12, 16, 11, 10, 7, 13].map((w) => ({ wch: w }));
+        for (let i = 0; i < prods.length; i++) { const r = i + 2; ws["H" + r] = { t: "n", f: `G${r}-E${r}`, z: "0.00" }; ws["I" + r] = { t: "n", f: `IF(G${r}=0,0,(G${r}-E${r})/G${r})`, z: "0.0%" }; }
+        XLSX.utils.book_append_sheet(wb, ws, "Produits");
+      }
 
       add("Clients", [
         ["Prénom", "Nom", "Téléphone", "Email", "Newsletter", "Nb commandes", "Total dépensé (€)"],
@@ -1117,11 +1162,6 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
         ["Référence", "Date", "Client", "Article", "Unité", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
         ...lines,
       ], [12, 16, 18, 24, 13, 9, 16, 15]);
-
-      add("Produits", [
-        ["Produit", "Catégorie", "Unité", "Prix d'achat (€)", "Prix de vente (€)", "Coefficient", "Marge (€)", "Marge (%)", "Stock", "Actif"],
-        ...prods.map((p) => { const cost = Number(p.cost) || 0, price = Number(p.price) || 0; return [p.name || "", p.cat || "", p.unit || "", n2(cost), n2(price), Number(p.coef) || 0, n2(price - cost), price > 0 ? n2((price - cost) / price * 100) : 0, p.stock == null ? "" : p.stock, p.active === false ? "non" : "oui"]; }),
-      ], [22, 16, 13, 16, 16, 12, 11, 10, 7, 7]);
 
       add("Ventes_caisse", [
         ["Date", "Heure", "Nb articles", "Total (€)", "Détail"],
@@ -1203,6 +1243,15 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
         <button onClick={exportExcel} disabled={bk.busy} className="ca-tap" style={{ marginTop: 12, width: "100%", background: bk.busy ? C.soft : C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: bk.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Download size={18} /> {bk.busy ? "Préparation…" : "Télécharger la sauvegarde Excel"}</button>
         {bk.msg && !bk.busy && <div style={{ fontSize: 12.5, color: bk.msg.includes("Erreur") ? C.jam : C.ok, fontWeight: 600, marginTop: 8, textAlign: "center" }}>{bk.msg}</div>}
         <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Conseil : faites-le régulièrement (par ex. chaque semaine). Le fichier contient des données personnelles — gardez-le en lieu sûr (RGPD).</div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ fontWeight: 600, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}><Package size={17} color={C.jam} /> Importer depuis Excel</div>
+        <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>Modifiez l'onglet <b style={{ color: C.ink }}>Produits</b> de votre sauvegarde (prix d'achat, coefficient, prix de vente, stock…), enregistrez le fichier, puis importez-le ici : les produits sont mis à jour dans la boutique. Illustrations et couleurs conservées.</div>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={onImportFile} style={{ display: "none" }} />
+        <button onClick={() => fileRef.current && fileRef.current.click()} disabled={imp.busy} className="ca-tap" style={{ marginTop: 12, width: "100%", background: imp.busy ? C.soft : "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 15, cursor: imp.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Package size={18} /> {imp.busy ? "Import en cours…" : "Importer un fichier Excel"}</button>
+        {imp.msg && !imp.busy && <div style={{ fontSize: 12.5, color: (imp.msg.includes("illisible") || imp.msg.includes("introuvable")) ? C.jam : C.ok, fontWeight: 600, marginTop: 8, textAlign: "center", lineHeight: 1.4 }}>{imp.msg}</div>}
+        <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Astuce : ne modifiez pas la colonne ID. Pour créer un produit, ajoutez une ligne en laissant l'ID vide.</div>
       </div>
 
       <div style={{ ...card(), background: "#FBF6EA" }}>
