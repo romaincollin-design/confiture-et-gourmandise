@@ -1098,97 +1098,132 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
     setBk({ busy: true, msg: "Préparation de la sauvegarde…" });
     try {
       const XLSX = await import("xlsx");
-      const [rc, ro, rs, rp, rv] = await Promise.all([
+      const [rc, ro, rs, rp, rv, rpr, rpm] = await Promise.all([
         supabase.rpc("admin_customers", { pass }),
         supabase.rpc("admin_orders", { pass }),
         supabase.rpc("admin_sales", { pass }),
         supabase.from("products").select("*").order("cat", { ascending: true }).order("name", { ascending: true }),
         supabase.from("reviews").select("created_at, prenom, rating, comment").order("created_at", { ascending: false }),
+        supabase.from("profile").select("*").limit(1),
+        supabase.from("promos").select("*"),
       ]);
       const clients = Array.isArray(rc.data) ? rc.data : [];
       const orders = Array.isArray(ro.data) ? ro.data : [];
       const sales = Array.isArray(rs.data) ? rs.data : [];
       const prods = Array.isArray(rp.data) ? rp.data : [];
       const avis = Array.isArray(rv.data) ? rv.data : [];
+      const prof = (Array.isArray(rpr.data) && rpr.data[0]) || {};
+      const promos = Array.isArray(rpm.data) ? rpm.data : [];
+      orders.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      sales.sort((a, b) => String(b.ts || "").localeCompare(String(a.ts || "")));
+      const LIEU = "Marché de Grasse";
       const n2 = (x) => Math.round((Number(x) || 0) * 100) / 100;
       const dfr = (d) => d ? new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-      const dday = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+      const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+      const dcols = (iso) => {
+        if (!iso) return { date: "", jour: "", heure: "", sem: "", mois: "", an: "" };
+        const d = new Date(iso);
+        const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const day = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - day + 3);
+        const firstThu = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+        const week = 1 + Math.round(((t - firstThu) / 86400000 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
+        return { date: d, jour: JOURS[d.getDay()], heure: d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), sem: t.getUTCFullYear() + "-S" + String(week).padStart(2, "0"), mois: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), an: d.getFullYear() };
+      };
       const wb = XLSX.utils.book_new();
-      const add = (name, rows, cols) => { const ws = XLSX.utils.aoa_to_sheet(rows); if (cols) ws["!cols"] = cols.map((w) => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, name); };
+      const sheet = (name, headers, rows, cols, dateCols, moneyCols) => {
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows], { cellDates: true });
+        if (cols) ws["!cols"] = cols.map((w) => ({ wch: w }));
+        const nR = rows.length + 1;
+        (dateCols || []).forEach((ci) => { for (let r = 2; r <= nR; r++) { const ref = XLSX.utils.encode_cell({ r: r - 1, c: ci - 1 }); if (ws[ref] && ws[ref].v != null && ws[ref].v !== "") ws[ref].z = "dd/mm/yyyy"; } });
+        (moneyCols || []).forEach((ci) => { for (let r = 2; r <= nR; r++) { const ref = XLSX.utils.encode_cell({ r: r - 1, c: ci - 1 }); if (ws[ref] && typeof ws[ref].v === "number") ws[ref].z = "0.00"; } });
+        ws["!autofilter"] = { ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${Math.max(2, nR)}` };
+        XLSX.utils.book_append_sheet(wb, ws, name);
+        return ws;
+      };
 
-      add("Lisez-moi", [
-        ["COMME AVANT — Sauvegarde des données"],
+      const info = XLSX.utils.aoa_to_sheet([
+        ["COMME AVANT — Sauvegarde complète des données"],
         ["Export réalisé le", dfr(new Date())],
         [],
         ["Onglet", "Contenu"],
-        ["Clients", "Coordonnées clients (CRM) : prénom, nom, téléphone, email, nb de commandes, total dépensé"],
-        ["Commandes", "Une ligne par commande (en-tête : client, total, statut, retrait…)"],
-        ["Commandes_articles", "Une ligne par article commandé — pour analyses et tableaux croisés"],
-        ["Produits", "Prix d'achat, prix de vente, coefficient, marge € et marge %"],
-        ["Ventes_caisse", "Ventes enregistrées à la caisse sur le marché"],
-        ["Avis", "Avis clients (note et commentaire)"],
-        ["Synthèse", "Totaux : chiffre d'affaires, nb de clients, de commandes…"],
+        ["Produits", "Prix d'achat, coefficient, prix de vente, marges (calculées). Modifiable → réimport dans l'app."],
+        ["Ventes_caisse", "Une ligne par vente (Date, Jour, Semaine, Mois, Année, Lieu, total)."],
+        ["Ventes_articles", "Une ligne par article vendu → pour graphiques : prix, pics de vente, saisonnalité."],
+        ["Commandes", "Une ligne par commande (avec Date / Jour / Semaine / Mois / Année)."],
+        ["Commandes_articles", "Une ligne par article commandé."],
+        ["Clients", "Coordonnées clients (CRM)."],
+        ["Avis", "Avis clients."],
+        ["Paramètres", "Réglages boutique (profil, annonce)."],
+        ["Promos", "Codes promo."],
+        ["Synthèse", "Totaux (CA, nb clients…)."],
         [],
-        ["Comment réutiliser", "Chaque onglet = un tableau propre (en-têtes en 1re ligne). Triez, filtrez, ou créez un tableau croisé dynamique."],
-        ["Modifier les prix / marges", "Onglet Produits : renseignez Prix d'achat et Coefficient (ou directement le Prix de vente). Les colonnes Marge € et Marge % se calculent toutes seules. Enregistrez le fichier."],
-        ["Réimporter dans la boutique", "Réglages → Importer un fichier Excel. Les produits sont mis à jour d'après l'onglet Produits (illustrations et couleurs conservées)."],
-        ["Colonne ID", "Sert à retrouver chaque produit à l'import : ne pas la modifier. Pour créer un produit, ajoutez une ligne en laissant l'ID vide."],
-        ["Mise à jour", "Ce fichier est une photographie à l'instant de l'export. Relancez la sauvegarde pour des données à jour."],
-        ["Confidentialité (RGPD)", "Contient des données personnelles. Conservez ce fichier en lieu sûr et ne le diffusez pas."],
-      ], [24, 70]);
+        ["Filtrer", "Chaque onglet a des flèches de filtre sur la 1re ligne. Dans Numbers : sélectionner le tableau → Organiser → Filtres."],
+        ["Stats / graphiques", "Onglet → Insertion → Tableau croisé dynamique. Ex : somme des Quantités par Article et par Mois (saisonnalité), ou Total par Jour (pics)."],
+        ["Modifier les prix", "Onglet Produits : remplir Prix d'achat et Coefficient. Enregistrer, puis Réglages → Importer."],
+        ["Confidentialité (RGPD)", "Données personnelles : conserver en lieu sûr, garder plusieurs copies (clé USB, cloud perso)."],
+      ]);
+      info["!cols"] = [{ wch: 26 }, { wch: 95 }];
+      XLSX.utils.book_append_sheet(wb, info, "Lisez-moi");
 
       {
         const head = ["ID (ne pas modifier)", "Produit", "Catégorie", "Unité", "Prix d'achat (€)", "Coefficient", "Prix de vente (€)", "Marge (€)", "Marge (%)", "Stock", "Actif (oui/non)"];
-        const rows = [head, ...prods.map((p) => [p.id || "", p.name || "", p.cat || "", p.unit || "", n2(Number(p.cost) || 0), Number(p.coef) || 0, n2(Number(p.price) || 0), null, null, p.stock == null ? 0 : p.stock, p.active === false ? "non" : "oui"])];
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws["!cols"] = [22, 22, 16, 13, 16, 12, 16, 11, 10, 7, 13].map((w) => ({ wch: w }));
+        const rows = prods.map((p) => [p.id || "", p.name || "", p.cat || "", p.unit || "", n2(Number(p.cost) || 0), Number(p.coef) || 0, n2(Number(p.price) || 0), null, null, p.stock == null ? 0 : p.stock, p.active === false ? "non" : "oui"]);
+        const ws = sheet("Produits", head, rows, [22, 24, 16, 22, 16, 12, 17, 12, 10, 7, 14], [], [5, 7]);
         for (let i = 0; i < prods.length; i++) { const r = i + 2; ws["H" + r] = { t: "n", f: `G${r}-E${r}`, z: "0.00" }; ws["I" + r] = { t: "n", f: `IF(G${r}=0,0,(G${r}-E${r})/G${r})`, z: "0.0%" }; }
-        XLSX.utils.book_append_sheet(wb, ws, "Produits");
       }
 
-      add("Clients", [
+      sheet("Ventes_caisse",
+        ["Date", "Jour", "Heure", "Semaine", "Mois", "Année", "Lieu", "Nb articles", "Total (€)", "Détail", "ID vente"],
+        sales.map((s) => { const c = dcols(s.ts); return [c.date, c.jour, c.heure, c.sem, c.mois, c.an, LIEU, s.count || 0, n2(s.total), (s.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "), s.id || ""]; }),
+        [12, 11, 7, 10, 9, 7, 16, 11, 12, 50, 16], [1], [9]);
+
+      const vaRows = [];
+      sales.forEach((s) => { const c = dcols(s.ts); (s.items || []).forEach((it) => { const q = it.qty || 0, pr = n2(it.price); vaRows.push([c.date, c.jour, c.sem, c.mois, c.an, LIEU, it.name || "", q, pr, n2(q * pr)]); }); });
+      sheet("Ventes_articles",
+        ["Date", "Jour", "Semaine", "Mois", "Année", "Lieu", "Article", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
+        vaRows, [12, 11, 10, 9, 7, 16, 26, 9, 17, 16], [1], [9, 10]);
+
+      sheet("Commandes",
+        ["Référence", "Date", "Jour", "Semaine", "Mois", "Année", "Client", "Téléphone", "Email", "Retrait / Lieu", "Nb articles", "Total (€)", "Statut", "Payé", "Parrain", "ID commande"],
+        orders.map((o) => { const c = dcols(o.created_at); return [o.ref || "", c.date, c.jour, c.sem, c.mois, c.an, o.name || "", o.tel || "", o.email || "", o.pickup || LIEU, o.items_count || 0, n2(o.total), o.status || "", o.paid ? "oui" : "non", o.parrain || "", o.id || ""]; }),
+        [12, 12, 11, 10, 9, 7, 18, 15, 26, 18, 10, 12, 12, 7, 20, 24], [2], [12]);
+
+      const caRows = [];
+      orders.forEach((o) => { const c = dcols(o.created_at); (o.items || []).forEach((it) => { const q = it.qty || 0, pr = n2(it.price); caRows.push([o.ref || "", c.date, c.sem, c.mois, c.an, o.name || "", it.name || "", it.unit || "", q, pr, n2(q * pr)]); }); });
+      sheet("Commandes_articles",
+        ["Référence", "Date", "Semaine", "Mois", "Année", "Client", "Article", "Unité", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
+        caRows, [12, 12, 10, 9, 7, 18, 24, 16, 9, 17, 16], [2], [10, 11]);
+
+      sheet("Clients",
         ["Prénom", "Nom", "Téléphone", "Email", "Newsletter", "Nb commandes", "Total dépensé (€)"],
-        ...clients.map((c) => [c.prenom || "", c.nom || "", c.tel || "", c.email || "", c.opt_in ? "oui" : "non", c.orders || 0, n2(c.spent)]),
-      ], [14, 16, 16, 28, 11, 13, 16]);
+        clients.map((c) => [c.prenom || "", c.nom || "", c.tel || "", c.email || "", c.opt_in ? "oui" : "non", c.orders || 0, n2(c.spent)]),
+        [14, 16, 16, 28, 11, 13, 18], [], [7]);
 
-      add("Commandes", [
-        ["Référence", "Date", "Client", "Téléphone", "Email", "Nb articles", "Total (€)", "Statut", "Payé", "Retrait", "Parrainé par"],
-        ...orders.map((o) => [o.ref || "", dfr(o.created_at), o.name || "", o.tel || "", o.email || "", o.items_count || 0, n2(o.total), o.status || "", o.paid ? "oui" : "non", o.pickup || "", o.parrain || ""]),
-      ], [12, 16, 18, 15, 26, 10, 10, 13, 7, 16, 22]);
-
-      const lines = [];
-      orders.forEach((o) => (o.items || []).forEach((it) => lines.push([o.ref || "", dfr(o.created_at), o.name || "", it.name || "", it.unit || "", it.qty || 0, n2(it.price), n2((it.qty || 0) * (Number(it.price) || 0))])));
-      add("Commandes_articles", [
-        ["Référence", "Date", "Client", "Article", "Unité", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
-        ...lines,
-      ], [12, 16, 18, 24, 13, 9, 16, 15]);
-
-      add("Ventes_caisse", [
-        ["Date", "Heure", "Nb articles", "Total (€)", "Détail"],
-        ...sales.map((s) => [dday(s.ts), new Date(s.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), s.count || 0, n2(s.total), (s.items || []).map((i) => `${i.qty}× ${i.name}`).join(", ")]),
-      ], [12, 9, 12, 10, 52]);
-
-      add("Avis", [
+      sheet("Avis",
         ["Date", "Prénom", "Note (/5)", "Commentaire"],
-        ...avis.map((a) => [dday(a.created_at), a.prenom || "", a.rating || "", a.comment || ""]),
-      ], [12, 14, 10, 52]);
+        avis.map((a) => { const c = dcols(a.created_at); return [c.date, a.prenom || "", a.rating || "", a.comment || ""]; }),
+        [12, 14, 10, 55], [1]);
+
+      sheet("Paramètres",
+        ["Champ", "Valeur"],
+        [["Nom", prof.name || ""], ["Slogan", prof.tagline || ""], ["Téléphone", prof.tel || ""], ["WhatsApp", prof.wa || ""], ["Email", prof.email || ""], ["Site", prof.site || ""], ["Annonce — titre", prof.announce_title || ""], ["Annonce — texte", prof.announce_body || ""]],
+        [22, 80]);
+
+      sheet("Promos",
+        ["Code", "Réduction (%)", "Actif"],
+        promos.map((p) => [p.code || "", p.pct || "", p.active ? "oui" : "non"]),
+        [18, 14, 8]);
 
       const caCmd = orders.reduce((a, o) => a + (Number(o.total) || 0), 0);
       const caCaisse = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
-      add("Synthèse", [
+      sheet("Synthèse",
         ["Indicateur", "Valeur"],
-        ["Nombre de clients", clients.length],
-        ["Nombre de commandes", orders.length],
-        ["CA commandes (€)", n2(caCmd)],
-        ["Nombre de ventes caisse", sales.length],
-        ["CA caisse (€)", n2(caCaisse)],
-        ["CA total (€)", n2(caCmd + caCaisse)],
-        ["Nombre de produits", prods.length],
-        ["Nombre d'avis", avis.length],
-        ["Export réalisé le", dfr(new Date())],
-      ], [26, 20]);
+        [["Nombre de clients", clients.length], ["Nombre de commandes", orders.length], ["CA commandes (€)", n2(caCmd)], ["Nombre de ventes caisse", sales.length], ["CA caisse (€)", n2(caCaisse)], ["CA total (€)", n2(caCmd + caCaisse)], ["Nombre de produits", prods.length], ["Nombre d'avis", avis.length], ["Export réalisé le", dfr(new Date())]],
+        [26, 22]);
 
-      XLSX.writeFile(wb, `comme-avant-sauvegarde-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
+      XLSX.writeFile(wb, `comme-avant-sauvegarde-${stamp}.xlsx`);
       setBk({ busy: false, msg: "Sauvegarde téléchargée ✓" });
     } catch (e) {
       setBk({ busy: false, msg: "Erreur pendant l'export — réessayez." });
