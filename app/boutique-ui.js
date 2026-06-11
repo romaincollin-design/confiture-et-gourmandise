@@ -1093,6 +1093,61 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
       setImp({ busy: false, msg: "Fichier illisible — utilisez le classeur de sauvegarde (.xlsx)." });
     }
   };
+
+  const [rst, setRst] = useState({ busy: false, msg: "" });
+  const restoreRef = useRef(null);
+  const onRestoreFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file || !supabase || !pass || rst.busy) return;
+    if (!window.confirm("Restaurer va réinjecter les données de ce fichier dans la base. À faire de préférence sur une base vide (sinon des doublons peuvent apparaître). Continuer ?")) return;
+    setRst({ busy: true, msg: "Restauration en cours…" });
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const J = (name) => { const ws = wb.Sheets[name]; return ws ? XLSX.utils.sheet_to_json(ws, { defval: "" }) : []; };
+      const num = (v) => { if (v === "" || v == null) return 0; const n = parseFloat(String(v).replace(",", ".").replace(/[^0-9.\-]/g, "")); return isNaN(n) ? 0 : n; };
+      const iso = (v) => { if (!v) return null; if (v instanceof Date) return v.toISOString(); const d = new Date(v); return isNaN(d.getTime()) ? null : d.toISOString(); };
+      const cnt = { clients: 0, produits: 0, commandes: 0, ventes: 0, avis: 0, promos: 0 };
+
+      for (const r of J("Produits")) {
+        const name = String(r["Produit"] || "").trim(); if (!name) continue;
+        let id = String(r["ID (ne pas modifier)"] || r["ID"] || "").trim();
+        if (!id) id = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) + "-" + Date.now().toString(36).slice(-4);
+        const actif = String(r["Actif (oui/non)"] ?? r["Actif"] ?? "oui").trim().toLowerCase();
+        try { await supabase.rpc("admin_import_product", { pass, p_id: id, p_name: name, p_cat: String(r["Catégorie"] || "").trim() || "Confitures", p_unit: String(r["Unité"] || "").trim(), p_price: num(r["Prix de vente (€)"]), p_cost: num(r["Prix d'achat (€)"]), p_coef: num(r["Coefficient"]), p_stock: Math.round(num(r["Stock"])), p_active: !(actif === "non") }); cnt.produits++; } catch (er) {}
+      }
+      for (const r of J("Clients")) {
+        const email = String(r["Email"] || "").trim(), nom = String(r["Nom"] || "").trim(), pre = String(r["Prénom"] || "").trim();
+        if (!email && !nom && !pre) continue;
+        try { await supabase.rpc("admin_restore_customer", { pass, p_prenom: pre, p_nom: nom, p_tel: String(r["Téléphone"] || "").trim(), p_email: email, p_opt_in: String(r["Newsletter"] || "").trim().toLowerCase() === "oui" }); cnt.clients++; } catch (er) {}
+      }
+      const artByRef = {};
+      for (const r of J("Commandes_articles")) { const ref = String(r["Référence"] || "").trim(); if (!ref) continue; (artByRef[ref] = artByRef[ref] || []).push({ name: String(r["Article"] || ""), unit: String(r["Unité"] || ""), qty: num(r["Quantité"]), price: num(r["Prix unitaire (€)"]) }); }
+      for (const r of J("Commandes")) {
+        const nom = String(r["Client"] || "").trim(); if (!nom) continue;
+        const items = artByRef[String(r["Référence"] || "").trim()] || [];
+        try { await supabase.rpc("admin_restore_order", { pass, p_name: nom, p_email: String(r["Email"] || "").trim(), p_tel: String(r["Téléphone"] || "").trim(), p_items_count: Math.round(num(r["Nb articles"])), p_total: num(r["Total (€)"]), p_status: String(r["Statut"] || "").trim(), p_paid: String(r["Payé"] || "").trim().toLowerCase() === "oui", p_pickup: String(r["Retrait / Lieu"] || "").trim(), p_parrain: String(r["Parrain"] || "").trim(), p_created_at: iso(r["Date ISO (ne pas modifier)"] || r["Date"]), p_items: items }); cnt.commandes++; } catch (er) {}
+      }
+      const vaById = {};
+      for (const r of J("Ventes_articles")) { const sid = String(r["ID vente"] || "").trim(); (vaById[sid] = vaById[sid] || []).push({ name: String(r["Article"] || ""), qty: num(r["Quantité"]), price: num(r["Prix unitaire (€)"]) }); }
+      for (const r of J("Ventes_caisse")) {
+        const sid = String(r["ID vente"] || "").trim();
+        let items = vaById[sid];
+        if (!items || !items.length) items = String(r["Détail"] || "").split(",").map((s) => s.trim()).filter(Boolean).map((s) => { const m = s.match(/^(\d+)\s*[x×]\s*(.+)$/i); return m ? { name: m[2].trim(), qty: num(m[1]), price: 0 } : null; }).filter(Boolean);
+        const total = num(r["Total (€)"]); if (!total && (!items || !items.length)) continue;
+        try { await supabase.rpc("admin_restore_sale", { pass, p_ts: iso(r["Date ISO (ne pas modifier)"] || r["Date"]), p_count: Math.round(num(r["Nb articles"])), p_total: total, p_items: items }); cnt.ventes++; } catch (er) {}
+      }
+      for (const r of J("Avis")) { const pre = String(r["Prénom"] || "").trim(), com = String(r["Commentaire"] || "").trim(); if (!pre && !com) continue; try { await supabase.rpc("admin_restore_review", { pass, p_prenom: pre, p_rating: Math.round(num(r["Note (/5)"])) || 5, p_comment: com, p_created_at: iso(r["Date"]) }); cnt.avis++; } catch (er) {} }
+      for (const r of J("Promos")) { const code = String(r["Code"] || "").trim(); if (!code) continue; try { await supabase.rpc("admin_restore_promo", { pass, p_code: code, p_pct: num(r["Réduction (%)"]), p_active: String(r["Actif"] || "").trim().toLowerCase() !== "non" }); cnt.promos++; } catch (er) {} }
+      const par = {}; for (const r of J("Paramètres")) par[String(r["Champ"] || "").trim()] = r["Valeur"];
+      if (Object.keys(par).length) { try { await supabase.rpc("admin_restore_profile", { pass, p_name: String(par["Nom"] || ""), p_tagline: String(par["Slogan"] || ""), p_tel: String(par["Téléphone"] || ""), p_wa: String(par["WhatsApp"] || ""), p_email: String(par["Email"] || ""), p_site: String(par["Site"] || ""), p_atitle: String(par["Annonce — titre"] || ""), p_abody: String(par["Annonce — texte"] || "") }); } catch (er) {} }
+
+      setRst({ busy: false, msg: `Restauration terminée : ${cnt.clients} clients, ${cnt.produits} produits, ${cnt.commandes} commandes, ${cnt.ventes} ventes, ${cnt.avis} avis, ${cnt.promos} promos. Actualisez les écrans.` });
+    } catch (e3) {
+      setRst({ busy: false, msg: "Fichier illisible — utilisez un classeur de sauvegarde complet (.xlsx)." });
+    }
+  };
   const exportExcel = async () => {
     if (!supabase || !pass || bk.busy) return;
     setBk({ busy: true, msg: "Préparation de la sauvegarde…" });
@@ -1173,20 +1228,20 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
       }
 
       sheet("Ventes_caisse",
-        ["Date", "Jour", "Heure", "Semaine", "Mois", "Année", "Lieu", "Nb articles", "Total (€)", "Détail", "ID vente"],
-        sales.map((s) => { const c = dcols(s.ts); return [c.date, c.jour, c.heure, c.sem, c.mois, c.an, LIEU, s.count || 0, n2(s.total), (s.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "), s.id || ""]; }),
-        [12, 11, 7, 10, 9, 7, 16, 11, 12, 50, 16], [1], [9]);
+        ["Date", "Jour", "Heure", "Semaine", "Mois", "Année", "Lieu", "Nb articles", "Total (€)", "Détail", "ID vente", "Date ISO (ne pas modifier)"],
+        sales.map((s) => { const c = dcols(s.ts); return [c.date, c.jour, c.heure, c.sem, c.mois, c.an, LIEU, s.count || 0, n2(s.total), (s.items || []).map((i) => `${i.qty}× ${i.name}`).join(", "), s.id || "", s.ts || ""]; }),
+        [12, 11, 7, 10, 9, 7, 16, 11, 12, 50, 16, 22], [1], [9]);
 
       const vaRows = [];
-      sales.forEach((s) => { const c = dcols(s.ts); (s.items || []).forEach((it) => { const q = it.qty || 0, pr = n2(it.price); vaRows.push([c.date, c.jour, c.sem, c.mois, c.an, LIEU, it.name || "", q, pr, n2(q * pr)]); }); });
+      sales.forEach((s) => { const c = dcols(s.ts); (s.items || []).forEach((it) => { const q = it.qty || 0, pr = n2(it.price); vaRows.push([c.date, c.jour, c.sem, c.mois, c.an, LIEU, it.name || "", q, pr, n2(q * pr), s.id || ""]); }); });
       sheet("Ventes_articles",
-        ["Date", "Jour", "Semaine", "Mois", "Année", "Lieu", "Article", "Quantité", "Prix unitaire (€)", "Total ligne (€)"],
-        vaRows, [12, 11, 10, 9, 7, 16, 26, 9, 17, 16], [1], [9, 10]);
+        ["Date", "Jour", "Semaine", "Mois", "Année", "Lieu", "Article", "Quantité", "Prix unitaire (€)", "Total ligne (€)", "ID vente"],
+        vaRows, [12, 11, 10, 9, 7, 16, 26, 9, 17, 16, 16], [1], [9, 10]);
 
       sheet("Commandes",
-        ["Référence", "Date", "Jour", "Semaine", "Mois", "Année", "Client", "Téléphone", "Email", "Retrait / Lieu", "Nb articles", "Total (€)", "Statut", "Payé", "Parrain", "ID commande"],
-        orders.map((o) => { const c = dcols(o.created_at); return [o.ref || "", c.date, c.jour, c.sem, c.mois, c.an, o.name || "", o.tel || "", o.email || "", o.pickup || LIEU, o.items_count || 0, n2(o.total), o.status || "", o.paid ? "oui" : "non", o.parrain || "", o.id || ""]; }),
-        [12, 12, 11, 10, 9, 7, 18, 15, 26, 18, 10, 12, 12, 7, 20, 24], [2], [12]);
+        ["Référence", "Date", "Jour", "Semaine", "Mois", "Année", "Client", "Téléphone", "Email", "Retrait / Lieu", "Nb articles", "Total (€)", "Statut", "Payé", "Parrain", "ID commande", "Date ISO (ne pas modifier)"],
+        orders.map((o) => { const c = dcols(o.created_at); return [o.ref || "", c.date, c.jour, c.sem, c.mois, c.an, o.name || "", o.tel || "", o.email || "", o.pickup || LIEU, o.items_count || 0, n2(o.total), o.status || "", o.paid ? "oui" : "non", o.parrain || "", o.id || "", o.created_at || ""]; }),
+        [12, 12, 11, 10, 9, 7, 18, 15, 26, 18, 10, 12, 12, 7, 20, 24, 22], [2], [12]);
 
       const caRows = [];
       orders.forEach((o) => { const c = dcols(o.created_at); (o.items || []).forEach((it) => { const q = it.qty || 0, pr = n2(it.price); caRows.push([o.ref || "", c.date, c.sem, c.mois, c.an, o.name || "", it.name || "", it.unit || "", q, pr, n2(q * pr)]); }); });
@@ -1287,6 +1342,15 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
         <button onClick={() => fileRef.current && fileRef.current.click()} disabled={imp.busy} className="ca-tap" style={{ marginTop: 12, width: "100%", background: imp.busy ? C.soft : "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 15, cursor: imp.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Package size={18} /> {imp.busy ? "Import en cours…" : "Importer un fichier Excel"}</button>
         {imp.msg && !imp.busy && <div style={{ fontSize: 12.5, color: (imp.msg.includes("illisible") || imp.msg.includes("introuvable")) ? C.jam : C.ok, fontWeight: 600, marginTop: 8, textAlign: "center", lineHeight: 1.4 }}>{imp.msg}</div>}
         <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Astuce : ne modifiez pas la colonne ID. Pour créer un produit, ajoutez une ligne en laissant l'ID vide.</div>
+      </div>
+
+      <div style={{ ...card(), border: `1.5px solid ${C.jam}44` }}>
+        <div style={{ fontWeight: 600, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}><Database size={17} color={C.jam} /> Restaurer depuis un fichier</div>
+        <div style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, marginTop: 6 }}>En cas de perte, de piratage ou de transfert : réinjecte tout le contenu d'une sauvegarde Excel (clients, commandes, ventes, produits, avis, promos, paramètres) dans la base. À utiliser de préférence sur une base vide.</div>
+        <input ref={restoreRef} type="file" accept=".xlsx,.xls" onChange={onRestoreFile} style={{ display: "none" }} />
+        <button onClick={() => restoreRef.current && restoreRef.current.click()} disabled={rst.busy} className="ca-tap" style={{ marginTop: 12, width: "100%", background: rst.busy ? C.soft : "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 15, cursor: rst.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Database size={18} /> {rst.busy ? "Restauration en cours…" : "Restaurer depuis un fichier Excel"}</button>
+        {rst.msg && !rst.busy && <div style={{ fontSize: 12.5, color: rst.msg.includes("illisible") ? C.jam : C.ok, fontWeight: 600, marginTop: 8, textAlign: "center", lineHeight: 1.4 }}>{rst.msg}</div>}
+        <div style={{ fontSize: 11, color: C.soft, marginTop: 10, lineHeight: 1.4 }}>Utilise les colonnes techniques (ID, Date ISO) du fichier pour tout remettre fidèlement. Ne pas modifier ces colonnes dans Excel.</div>
       </div>
 
       <div style={{ ...card(), background: "#FBF6EA" }}>
