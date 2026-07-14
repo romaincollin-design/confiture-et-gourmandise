@@ -336,7 +336,7 @@ function Welcome({ setStep, setIntent, profile, returning, cust, reviews }) {
           <Stars value={avg ? Math.round(avg) : 5} size={15} /> {reviews && reviews.length ? `${avg.toFixed(1)} · ${reviews.length} avis — donner le mien` : "Donner votre avis"}
         </button>
         <InstallBanner />
-        <button onClick={() => setStep("contact")} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
+        <button onClick={() => { if (returning && cust && cust.email) { setStep("contact"); } else { setIntent("contact"); setStep("coords"); } }} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
       </div>
     </div>
   );
@@ -405,7 +405,9 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
       <p style={{ fontSize: 11, color: C.soft, lineHeight: 1.5, margin: "0 0 16px" }}>Vos coordonnées servent uniquement à gérer votre commande et, si vous l'acceptez, à vous tenir informé·e — jamais transmises à des tiers. Vous pouvez demander leur suppression à tout moment.</p>
       {lead
         ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>Valider mes coordonnées <Check size={16} /></BigBtn>
-        : <BigBtn disabled={!ok} onClick={() => valider("shop")}>Voir nos saveurs <ChevronRight size={17} /></BigBtn>}
+        : intent === "contact"
+          ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>Valider et voir nos coordonnées <ChevronRight size={17} /></BigBtn>
+          : <BigBtn disabled={!ok} onClick={() => valider("shop")}>Voir nos saveurs <ChevronRight size={17} /></BigBtn>}
       {!ok && <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", marginTop: 10 }}>Prénom, nom, téléphone et email sont nécessaires pour commander.</p>}
     </div>
   );
@@ -570,6 +572,7 @@ function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnable
 function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, setStep }) {
   const [copied, setCopied] = useState(false);
   const [ask, setAsk] = useState(false);
+  const [sent, setSent] = useState(false);
   useEffect(() => { const t = setTimeout(() => setAsk(true), 1600); return () => clearTimeout(t); }, []);
   const o = lastOrder || { lines: [], total: 0, id: "" };
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
@@ -589,12 +592,13 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
         <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700 }}><span>Total</span><span style={{ fontFamily: SCRIPT, color: C.jam }}>{eur(o.total)}</span></div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.soft, marginTop: 10 }}><Calendar size={14} /> Retrait au stand{o.pickup ? ` · ${o.pickup}` : ""}{!paymentEnabled && " · règlement à l'enlèvement"}</div>
       </div>
-      <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", borderRadius: 13, padding: "12px 14px", textAlign: "left", marginBottom: 16, display: "flex", gap: 9, alignItems: "flex-start" }}>
-        <Check size={16} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} />
-        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Envoyez votre commande ci-dessous — <b>on vous recontacte rapidement pour la confirmer</b> (disponibilités et jour de retrait au marché). Aucun paiement en ligne : règlement à l'enlèvement.</div>
+      <div style={{ background: "#B5722B18", border: `1.5px solid ${C.caramel}`, borderRadius: 13, padding: "12px 14px", textAlign: "left", marginBottom: 16, display: "flex", gap: 9, alignItems: "flex-start" }}>
+        <MessageCircle size={17} color={C.caramel} style={{ marginTop: 1, flexShrink: 0 }} />
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}><b>Dernière étape : prévenez-nous.</b> Votre commande est enregistrée (réf. {o.id}), mais nous ne serons avertis que si vous l'envoyez ci-dessous. Un seul clic suffit.</div>
       </div>
       <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, textAlign: "left", marginBottom: 10 }}>Envoyer ma commande</div>
-      <a href={wa} target="_blank" rel="noreferrer" className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><MessageCircle size={17} /> Envoyer par WhatsApp</a>
+      <a href={wa} target="_blank" rel="noreferrer" onClick={() => setSent(true)} className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "17px 18px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box", boxShadow: "0 10px 26px -10px #1FA85599" }}><MessageCircle size={19} /> Envoyer par WhatsApp</a>
+      {sent && <div style={{ fontSize: 12.5, color: C.ok, fontWeight: 700, marginTop: 8 }}>✓ Merci ! Commande transmise.</div>}
       <a href={mailto} className="ca-tap" style={{ width: "100%", marginTop: 10, background: C.board, color: C.chalk, borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><Mail size={16} /> Envoyer par email</a>
       <button onClick={copy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.jam, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{copied ? <><Check size={15} /> Copié</> : <><Copy size={15} /> Copier le récapitulatif</>}</button>
       <button onClick={() => setStep("avis")} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Stars value={5} size={15} /> Donner mon avis</button>
