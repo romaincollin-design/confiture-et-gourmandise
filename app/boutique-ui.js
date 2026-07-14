@@ -17,6 +17,7 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .ca-scroll::-webkit-scrollbar { width: 8px; }
 .ca-scroll::-webkit-scrollbar-thumb { background: #00000018; border-radius: 8px; }
 @keyframes caIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+@keyframes capulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
 .ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) both; }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
@@ -525,27 +526,38 @@ function Cart({ cartLines, add, sub1, sub, discount, total, promoInput, setPromo
 
 function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnabled, placeOrder, placing, setStep }) {
   const [pm, setPm] = useState("cb");
+  const [showCal, setShowCal] = useState(false);
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const fmt = (d) => cap(d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
-  const days = (() => { const out = []; const base = new Date(); for (let i = 0; i < 21 && out.length < 4; i++) { const x = new Date(); x.setDate(base.getDate() + i); if (x.getDay() === 0 || x.getDay() === 6) out.push(x); } return out; })();
+  const days = (() => { const out = []; const base = new Date(); for (let i = 0; i < 30 && out.length < 6; i++) { const x = new Date(); x.setDate(base.getDate() + i); if (x.getDay() === 0 || x.getDay() === 6) out.push(x); } return out; })();
   useEffect(() => { if (!pickupDay && days.length) setPickupDay(fmt(days[0])); }, []);
+  const JJ = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+  const MM = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <StepHead onBack={() => setStep("cart")} title="Finaliser" sub="Jour de retrait & règlement" />
       <Section>Jour de retrait au marché</Section>
-      <div style={{ fontSize: 12.5, color: C.soft, margin: "0 0 11px", lineHeight: 1.45 }}>Le marché a lieu le <b style={{ color: C.ink }}>samedi et le dimanche</b>. Choisissez quand venir chercher votre commande au stand.</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 10 }}>
+      <div style={{ fontSize: 12.5, color: C.soft, margin: "0 0 10px" }}>Marché le <b style={{ color: C.ink }}>samedi et dimanche</b>. Touchez un jour :</div>
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 8, WebkitOverflowScrolling: "touch" }}>
         {days.map((d) => { const lbl = fmt(d); const sel = pickupDay === lbl; return (
-          <button key={lbl} onClick={() => setPickupDay(lbl)} className="ca-tap" style={{ textAlign: "left", cursor: "pointer", borderRadius: 12, padding: "11px 13px", border: `1.5px solid ${sel ? C.jam : C.line}`, background: sel ? "#7A2B330d" : C.cream }}>
-            <Calendar size={16} color={sel ? C.jam : C.soft} />
-            <div style={{ fontWeight: 600, fontSize: 13, marginTop: 5, lineHeight: 1.25 }}>{lbl}</div>
+          <button key={lbl} onClick={() => setPickupDay(lbl)} className="ca-tap" style={{ flexShrink: 0, cursor: "pointer", borderRadius: 13, padding: "9px 4px", width: 64, textAlign: "center", border: `1.5px solid ${sel ? C.jam : C.line}`, background: sel ? C.jam : C.cream, color: sel ? "#fff" : C.ink, transition: "all .15s" }}>
+            <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".06em", opacity: sel ? .85 : .55, fontWeight: 700 }}>{JJ[d.getDay()]}</div>
+            <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.15, margin: "1px 0" }}>{d.getDate()}</div>
+            <div style={{ fontSize: 10.5, opacity: sel ? .85 : .55, fontWeight: 600 }}>{MM[d.getMonth()]}</div>
           </button>
         ); })}
       </div>
-      <label style={{ display: "block", marginBottom: 18 }}>
-        <span style={{ fontSize: 12, color: C.soft }}>Autre jour souhaité</span>
-        <input type="date" onChange={(e) => { if (e.target.value) { const d = new Date(e.target.value + "T12:00:00"); setPickupDay(fmt(d)); } }} style={{ ...inp(), marginTop: 5 }} />
-      </label>
+      <div style={{ fontSize: 12.5, color: C.ink, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+        <Check size={14} color={C.ok} /> Retrait le <b>{pickupDay || "—"}</b>
+      </div>
+      {!showCal ? (
+        <button onClick={() => setShowCal(true)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: 0, marginBottom: 18, textDecoration: "underline", textUnderlineOffset: 3 }}><Calendar size={14} /> Choisir une autre date</button>
+      ) : (
+        <label style={{ display: "block", marginBottom: 18 }}>
+          <span style={{ fontSize: 12, color: C.soft }}>Autre date</span>
+          <input type="date" autoFocus min={new Date().toISOString().slice(0, 10)} onChange={(e) => { if (e.target.value) { const d = new Date(e.target.value + "T12:00:00"); setPickupDay(fmt(d)); } }} style={{ ...inp(), marginTop: 5 }} />
+        </label>
+      )}
       <Section>Paiement</Section>
       {paymentEnabled ? (
         <div style={{ marginBottom: 16 }}>
@@ -575,10 +587,19 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
   const [sent, setSent] = useState(false);
   useEffect(() => { const t = setTimeout(() => setAsk(true), 1600); return () => clearTimeout(t); }, []);
   const o = lastOrder || { lines: [], total: 0, id: "" };
+  const markSent = () => {
+    setSent(true);
+    if (supabase && o.oid) { try { supabase.rpc("mark_wa_sent", { p_oid: o.oid }).then(() => {}, () => {}); } catch (e) {} }
+  };
+
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
   const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
+  useEffect(() => {
+    const t = setTimeout(() => { try { const w = window.open(wa, "_blank"); if (w) markSent(); } catch (e) {} }, 900);
+    return () => clearTimeout(t);
+  }, []);
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
   return (
     <div className="ca-anim" style={{ padding: "30px 22px 30px", textAlign: "center" }}>
@@ -592,13 +613,16 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
         <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700 }}><span>Total</span><span style={{ fontFamily: SCRIPT, color: C.jam }}>{eur(o.total)}</span></div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: C.soft, marginTop: 10 }}><Calendar size={14} /> Retrait au stand{o.pickup ? ` · ${o.pickup}` : ""}{!paymentEnabled && " · règlement à l'enlèvement"}</div>
       </div>
-      <div style={{ background: "#B5722B18", border: `1.5px solid ${C.caramel}`, borderRadius: 13, padding: "12px 14px", textAlign: "left", marginBottom: 16, display: "flex", gap: 9, alignItems: "flex-start" }}>
-        <MessageCircle size={17} color={C.caramel} style={{ marginTop: 1, flexShrink: 0 }} />
-        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}><b>Dernière étape : prévenez-nous.</b> Votre commande est enregistrée (réf. {o.id}), mais nous ne serons avertis que si vous l'envoyez ci-dessous. Un seul clic suffit.</div>
+      <div style={{ background: sent ? "#3F7A4B14" : "#B5722B1f", border: `1.5px solid ${sent ? "#3F7A4B55" : C.caramel}`, borderRadius: 13, padding: "13px 15px", textAlign: "left", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        {sent ? <Check size={18} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} /> : <MessageCircle size={18} color={C.caramel} style={{ marginTop: 1, flexShrink: 0 }} />}
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+          {sent
+            ? <><b>Commande transmise ✓</b> Nous vous recontactons rapidement pour confirmer.</>
+            : <><b>Dernière étape obligatoire : envoyez votre commande.</b> Sans cet envoi, nous ne sommes pas prévenus et votre commande ne sera pas préparée.</>}
+        </div>
       </div>
       <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, textAlign: "left", marginBottom: 10 }}>Envoyer ma commande</div>
-      <a href={wa} target="_blank" rel="noreferrer" onClick={() => setSent(true)} className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "17px 18px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box", boxShadow: "0 10px 26px -10px #1FA85599" }}><MessageCircle size={19} /> Envoyer par WhatsApp</a>
-      {sent && <div style={{ fontSize: 12.5, color: C.ok, fontWeight: 700, marginTop: 8 }}>✓ Merci ! Commande transmise.</div>}
+      <a href={wa} target="_blank" rel="noreferrer" onClick={markSent} className="ca-tap" style={{ width: "100%", background: "#1FA855", color: "#fff", borderRadius: 13, padding: "18px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, textDecoration: "none", boxSizing: "border-box", boxShadow: sent ? "none" : "0 10px 28px -10px #1FA855aa", animation: sent ? "none" : "capulse 1.8s ease-in-out infinite" }}><MessageCircle size={20} /> {sent ? "Renvoyer par WhatsApp" : "Envoyer par WhatsApp"}</a>
       <a href={mailto} className="ca-tap" style={{ width: "100%", marginTop: 10, background: C.board, color: C.chalk, borderRadius: 13, padding: "14px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}><Mail size={16} /> Envoyer par email</a>
       <button onClick={copy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.jam, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{copied ? <><Check size={15} /> Copié</> : <><Copy size={15} /> Copier le récapitulatif</>}</button>
       <button onClick={() => setStep("avis")} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Stars value={5} size={15} /> Donner mon avis</button>
@@ -1606,9 +1630,9 @@ const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid $
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }
 function Pill({ children }) { return <span style={{ fontSize: 11.5, fontWeight: 600, color: C.soft, background: C.cream, padding: "6px 10px", borderRadius: 9, flexShrink: 0 }}>{children}</span>; }
-function Stars({ value, size = 16, onChange }) {
+function Stars({ value, size = 16, onChange, color }) {
   return <span style={{ display: "inline-flex", gap: size > 24 ? 8 : 3 }}>{[1, 2, 3, 4, 5].map((n) => (
-    <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? C.jam : "#DDD3C1", fontSize: size, lineHeight: 1, transition: "color .15s" }}>♥</span>
+    <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? (color || C.jam) : (color ? "#ffffff44" : "#DDD3C1"), fontSize: size, lineHeight: 1, transition: "color .15s" }}>♥</span>
   ))}</span>;
 }
 function ShareBtn({ cust, label = "Partager Comme Avant" }) {
@@ -1691,35 +1715,36 @@ function ReviewsCarousel({ reviews, setStep, title = "Ils ont aimé" }) {
   const list = reviews || [];
   const avg = list.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
   return (
-    <div style={{ marginTop: 26, background: C.paper, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, padding: "20px 0 18px" }}>
-      <div style={{ padding: "0 22px", marginBottom: 14, textAlign: "center" }}>
-        <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, lineHeight: 1.1 }}>{title}</div>
+    <div style={{ marginTop: 30, background: C.board, padding: "26px 0 24px", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: -18, left: 18, fontFamily: SCRIPT, fontSize: 110, color: C.jam, opacity: .22, lineHeight: 1, pointerEvents: "none" }}>&ldquo;</div>
+      <div style={{ padding: "0 22px", marginBottom: 16, textAlign: "center", position: "relative" }}>
+        <div style={{ fontSize: 10.5, letterSpacing: ".22em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 4 }}>Paroles de gourmands</div>
+        <div style={{ fontFamily: SCRIPT, fontSize: 28, color: C.chalk, lineHeight: 1.15 }}>{title}</div>
         {list.length > 0 ? (
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 7, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 14px" }}>
-            <Stars value={Math.round(avg)} size={15} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{avg.toFixed(1)}</span>
-            <span style={{ fontSize: 12.5, color: C.soft }}>· {list.length} avis</span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 10, background: C.jam, borderRadius: 999, padding: "7px 16px" }}>
+            <Stars value={Math.round(avg)} size={15} color="#fff" />
+            <span style={{ fontSize: 14.5, fontWeight: 700, color: "#fff" }}>{avg.toFixed(1)}</span>
+            <span style={{ fontSize: 12.5, color: "#ffffffcc" }}>· {list.length} avis</span>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: C.soft, marginTop: 6 }}>Aucun avis pour l'instant — donnez le premier !</div>
+          <div style={{ fontSize: 13, color: "#F3ECD699", marginTop: 8 }}>Aucun avis pour l'instant — soyez le premier !</div>
         )}
       </div>
       <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "0 22px 6px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
         {list.map((r) => (
-          <div key={r.id} style={{ flex: "0 0 78%", maxWidth: 290, scrollSnapAlign: "start", background: "#fff", border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.jam}`, borderRadius: 14, padding: "14px 16px", boxShadow: "0 6px 18px -10px #241f1733", position: "relative" }}>
-            <div style={{ position: "absolute", top: 6, right: 12, fontFamily: SCRIPT, fontSize: 34, color: C.jam, opacity: .16, lineHeight: 1 }}>&rdquo;</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{(r.prenom || "C").charAt(0).toUpperCase()}</div>
+          <div key={r.id} style={{ flex: "0 0 78%", maxWidth: 292, scrollSnapAlign: "start", background: C.paper, borderRadius: 16, padding: "15px 16px", boxShadow: "0 10px 28px -12px #000" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+              <div style={{ width: 33, height: 33, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15, flexShrink: 0, paddingTop: 2 }}>{(r.prenom || "C").charAt(0).toUpperCase()}</div>
               <div style={{ minWidth: 0 }}>
                 <b style={{ fontSize: 13.5, display: "block", color: C.ink }}>{r.prenom || "Client"}</b>
                 <Stars value={r.rating} size={12} />
               </div>
             </div>
-            {r.comment && <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.5 }}>{r.comment}</div>}
+            {r.comment && <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.5, fontStyle: "italic" }}>« {r.comment} »</div>}
           </div>
         ))}
-        <button onClick={() => setStep("avis")} className="ca-tap" style={{ flex: "0 0 auto", scrollSnapAlign: "start", background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "16px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 145 }}>
-          <Stars value={5} size={17} /> {list.length ? "Donner mon avis" : "Soyez le premier"}
+        <button onClick={() => setStep("avis")} className="ca-tap" style={{ flex: "0 0 auto", scrollSnapAlign: "start", background: C.jam, color: "#fff", border: "none", borderRadius: 16, padding: "16px 22px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 9, minWidth: 155, boxShadow: "0 10px 28px -12px #000" }}>
+          <Stars value={5} size={18} color="#fff" /> {list.length ? "Donner mon avis" : "Soyez le premier"}
         </button>
       </div>
     </div>
@@ -1878,15 +1903,16 @@ export function BoutiquePublique() {
     if (!custOk) { setStep("coords"); return; }
     if (placing) return;
     const id = "C-" + (1043 + orders.length);
-    const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
+    const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
+    const o = { id, oid, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
     setOrders((l) => [o, ...l]);
     setLastOrder({ ...o, lines: cartLines });
     setPlacing(true);
     if (supabase) {
-      const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
       try {
         await supabase.rpc("save_customer", { p_prenom: cust.prenom || "", p_nom: cust.nom || "", p_tel: cust.tel || "", p_email: cust.email, p_opt_in: !!cust.optin });
-        const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false, parrain: parrain || "" });
+        const recapTxt = `COMMANDE ${o.id}\n${o.name} · ${o.tel} · ${o.email}\n${cartLines.map((l) => `${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n")}\nTotal : ${eur(total)}\nRetrait : ${pickupDay || "à convenir"}`;
+        const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false, parrain: parrain || "", recap: recapTxt, wa_sent: false });
         if (!error) {
           await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
         } else {
@@ -1915,7 +1941,7 @@ const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
   const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
-  return { id: o.ref, oid: o.id, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+  return { id: o.ref, oid: o.id, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", waSent: !!o.wa_sent, recap: o.recap || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
 };
 
 export function EspacePro() {
@@ -2522,7 +2548,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
                 <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span>{o.waSent === false && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 5, padding: "2px 5px", verticalAlign: "middle" }}>NON TRANSMISE</span>}</div>
                       <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
                     </div>
                     <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
