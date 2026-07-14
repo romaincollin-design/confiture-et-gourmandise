@@ -660,7 +660,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
-        {tab === "clients" && <ProClients {...{ clients, orders, onRefresh, loading }} />}
+        {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout, pass }} />}
@@ -722,10 +722,13 @@ function CalGrid({ sales, selected, onPick }) {
 function ProFournisseurs({ pass }) {
   const [list, setList] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState({ k: "societe", dir: 1 });
+  const [sel, setSel] = useState(null);
   const [edit, setEdit] = useState(null);
-  const [openId, setOpenId] = useState(null);
   const [inv, setInv] = useState(null);
   const blank = { id: null, societe: "", contact_prenom: "", contact_nom: "", tel: "", email: "", adresse: "", cp: "", ville: "", siret: "", categorie: "", notes: "" };
+
   const load = async () => {
     if (!supabase || !pass) return;
     setBusy(true);
@@ -736,95 +739,144 @@ function ProFournisseurs({ pass }) {
   const save = async () => {
     if (!edit || !edit.societe) return;
     setBusy(true);
-    try {
-      await supabase.rpc("admin_save_supplier", { pass, p_id: edit.id, p_societe: edit.societe, p_prenom: edit.contact_prenom || "", p_nom: edit.contact_nom || "", p_tel: edit.tel || "", p_email: edit.email || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_siret: edit.siret || "", p_categorie: edit.categorie || "", p_notes: edit.notes || "" });
-      setEdit(null); await load();
-    } catch (e) {}
+    try { await supabase.rpc("admin_save_supplier", { pass, p_id: edit.id, p_societe: edit.societe, p_prenom: edit.contact_prenom || "", p_nom: edit.contact_nom || "", p_tel: edit.tel || "", p_email: edit.email || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_siret: edit.siret || "", p_categorie: edit.categorie || "", p_notes: edit.notes || "" }); setEdit(null); await load(); } catch (e) {}
     setBusy(false);
   };
   const remove = async (id) => {
     if (!window.confirm("Supprimer ce fournisseur et ses factures ?")) return;
-    try { await supabase.rpc("admin_delete_supplier", { pass, p_id: id }); await load(); } catch (e) {}
+    try { await supabase.rpc("admin_delete_supplier", { pass, p_id: id }); setSel(null); await load(); } catch (e) {}
   };
   const saveInv = async () => {
     if (!inv || !inv.supplier_id) return;
     setBusy(true);
-    try {
-      await supabase.rpc("admin_save_invoice", { pass, p_id: inv.id || null, p_supplier: inv.supplier_id, p_numero: inv.numero || "", p_date: inv.date_facture || null, p_ht: Number(inv.montant_ht) || 0, p_ttc: Number(inv.montant_ttc) || 0, p_payee: !!inv.payee, p_notes: inv.notes || "" });
-      setInv(null); await load();
-    } catch (e) {}
+    try { await supabase.rpc("admin_save_invoice", { pass, p_id: inv.id || null, p_supplier: inv.supplier_id, p_numero: inv.numero || "", p_date: inv.date_facture || null, p_ht: Number(inv.montant_ht) || 0, p_ttc: Number(inv.montant_ttc) || 0, p_payee: !!inv.payee, p_notes: inv.notes || "" }); setInv(null); await load(); } catch (e) {}
     setBusy(false);
   };
-  const F = ({ l, v, on, ph, type }) => (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input type={type || "text"} value={v || ""} placeholder={ph} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+  const tot = (s2) => (s2.factures || []).reduce((a, f) => a + (Number(f.montant_ttc) || 0), 0);
+  const impayes = (s2) => (s2.factures || []).filter((f) => !f.payee).length;
+
+  const base = list.filter((s2) => ((s2.societe || "") + " " + (s2.contact_nom || "") + " " + (s2.ville || "") + " " + (s2.categorie || "") + " " + (s2.siret || "")).toLowerCase().includes(q.toLowerCase().trim()));
+  const rows = [...base].sort((a, b) => {
+    const k = sort.k;
+    if (k === "total") return (tot(a) - tot(b)) * sort.dir;
+    if (k === "nb") return (((a.factures || []).length) - ((b.factures || []).length)) * sort.dir;
+    return String(a[k] || "").toLowerCase().localeCompare(String(b[k] || "").toLowerCase()) * sort.dir;
+  });
+  const selS = rows.find((s2) => s2.id === sel) || null;
+  const th = (k, label) => (
+    <th onClick={() => setSort((s2) => ({ k, dir: s2.k === k ? -s2.dir : 1 }))}
+      style={{ padding: "9px 8px", textAlign: (k === "total" || k === "nb") ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `2px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, userSelect: "none" }}>
+      {label} <span style={{ opacity: sort.k === k ? 1 : .3 }}>{sort.k === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>
+    </th>
+  );
+  const F = ({ l, v, on, type }) => (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input type={type || "text"} value={v || ""} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+  const exportCsv = () => downloadCSV(`fournisseurs-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Société", "Contact", "Téléphone", "Email", "Adresse", "CP", "Ville", "SIRET", "Catégorie", "Factures", "Total TTC"],
+    rows.map((s2) => [s2.societe, [s2.contact_prenom, s2.contact_nom].filter(Boolean).join(" "), s2.tel || "", s2.email || "", s2.adresse || "", s2.cp || "", s2.ville || "", s2.siret || "", s2.categorie || "", (s2.factures || []).length, tot(s2) + " €"]));
+
   return (
-    <div>
-      <ProHead title="Fournisseurs" sub="Contacts, SIRET et factures d'achat" />
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        <button onClick={() => setEdit({ ...blank })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Nouveau fournisseur</button>
-        <button onClick={load} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{busy ? "…" : "↻ Actualiser"}</button>
+    <div className="ca-anim">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Fournisseurs</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{list.length} professionnel(s) · triez en cliquant sur les colonnes</div></div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setEdit({ ...blank })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><Plus size={14} /> Nouveau</button>
+          <button onClick={exportCsv} disabled={!rows.length} className="ca-tap" style={{ background: rows.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Send size={14} /> CSV</button>
+        </div>
       </div>
-      {list.length === 0 && !busy && <div style={{ ...card(), fontSize: 13, color: C.soft }}>Aucun fournisseur enregistré. Créez le premier avec le bouton ci-dessus.</div>}
-      {list.map((s) => {
-        const factures = s.factures || [];
-        const totalTtc = factures.reduce((a, f) => a + (Number(f.montant_ttc) || 0), 0);
-        const impayees = factures.filter((f) => !f.payee).length;
-        const isOpen = openId === s.id;
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : société, contact, ville, SIRET…" style={{ ...inp(), marginBottom: 12 }} />
+
+      <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
+        <div style={{ overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 660 }}>
+            <thead><tr>
+              {th("societe", "Société")}{th("contact_nom", "Contact")}{th("tel", "Téléphone")}{th("ville", "Ville")}{th("categorie", "Catégorie")}{th("nb", "Fact.")}{th("total", "Total TTC")}
+            </tr></thead>
+            <tbody>
+              {rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>{busy ? "Chargement…" : "Aucun fournisseur. Créez le premier avec « Nouveau »."}</td></tr>
+                : rows.map((s2, i) => (
+                  <tr key={s2.id} onClick={() => setSel(s2.id)} className="ca-tap" style={{ cursor: "pointer", background: sel === s2.id ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                    <td style={{ padding: "10px 8px", fontWeight: 700, color: C.ink }}>{s2.societe}{impayes(s2) > 0 && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 4, padding: "2px 5px" }}>{impayes(s2)} À PAYER</span>}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink }}>{[s2.contact_prenom, s2.contact_nom].filter(Boolean).join(" ") || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap" }}>{s2.tel || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: s2.ville ? C.ink : "#C9C0AE" }}>{s2.ville || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft }}>{s2.categorie || "—"}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600 }}>{(s2.factures || []).length}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: C.jam, whiteSpace: "nowrap" }}>{eur(tot(s2))}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche fournisseur et ses achats.</div>
+
+      {selS && (() => {
+        const fs = (selS.factures || []).slice().sort((a, b) => String(b.date_facture || "").localeCompare(String(a.date_facture || "")));
+        const totalTtc = tot(selS);
+        const impaye = fs.filter((f) => !f.payee).reduce((a, f) => a + (Number(f.montant_ttc) || 0), 0);
         return (
-          <div key={s.id} style={card()}>
-            <div onClick={() => setOpenId(isOpen ? null : s.id)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 16, flexShrink: 0, paddingTop: 3 }}>{(s.societe || "?").charAt(0).toUpperCase()}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink }}>{s.societe}</div>
-                <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[s.categorie, s.ville, s.tel].filter(Boolean).join(" · ") || "—"}</div>
+          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 19, flexShrink: 0, paddingTop: 3 }}>{(selS.societe || "?")[0].toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, lineHeight: 1.15 }}>{selS.societe}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>{selS.categorie || "Fournisseur"}</div>
+                </div>
+                <button onClick={() => setSel(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
               </div>
-              {factures.length > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: impayees ? C.caramel : C.ok, flexShrink: 0 }}>{impayees ? `${impayees} impayée${impayees > 1 ? "s" : ""}` : "à jour"}</span>}
-              <ChevronDown size={17} color={C.soft} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
-            </div>
-            {isOpen && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 14px", fontSize: 12.5, marginBottom: 12 }}>
-                  <div><span style={{ color: C.soft }}>Contact</span><br /><b>{[s.contact_prenom, s.contact_nom].filter(Boolean).join(" ") || "—"}</b></div>
-                  <div><span style={{ color: C.soft }}>Téléphone</span><br /><b>{s.tel || "—"}</b></div>
-                  <div><span style={{ color: C.soft }}>Email</span><br /><b style={{ wordBreak: "break-all" }}>{s.email || "—"}</b></div>
-                  <div><span style={{ color: C.soft }}>SIRET</span><br /><b>{s.siret || "—"}</b></div>
-                  <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft }}>Adresse</span><br /><b>{[s.adresse, s.cp, s.ville].filter(Boolean).join(", ") || "—"}</b></div>
-                  {s.notes && <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft }}>Notes</span><br />{s.notes}</div>}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-                  <span style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>Factures ({factures.length})</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: C.jam }}>{eur(totalTtc)}</span>
-                </div>
-                {factures.map((f) => (
-                  <div key={f.id} onClick={() => setInv({ ...f, supplier_id: s.id })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, cursor: "pointer" }}>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Total achats</div><div style={{ fontSize: 21, fontWeight: 700 }}>{eur(totalTtc)}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Factures</div><div style={{ fontSize: 21, fontWeight: 700 }}>{fs.length}</div></div>
+                <div style={{ flex: 1, background: impaye ? C.caramel : C.board, color: impaye ? "#fff" : C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Impayé</div><div style={{ fontSize: 21, fontWeight: 700 }}>{eur(impaye)}</div></div>
+              </div>
+
+              <div style={{ ...h2 }}>Coordonnées</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Contact</span><br /><b>{[selS.contact_prenom, selS.contact_nom].filter(Boolean).join(" ") || "—"}</b></div>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selS.tel || "—"}</b></div>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selS.email || "—"}</b></div>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>SIRET</span><br /><b>{selS.siret || "—"}</b></div>
+                <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Adresse</span><br /><b>{[selS.adresse, selS.cp, selS.ville].filter(Boolean).join(", ") || "—"}</b></div>
+                {selS.notes && <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Notes</span><br />{selS.notes}</div>}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ ...h2, marginBottom: 0 }}>Achats / factures ({fs.length})</span>
+                <button onClick={() => setInv({ id: null, supplier_id: selS.id, numero: "", date_facture: new Date().toISOString().slice(0, 10), montant_ht: "", montant_ttc: "", payee: false })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Ajouter</button>
+              </div>
+              {fs.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginBottom: 10 }}>Aucun achat enregistré.</div>
+                : fs.map((f) => (
+                  <div key={f.id} onClick={() => setInv({ ...f, supplier_id: selS.id })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 0", borderBottom: `1px solid ${C.line}`, cursor: "pointer" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: C.ink }}>{f.numero || "sans n°"}</div>
-                      <div style={{ fontSize: 11.5, color: C.soft }}>{f.date_facture ? new Date(f.date_facture).toLocaleDateString("fr-FR") : "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{f.numero || "sans n°"}</div>
+                      <div style={{ fontSize: 11.5, color: C.soft }}>{f.date_facture ? new Date(f.date_facture).toLocaleDateString("fr-FR") : "—"} · HT {eur(f.montant_ht)}</div>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{eur(f.montant_ttc)}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: f.payee ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px" }}>{f.payee ? "PAYÉE" : "À PAYER"}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.ink, flexShrink: 0 }}>{eur(f.montant_ttc)}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: f.payee ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{f.payee ? "PAYÉE" : "À PAYER"}</span>
                   </div>
                 ))}
-                <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
-                  <button onClick={() => setInv({ id: null, supplier_id: s.id, numero: "", date_facture: new Date().toISOString().slice(0, 10), montant_ht: "", montant_ttc: "", payee: false, notes: "" })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Facture</button>
-                  <button onClick={() => setEdit({ ...s })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.ink, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
-                  <button onClick={() => remove(s.id)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, borderRadius: 9, padding: "8px 10px", fontSize: 12.5, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Trash2 size={13} /> Supprimer</button>
-                </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button onClick={() => setEdit({ ...selS })} className="ca-tap" style={{ flex: 1, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Settings size={16} /> Modifier</button>
+                <button onClick={() => remove(selS.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 13, padding: "13px 15px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}><Trash2 size={16} /></button>
               </div>
-            )}
+            </div>
           </div>
         );
-      })}
+      })()}
 
       {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 500, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{edit.id ? "Modifier" : "Nouveau fournisseur"}</div>
+              <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{edit.id ? "Modifier" : "Nouveau fournisseur"}</div>
               <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <F l="Société *" v={edit.societe} on={(v) => setEdit({ ...edit, societe: v })} ph="Ex. Verrerie du Sud" />
-              <F l="Catégorie" v={edit.categorie} on={(v) => setEdit({ ...edit, categorie: v })} ph="Emballage, fruits…" />
+              <F l="Société *" v={edit.societe} on={(v) => setEdit({ ...edit, societe: v })} />
+              <F l="Catégorie" v={edit.categorie} on={(v) => setEdit({ ...edit, categorie: v })} />
               <F l="Prénom contact" v={edit.contact_prenom} on={(v) => setEdit({ ...edit, contact_prenom: v })} />
               <F l="Nom contact" v={edit.contact_nom} on={(v) => setEdit({ ...edit, contact_nom: v })} />
               <F l="Téléphone" v={edit.tel} on={(v) => setEdit({ ...edit, tel: v })} />
@@ -835,16 +887,16 @@ function ProFournisseurs({ pass }) {
               <F l="SIRET" v={edit.siret} on={(v) => setEdit({ ...edit, siret: v })} />
               <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
             </div>
-            <button onClick={save} disabled={busy || !edit.societe} className="ca-tap" style={{ width: "100%", marginTop: 16, background: edit.societe ? C.ok : C.soft, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+            <button onClick={save} disabled={busy || !edit.societe} className="ca-tap" style={{ width: "100%", marginTop: 14, background: edit.societe ? C.ok : C.soft, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
         </div>
       )}
 
       {inv && (
-        <div onClick={() => !busy && setInv(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+        <div onClick={() => !busy && setInv(null)} style={{ position: "fixed", inset: 0, zIndex: 102, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{inv.id ? "Modifier la facture" : "Nouvelle facture"}</div>
+              <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{inv.id ? "Modifier la facture" : "Nouvel achat"}</div>
               <button onClick={() => setInv(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -856,16 +908,18 @@ function ProFournisseurs({ pass }) {
             <label style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12, cursor: "pointer", fontSize: 13.5, fontWeight: 600 }}>
               <input type="checkbox" checked={!!inv.payee} onChange={(e) => setInv({ ...inv, payee: e.target.checked })} style={{ width: 18, height: 18, accentColor: C.ok }} /> Facture payée
             </label>
-            <button onClick={saveInv} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 16, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+            <button onClick={saveInv} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
 function ProStats({ sales, orders, visits, clients, products, onRefresh, loading }) {
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
+  const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
 
   const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
@@ -1014,17 +1068,73 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
 
       <div style={card()}>
         <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : "mois par mois"}</div>
-        {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
+        {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (<>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: -6, marginBottom: 8 }}>Touchez une barre pour voir le détail des produits vendus.</div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
             {subs.map((s, i) => (
-              <div key={i} title={`${s.lab} · ${eur(s.ca)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0 }}>
-                <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s" }} />
+              <div key={i} onClick={() => s.ca && setDrill(i)} title={s.ca ? `${s.lab} · ${eur(s.ca)} — cliquer pour le détail` : s.lab} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0, cursor: s.ca ? "pointer" : "default" }}>
+                <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s, filter .15s" }} />
                 <div style={{ fontSize: gran === "mois" ? 7.5 : 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{gran === "mois" ? (i % 3 === 0 ? s.lab : "") : s.lab}</div>
               </div>
             ))}
           </div>
-        )}
+        </>)}
       </div>
+
+      {drill !== null && subs[drill] && (() => {
+        // bornes de la sous-période cliquée
+        let a, b;
+        if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
+        else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
+        else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
+        else { a = new Date(cur.start.getFullYear(), drill, 1); b = new Date(cur.start.getFullYear(), drill + 1, 1); }
+        const D = agg(a, b);
+        const dp = Object.entries(D.prods).map(([name, v]) => ({ name, ...v })).sort((x, y) => y.ca - x.ca);
+        const dMaxx = Math.max(1, ...dp.map((x) => x.ca));
+        const titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
+          : gran === "annee" ? `${MOIS[drill]} ${cur.start.getFullYear()}`
+          : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+        const tickets = flux.filter((f) => { const t = new Date(f.ts); return t >= a && t < b; }).sort((x, y) => y.ts - x.ts);
+        return (
+          <div onClick={() => setDrill(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, textTransform: "capitalize", lineHeight: 1.15 }}>{titre}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>{D.nb} vente(s) · {D.qty} article(s)</div>
+                </div>
+                <button onClick={() => setDrill(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Chiffre d'affaires</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.ca)}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Marge</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.marge)}</div></div>
+              </div>
+              <div style={{ ...h2 }}>Produits vendus</div>
+              {dp.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun détail.</div> : dp.map((p, i) => (
+                <div key={p.name} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+                    <span style={{ width: 19, height: 19, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 10.5, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <span style={{ fontSize: 12, color: C.soft, flexShrink: 0 }}>×{p.qty}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.jam, flexShrink: 0, minWidth: 52, textAlign: "right" }}>{eur(p.ca)}</span>
+                  </div>
+                  <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden" }}><div style={{ width: `${(p.ca / dMaxx) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} /></div>
+                </div>
+              ))}
+              {tickets.length > 0 && (<>
+                <div style={{ ...h2, marginTop: 14 }}>Tickets ({tickets.length})</div>
+                {tickets.map((t, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 12.5 }}>
+                    <span style={{ color: C.soft, flexShrink: 0 }}>{new Date(t.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(t.items || []).map((x) => `${x.qty}× ${x.name}`).join(", ")}</span>
+                    <b style={{ color: C.jam, flexShrink: 0 }}>{eur(t.total)}</b>
+                  </div>
+                ))}
+              </>)}
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={card()}>
         <div style={{ ...h2 }}>Répartition des ventes par produit</div>
@@ -1369,81 +1479,158 @@ function ProProducts({ products, setProducts, pass }) {
     </div>
   );
 }
-function ProClients({ clients, orders }) {
+function ProClients({ clients, orders, pass }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
-  const [page, setPage] = useState(0);
-  const PER = 8;
-  const filtered = clients.filter((c) => ((c.prenom + " " + c.nom + " " + c.email + " " + c.tel).toLowerCase().includes(q.toLowerCase().trim())));
-  const pages = Math.max(1, Math.ceil(filtered.length / PER));
-  const pg = Math.min(page, pages - 1);
-  const rows = filtered.slice(pg * PER, pg * PER + PER);
-  const ordersOf = (email) => orders.filter((o) => o.email === email);
-  const selIdx = filtered.findIndex((c) => c.email === sel);
-  const selClient = selIdx >= 0 ? filtered[selIdx] : null;
-  const move = (d) => { const n = selIdx + d; if (n >= 0 && n < filtered.length) setSel(filtered[n].email); };
-  const arrowBtn = (d) => ({ width: 32, height: 32, borderRadius: 9, border: `1px solid ${C.line}`, background: "#fff", color: d ? "#C9BFA8" : C.ink, cursor: d ? "default" : "pointer", display: "grid", placeItems: "center" });
-  const exportCsv = () => downloadCSV(`clients-${new Date().toISOString().slice(0, 10)}.csv`, ["Prénom", "Nom", "Téléphone", "Email", "Commandes", "Total dépensé", "Consentement contact"], filtered.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.orders || 0, (c.spent || 0) + " €", c.optin ? "oui" : "non"]));
+  const [sort, setSort] = useState({ k: "nom", dir: 1 });
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const ordersOf = (email) => (orders || []).filter((o) => (o.email || "").toLowerCase() === (email || "").toLowerCase());
+  const base = (clients || []).filter((c) => ((c.prenom || "") + " " + (c.nom || "") + " " + (c.email || "") + " " + (c.tel || "") + " " + (c.ville || "")).toLowerCase().includes(q.toLowerCase().trim()));
+  const rows = [...base].sort((a, b) => {
+    const k = sort.k;
+    let va = a[k], vb = b[k];
+    if (k === "spent" || k === "orders") { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * sort.dir; }
+    va = String(va || "").toLowerCase(); vb = String(vb || "").toLowerCase();
+    return va.localeCompare(vb) * sort.dir;
+  });
+  const selClient = rows.find((c) => c.email === sel) || null;
+  const th = (k, label, w) => (
+    <th onClick={() => setSort((s) => ({ k, dir: s.k === k ? -s.dir : 1 }))}
+      style={{ padding: "9px 8px", textAlign: k === "spent" || k === "orders" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `2px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, width: w, userSelect: "none" }}>
+      {label} <span style={{ opacity: sort.k === k ? 1 : .3 }}>{sort.k === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>
+    </th>
+  );
+  const exportCsv = () => downloadCSV(`clients-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Commandes", "Total dépensé"],
+    rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.orders || 0, (c.spent || 0) + " €"]));
+  const save = async () => {
+    if (!edit || !edit.email || !supabase || !pass) return;
+    setBusy(true);
+    try { await supabase.rpc("admin_save_customer", { pass, p_email: edit.email, p_prenom: edit.prenom || "", p_nom: edit.nom || "", p_tel: edit.tel || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_notes: edit.notes || "" }); } catch (e) {}
+    setBusy(false); setEdit(null);
+  };
+  const F = ({ l, v, on }) => (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input value={v || ""} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+
   return (
     <div className="ca-anim">
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Clients · CRM</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{clients.length} contacts · fiches, filtre &amp; export</div></div>
-        <button onClick={exportCsv} disabled={!filtered.length} className="ca-tap" style={{ background: filtered.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: filtered.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0 }}><Send size={14} /> Export CSV</button>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Clients · CRM</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{(clients || []).length} contacts · triez en cliquant sur les colonnes</div></div>
+        <button onClick={exportCsv} disabled={!rows.length} className="ca-tap" style={{ background: rows.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: rows.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap" }}><Send size={14} /> Export CSV</button>
       </div>
-      <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Filtrer : nom, email, téléphone…" style={{ ...inp(), marginBottom: 12 }} />
-      <div style={{ display: "grid", gap: 8 }}>
-        {rows.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "10px 2px" }}>Aucun client pour ce filtre.</div>
-          : rows.map((c) => (
-            <button key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", borderRadius: 13, border: `1.5px solid ${sel === c.email ? C.jam : C.line}`, background: sel === c.email ? "#7A2B330d" : C.paper }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15, flexShrink: 0 }}>{(c.prenom[0] || "")}{(c.nom[0] || "")}</div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{c.prenom} {c.nom}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.ink, marginTop: 3 }}><Phone size={12} color={C.soft} /> {c.tel || "—"}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.soft, marginTop: 1, overflow: "hidden" }}><Mail size={11} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</span></div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontFamily: SCRIPT, fontSize: 17, color: C.jam }}>{eur(c.spent || 0)}</div>
-                <div style={{ fontSize: 11, color: C.soft }}>{c.orders || 0} cmd</div>
-              </div>
-              <ChevronRight size={16} color={C.soft} style={{ flexShrink: 0 }} />
-            </button>
-          ))}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 4px 0" }}>
-        <span style={{ fontSize: 12, color: C.soft }}>{filtered.length} client{filtered.length > 1 ? "s" : ""}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button onClick={() => setPage(Math.max(0, pg - 1))} disabled={pg === 0} className="ca-tap" style={arrowBtn(pg === 0)}><ChevronLeft size={16} /></button>
-          <span style={{ fontSize: 12, color: C.ink, minWidth: 54, textAlign: "center" }}>{pg + 1} / {pages}</span>
-          <button onClick={() => setPage(Math.min(pages - 1, pg + 1))} disabled={pg >= pages - 1} className="ca-tap" style={arrowBtn(pg >= pages - 1)}><ChevronRight size={16} /></button>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : nom, email, téléphone, ville…" style={{ ...inp(), marginBottom: 12 }} />
+
+      <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
+        <div style={{ overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
+            <thead><tr>
+              {th("prenom", "Prénom")}{th("nom", "Nom")}{th("tel", "Téléphone")}{th("email", "Email")}{th("ville", "Ville")}{th("orders", "Cmd")}{th("spent", "Total")}
+            </tr></thead>
+            <tbody>
+              {rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
+                : rows.map((c, i) => (
+                  <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{c.prenom || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink }}>{c.nom || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap" }}>{c.tel || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</td>
+                    <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{c.ville || "—"}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600 }}>{c.orders || 0}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: C.jam, whiteSpace: "nowrap" }}>{eur(c.spent || 0)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      {selClient && (
-        <div style={{ ...card(), marginTop: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 15, flexShrink: 0 }}>{(selClient.prenom[0] || "")}{(selClient.nom[0] || "")}</div>
-              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 15 }}>{selClient.prenom} {selClient.nom}</div><div style={{ fontSize: 12, color: C.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selClient.email} · {selClient.tel}</div></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <button onClick={() => move(-1)} disabled={selIdx <= 0} className="ca-tap" style={arrowBtn(selIdx <= 0)}><ChevronLeft size={16} /></button>
-              <span style={{ fontSize: 11, color: C.soft }}>{selIdx + 1}/{filtered.length}</span>
-              <button onClick={() => move(1)} disabled={selIdx >= filtered.length - 1} className="ca-tap" style={arrowBtn(selIdx >= filtered.length - 1)}><ChevronRight size={16} /></button>
+      <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche client.</div>
+
+      {selClient && (() => {
+        const os = ordersOf(selClient.email);
+        const totalP = os.reduce((a, o) => a + (Number(o.total) || 0), 0);
+        const byProd = {};
+        os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
+        const favs = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        return (
+          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 18, flexShrink: 0, paddingTop: 3 }}>{(selClient.prenom || "")[0]}{(selClient.nom || "")[0]}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, lineHeight: 1.15 }}>{selClient.prenom} {selClient.nom}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>Client depuis {os.length ? new Date(Math.min(...os.map((o) => o.ts))).toLocaleDateString("fr-FR") : "—"}</div>
+                </div>
+                <button onClick={() => setSel(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Total dépensé</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(totalP)}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Commandes</div><div style={{ fontSize: 22, fontWeight: 700 }}>{os.length}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Panier moy.</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(os.length ? totalP / os.length : 0)}</div></div>
+              </div>
+
+              <div style={{ ...h2 }}>Coordonnées</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selClient.tel || "—"}</b></div>
+                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selClient.email}</b></div>
+                <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Adresse</span><br /><b>{[selClient.adresse, selClient.cp, selClient.ville].filter(Boolean).join(", ") || "— non renseignée"}</b></div>
+                {selClient.notes && <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Notes</span><br />{selClient.notes}</div>}
+              </div>
+
+              {favs.length > 0 && (<>
+                <div style={{ ...h2 }}>Produits préférés</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                  {favs.map(([n, q2]) => <span key={n} style={{ background: "#7A2B3312", color: C.jam, border: `1px solid ${C.jam}33`, borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 600 }}>{n} · {q2}</span>)}
+                </div>
+              </>)}
+
+              <div style={{ ...h2 }}>Historique d'achats ({os.length})</div>
+              {os.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginBottom: 12 }}>Aucune commande enregistrée.</div>
+                : os.sort((a, b) => b.ts - a.ts).map((o) => (
+                  <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{o.id} <span style={{ fontWeight: 500, color: C.soft }}>· {new Date(o.ts).toLocaleDateString("fr-FR")}</span></div>
+                        <div style={{ fontSize: 12, color: C.soft }}>{(o.lines || []).map((l) => `${l.qty}× ${l.name}`).join(", ") || `${o.items} art.`}</div>
+                      </div>
+                      <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: o.status === "Remise" ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{o.status}</span>
+                    </div>
+                  </div>
+                ))}
+
+              <button onClick={() => setEdit({ ...selClient })} className="ca-tap" style={{ width: "100%", marginTop: 16, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Settings size={17} /> Modifier la fiche</button>
             </div>
           </div>
-          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, margin: "6px 0 8px" }}>Commandes de ce client</div>
-          {ordersOf(selClient.email).length === 0 ? (
-            <div style={{ fontSize: 13, color: C.soft }}>Aucune commande enregistrée.</div>
-          ) : ordersOf(selClient.email).map((o) => (
-            <div key={o.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ color: C.ink }}>{o.id} <span style={{ color: C.soft }}>· {o.date}{o.pickup ? " · retrait " + o.pickup : ""}</span></span>
-              <span style={{ fontWeight: 700, color: C.jam }}>{eur(o.total)}</span>
+        );
+      })()}
+
+      {edit && (
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>Modifier la fiche</div>
+              <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
             </div>
-          ))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <F l="Prénom" v={edit.prenom} on={(v) => setEdit({ ...edit, prenom: v })} />
+              <F l="Nom" v={edit.nom} on={(v) => setEdit({ ...edit, nom: v })} />
+              <F l="Téléphone" v={edit.tel} on={(v) => setEdit({ ...edit, tel: v })} />
+              <div style={{ flexBasis: "100%" }}><F l="Adresse" v={edit.adresse} on={(v) => setEdit({ ...edit, adresse: v })} /></div>
+              <F l="Code postal" v={edit.cp} on={(v) => setEdit({ ...edit, cp: v })} />
+              <F l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
+              <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
+            </div>
+            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>L'email ({edit.email}) identifie le client, il n'est pas modifiable.</div>
+            <button onClick={save} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
 function ProMail({ clients }) {
   const [aud, setAud] = useState("optin");
   const [chan, setChan] = useState("email");
