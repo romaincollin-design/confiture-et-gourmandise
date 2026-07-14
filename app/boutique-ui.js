@@ -864,108 +864,227 @@ function ProFournisseurs({ pass }) {
   );
 }
 function ProStats({ sales, orders, visits, clients, products, onRefresh, loading }) {
-  const [range, setRange] = useState(30);
-  const dayKeyOf = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
-  const days = useMemo(() => {
-    const out = []; const now = new Date();
-    for (let i = range - 1; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); out.push(dayKeyOf(d.getTime())); }
-    return out;
-  }, [range]);
-  const label = (k) => { const [, m, d] = k.split("-"); return `${d}/${m}`; };
+  const [gran, setGran] = useState("mois"); // jour | semaine | mois | annee
+  const [prodQ, setProdQ] = useState("");
 
-  const caisseByDay = {}, orderByDay = {}, visitByDay = {};
-  (sales || []).forEach((s) => { const k = dayKeyOf(s.ts); caisseByDay[k] = (caisseByDay[k] || 0) + (Number(s.total) || 0); });
-  (orders || []).forEach((o) => { const k = dayKeyOf(o.ts); orderByDay[k] = (orderByDay[k] || 0) + (Number(o.total) || 0); });
-  (visits || []).forEach((v) => { const k = dayKeyOf(v.ts); visitByDay[k] = (visitByDay[k] || 0) + 1; });
+  // --- flux unifié : ventes caisse + commandes ---
+  const flux = useMemo(() => {
+    const out = [];
+    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })), src: "caisse" }));
+    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })), src: "commande" }));
+    return out.sort((a, b) => a.ts - b.ts);
+  }, [sales, orders]);
 
-  const caSeries = days.map((k) => (caisseByDay[k] || 0) + (orderByDay[k] || 0));
-  const vSeries = days.map((k) => visitByDay[k] || 0);
-  const caMax = Math.max(1, ...caSeries), vMax = Math.max(1, ...vSeries);
-  const caTotal = caSeries.reduce((a, b) => a + b, 0);
-  const vTotal = vSeries.reduce((a, b) => a + b, 0);
-  const nbCmd = (orders || []).filter((o) => days.includes(dayKeyOf(o.ts))).length;
-  const conv = vTotal ? Math.round((nbCmd / vTotal) * 1000) / 10 : 0;
-  const panier = nbCmd ? Math.round(((orders || []).filter((o) => days.includes(dayKeyOf(o.ts))).reduce((a, o) => a + (Number(o.total) || 0), 0) / nbCmd) * 100) / 100 : 0;
-
-  // top produits (caisse + commandes)
-  const qtyByProduct = {};
-  (sales || []).forEach((s) => { if (!days.includes(dayKeyOf(s.ts))) return; (s.items || []).forEach((i) => { qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + (i.qty || 0); }); });
-  (orders || []).forEach((o) => { if (!days.includes(dayKeyOf(o.ts))) return; (o.lines || []).forEach((i) => { qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + (i.qty || 0); }); });
-  const top = Object.entries(qtyByProduct).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const topMax = Math.max(1, ...top.map(([, q]) => q));
-
-  // jours de la semaine (pics)
+  const costOf = (name) => { const p = (products || []).find((x) => x.name === name); return p ? Number(p.cost) || 0 : 0; };
+  const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
   const JN = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-  const byDow = [0, 0, 0, 0, 0, 0, 0];
-  days.forEach((k) => { const d = new Date(k + "T12:00:00"); byDow[d.getDay()] += (caisseByDay[k] || 0) + (orderByDay[k] || 0); });
-  const dowMax = Math.max(1, ...byDow);
 
-  const W = 760, H = 170, pad = 8;
-  const pts = caSeries.map((v, i) => { const x = pad + (i * (W - pad * 2)) / Math.max(1, caSeries.length - 1); const y = H - pad - (v / caMax) * (H - pad * 2); return [x, y]; });
+  // --- clé de regroupement selon la granularité ---
+  const keyOf = (ts) => {
+    const d = new Date(ts);
+    if (gran === "jour") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (gran === "semaine") { const t = new Date(d); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day + 3); const f = new Date(t.getFullYear(), 0, 4); const w = 1 + Math.round(((t - f) / 86400000 - 3 + ((f.getDay() + 6) % 7)) / 7); return `${t.getFullYear()}-S${String(w).padStart(2, "0")}`; }
+    if (gran === "mois") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return String(d.getFullYear());
+  };
+  const labelOf = (k) => {
+    if (gran === "jour") { const [, m, j] = k.split("-"); return `${j}/${m}`; }
+    if (gran === "semaine") return k.split("-")[1];
+    if (gran === "mois") { const [y, m] = k.split("-"); return `${MOIS[+m - 1]} ${String(y).slice(2)}`; }
+    return k;
+  };
+
+  // --- séries par période ---
+  const series = useMemo(() => {
+    const map = {};
+    flux.forEach((f) => { const k = keyOf(f.ts); if (!map[k]) map[k] = { ca: 0, nb: 0, qty: 0, marge: 0 };
+      map[k].ca += f.total; map[k].nb += 1;
+      f.items.forEach((i) => { map[k].qty += i.qty; map[k].marge += (i.price - costOf(i.name)) * i.qty; });
+    });
+    const keys = Object.keys(map).sort();
+    const lim = gran === "jour" ? 30 : gran === "semaine" ? 16 : gran === "mois" ? 12 : 6;
+    const kept = keys.slice(-lim);
+    return kept.map((k) => ({ k, label: labelOf(k), ...map[k] }));
+  }, [flux, gran, products]);
+
+  const maxCa = Math.max(1, ...series.map((s) => s.ca));
+  const cur = series[series.length - 1] || { ca: 0, nb: 0, qty: 0, marge: 0 };
+  const prev = series[series.length - 2] || { ca: 0, nb: 0, qty: 0, marge: 0 };
+  const delta = prev.ca ? Math.round(((cur.ca - prev.ca) / prev.ca) * 1000) / 10 : (cur.ca ? 100 : 0);
+  const GRANS = [["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]];
+  const GLABEL = { jour: "hier", semaine: "semaine précédente", mois: "mois précédent", annee: "année précédente" };
+
+  // --- performance produits ---
+  const prodStats = useMemo(() => {
+    const m = {};
+    flux.forEach((f) => f.items.forEach((i) => {
+      if (!m[i.name]) m[i.name] = { qty: 0, ca: 0, marge: 0, last: 0, first: 0, months: {} };
+      const e = m[i.name];
+      e.qty += i.qty; e.ca += i.qty * i.price; e.marge += (i.price - costOf(i.name)) * i.qty;
+      e.last = Math.max(e.last, f.ts); e.first = e.first ? Math.min(e.first, f.ts) : f.ts;
+      const mo = new Date(f.ts).getMonth(); e.months[mo] = (e.months[mo] || 0) + i.qty;
+    }));
+    return Object.entries(m).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
+  }, [flux, products]);
+  const shown = prodStats.filter((p) => !prodQ || p.name.toLowerCase().includes(prodQ.toLowerCase()));
+  const pMax = Math.max(1, ...shown.map((p) => p.ca));
+  const jamais = (products || []).filter((p) => p.active !== false && !prodStats.find((x) => x.name === p.name));
+
+  // --- saisonnalité (12 mois, toutes années confondues) ---
+  const seasons = Array(12).fill(0);
+  flux.forEach((f) => { seasons[new Date(f.ts).getMonth()] += f.total; });
+  const sMax = Math.max(1, ...seasons);
+
+  // --- pics par jour de semaine ---
+  const byDow = [0, 0, 0, 0, 0, 0, 0];
+  flux.forEach((f) => { byDow[new Date(f.ts).getDay()] += f.total; });
+  const dMax = Math.max(1, ...byDow);
+
+  // --- comparatif année N vs N-1 (par mois) ---
+  const years = [...new Set(flux.map((f) => new Date(f.ts).getFullYear()))].sort();
+  const yNow = years[years.length - 1], yPrev = years[years.length - 2];
+  const perY = (yy) => { const a = Array(12).fill(0); flux.forEach((f) => { const d = new Date(f.ts); if (d.getFullYear() === yy) a[d.getMonth()] += f.total; }); return a; };
+  const cmpNow = yNow ? perY(yNow) : Array(12).fill(0);
+  const cmpPrev = yPrev ? perY(yPrev) : Array(12).fill(0);
+  const cMax = Math.max(1, ...cmpNow, ...cmpPrev);
+
+  const vTotal = (visits || []).length;
+  const caTotal = flux.reduce((a, f) => a + f.total, 0);
+  const margeTotal = prodStats.reduce((a, p) => a + p.marge, 0);
+  const conv = vTotal ? Math.round(((orders || []).length / vTotal) * 1000) / 10 : 0;
+
+  const W = 760, H = 160, pad = 10;
+  const pts = series.map((s, i) => { const x = pad + (i * (W - pad * 2)) / Math.max(1, series.length - 1); const y = H - pad - (s.ca / maxCa) * (H - pad * 2); return [x, y]; });
   const path = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
   const area = pts.length ? `${path} L${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L${pts[0][0].toFixed(1)} ${H - pad} Z` : "";
-  const kpi = (lbl, val, sub) => (
-    <div style={{ flex: 1, minWidth: 130, background: C.board, color: C.chalk, borderRadius: 14, padding: "13px 14px" }}>
-      <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{lbl}</div>
-      <div style={{ fontSize: 25, fontWeight: 700, marginTop: 3 }}>{val}</div>
-      {sub && <div style={{ fontSize: 11, opacity: .65, marginTop: 2 }}>{sub}</div>}
+  const dfr = (ts) => ts ? new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" }) : "—";
+
+  const kpi = (lbl, val, sub, accent) => (
+    <div style={{ flex: 1, minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px" }}>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{lbl}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, marginTop: 3 }}>{val}</div>
+      {sub && <div style={{ fontSize: 11, opacity: .68, marginTop: 2 }}>{sub}</div>}
     </div>
   );
+
   return (
     <div>
-      <ProHead title="Statistiques" sub="Fréquentation et courbe des ventes" />
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
-        {[[7, "7 jours"], [30, "30 jours"], [90, "3 mois"], [365, "1 an"]].map(([n, l]) => (
-          <button key={n} onClick={() => setRange(n)} className="ca-tap" style={{ border: `1px solid ${range === n ? C.jam : C.line}`, background: range === n ? C.jam : "#fff", color: range === n ? "#fff" : C.ink, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{l}</button>
+      <ProHead title="Tableau de bord" sub="Pilotage de l'activité" />
+
+      <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+        {GRANS.map(([k, l]) => (
+          <button key={k} onClick={() => setGran(k)} className="ca-tap" style={{ border: `1px solid ${gran === k ? C.jam : C.line}`, background: gran === k ? C.jam : "#fff", color: gran === k ? "#fff" : C.ink, borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l}</button>
         ))}
-        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{loading ? "…" : "↻ Actualiser"}</button>}
+        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{loading ? "…" : "↻"}</button>}
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        {kpi("Visites", vTotal, "scans + ouvertures")}
-        {kpi("Chiffre d'affaires", eur(caTotal), "caisse + commandes")}
-        {kpi("Commandes", nbCmd, `panier moyen ${eur(panier)}`)}
-        {kpi("Conversion", conv + " %", "visite → commande")}
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 16 }}>
+        {kpi("CA période", eur(cur.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${GLABEL[gran]}`, true)}
+        {kpi("Marge période", eur(cur.marge), cur.ca ? `${Math.round((cur.marge / cur.ca) * 100)} % du CA` : "—")}
+        {kpi("Articles vendus", cur.qty, `${cur.nb} vente(s)`)}
+        {kpi("CA cumulé", eur(caTotal), `marge ${eur(margeTotal)}`)}
+        {kpi("Visites", vTotal, `conversion ${conv} %`)}
       </div>
 
       <div style={card()}>
-        <div style={{ ...h2 }}>Courbe des ventes</div>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 170, display: "block" }}>
-          <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.jam} stopOpacity=".28" /><stop offset="100%" stopColor={C.jam} stopOpacity="0" /></linearGradient></defs>
-          {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={pad} y1={pad + f * (H - pad * 2)} x2={W - pad} y2={pad + f * (H - pad * 2)} stroke={C.line} strokeWidth="1" />)}
-          {area && <path d={area} fill="url(#grad)" />}
-          {path && <path d={path} fill="none" stroke={C.jam} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />}
-          {pts.map(([x, y], i) => caSeries[i] > 0 ? <circle key={i} cx={x} cy={y} r="2.8" fill={C.jam} /> : null)}
-        </svg>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.soft, marginTop: 4 }}>
-          <span>{days.length ? label(days[0]) : ""}</span><span>Max {eur(caMax)}</span><span>{days.length ? label(days[days.length - 1]) : ""}</span>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          <div style={{ ...h2, marginBottom: 2 }}>Évolution du chiffre d'affaires</div>
+          <span style={{ fontSize: 12, color: delta >= 0 ? C.ok : C.jam, fontWeight: 700 }}>{delta >= 0 ? "+" : ""}{delta} %</span>
+        </div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8 }}>Par {gran === "annee" ? "année" : gran}</div>
+        {series.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente enregistrée.</div> : (<>
+          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 160, display: "block" }}>
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.jam} stopOpacity=".3" /><stop offset="100%" stopColor={C.jam} stopOpacity="0" /></linearGradient></defs>
+            {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={pad} y1={pad + f * (H - pad * 2)} x2={W - pad} y2={pad + f * (H - pad * 2)} stroke={C.line} strokeWidth="1" />)}
+            {area && <path d={area} fill="url(#g1)" />}
+            {path && <path d={path} fill="none" stroke={C.jam} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />}
+            {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 4.5 : 2.8} fill={C.jam} />)}
+          </svg>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.soft, marginTop: 3 }}>
+            <span>{series[0] && series[0].label}</span><span>max {eur(maxCa)}</span><span>{series[series.length - 1] && series[series.length - 1].label}</span>
+          </div>
+        </>)}
+      </div>
+
+      {yPrev && (
+        <div style={card()}>
+          <div style={{ ...h2 }}>Comparatif {yNow} vs {yPrev}</div>
+          <div style={{ display: "flex", gap: 14, fontSize: 12, marginBottom: 10 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 11, height: 11, background: C.jam, borderRadius: 3, display: "inline-block" }} /> {yNow} — <b>{eur(cmpNow.reduce((a, b) => a + b, 0))}</b></span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5, color: C.soft }}><span style={{ width: 11, height: 11, background: "#C9C0AE", borderRadius: 3, display: "inline-block" }} /> {yPrev} — <b>{eur(cmpPrev.reduce((a, b) => a + b, 0))}</b></span>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 130 }}>
+            {MOIS.map((mo, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", gap: 3 }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 2, width: "100%", height: "100%", justifyContent: "center" }}>
+                  <div title={`${yPrev} : ${eur(cmpPrev[i])}`} style={{ width: "42%", height: `${Math.max(cmpPrev[i] ? 3 : 0, (cmpPrev[i] / cMax) * 100)}%`, background: "#C9C0AE", borderRadius: "3px 3px 0 0" }} />
+                  <div title={`${yNow} : ${eur(cmpNow[i])}`} style={{ width: "42%", height: `${Math.max(cmpNow[i] ? 3 : 0, (cmpNow[i] / cMax) * 100)}%`, background: C.jam, borderRadius: "3px 3px 0 0" }} />
+                </div>
+                <div style={{ fontSize: 9, color: C.soft }}>{mo.slice(0, 1)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Saisonnalité — CA par mois (toutes années)</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
+          {seasons.map((v, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+              <div style={{ fontSize: 8.5, color: C.soft, marginBottom: 2 }}>{v ? Math.round(v) : ""}</div>
+              <div style={{ width: "100%", height: `${Math.max(v ? 4 : 1, (v / sMax) * 76)}%`, background: v === sMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .18, borderRadius: "4px 4px 0 0" }} />
+              <div style={{ fontSize: 9.5, color: C.ink, marginTop: 4, fontWeight: 600 }}>{MOIS[i].slice(0, 3)}</div>
+            </div>
+          ))}
         </div>
       </div>
 
       <div style={card()}>
-        <div style={{ ...h2 }}>Fréquentation (visites / scans QR)</div>
-        {vTotal === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune visite enregistrée pour l'instant. Le comptage démarre maintenant : chaque scan du QR code et chaque ouverture de la boutique sera compté ici.</div> : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 130 }}>
-            {vSeries.map((v, i) => (
-              <div key={i} title={`${label(days[i])} · ${v} visite(s)`} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
-                <div style={{ height: `${Math.max(v ? 6 : 1, (v / vMax) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, transition: "height .25s" }} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div style={card()}>
-        <div style={{ ...h2 }}>Pics de vente par jour de la semaine</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+        <div style={{ ...h2 }}>Meilleurs jours de vente</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
           {byDow.map((v, i) => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
               <div style={{ fontSize: 10, color: C.soft, marginBottom: 3 }}>{v ? eur(v) : ""}</div>
-              <div style={{ width: "100%", height: `${Math.max(v ? 6 : 1, (v / dowMax) * 78)}%`, background: v === dowMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .25, borderRadius: 5 }} />
+              <div style={{ width: "100%", height: `${Math.max(v ? 5 : 1, (v / dMax) * 72)}%`, background: v === dMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .2, borderRadius: "5px 5px 0 0" }} />
               <div style={{ fontSize: 11, color: C.ink, marginTop: 5, fontWeight: 600 }}>{JN[i]}</div>
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+          <div style={{ ...h2, marginBottom: 0 }}>Performance par produit</div>
+          <span style={{ fontSize: 11.5, color: C.soft }}>{shown.length} produit(s)</span>
+        </div>
+        <input value={prodQ} onChange={(e) => setProdQ(e.target.value)} placeholder="Rechercher un produit…" style={{ ...inp(), margin: "8px 0 12px", padding: "9px 12px", fontSize: 13 }} />
+        {shown.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente enregistrée.</div> : shown.map((p) => {
+          const best = Object.entries(p.months).sort((a, b) => b[1] - a[1])[0];
+          return (
+            <div key={p.name} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
+              </div>
+              <div style={{ height: 8, background: C.line, borderRadius: 4, overflow: "hidden", marginBottom: 5 }}>
+                <div style={{ width: `${(p.ca / pMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 4 }} />
+              </div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: C.soft }}>
+                <span><b style={{ color: C.ink }}>{p.qty}</b> vendus</span>
+                <span>marge <b style={{ color: p.marge > 0 ? C.ok : C.soft }}>{eur(p.marge)}</b></span>
+                {best && <span>pic en <b style={{ color: C.ink }}>{MOIS[+best[0]]}</b></span>}
+                <span>dernière vente <b style={{ color: C.ink }}>{dfr(p.last)}</b></span>
+              </div>
+            </div>
+          );
+        })}
+        {jamais.length > 0 && (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
+            <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 5 }}>Jamais vendus ({jamais.length})</div>
+            <div style={{ fontSize: 12.5, color: C.soft, lineHeight: 1.5 }}>{jamais.map((p) => p.name).join(", ")}</div>
+          </div>
+        )}
       </div>
 
       <div style={card()}>
@@ -975,38 +1094,36 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
           (clients || []).forEach((c) => { const v = (c.ville || "").trim() || "Non renseignée"; byVille[v] = (byVille[v] || 0) + 1; });
           const villes = Object.entries(byVille).sort((a, b) => b[1] - a[1]).slice(0, 8);
           const vMaxx = Math.max(1, ...villes.map(([, n]) => n));
-          const renseignes = (clients || []).filter((c) => (c.ville || "").trim()).length;
           if (!clients || clients.length === 0) return <div style={{ fontSize: 13, color: C.soft }}>Aucun client enregistré.</div>;
-          return (<>
-            <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>{renseignes} client(s) sur {clients.length} avec une ville renseignée. Complétez les fiches dans Clients (CRM).</div>
-            {villes.map(([v, n]) => (
-              <div key={v} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
-                <div style={{ width: 120, fontSize: 12.5, color: v === "Non renseignée" ? C.soft : C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}><MapPin size={12} color={C.soft} /> {v}</div>
-                <div style={{ flex: 1, height: 11, background: C.line, borderRadius: 6, overflow: "hidden" }}>
-                  <div style={{ width: `${(n / vMaxx) * 100}%`, height: "100%", background: v === "Non renseignée" ? C.soft : C.caramel, borderRadius: 6 }} />
-                </div>
-                <div style={{ width: 28, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.ink }}>{n}</div>
+          return villes.map(([v, n]) => (
+            <div key={v} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
+              <div style={{ width: 125, fontSize: 12.5, color: v === "Non renseignée" ? C.soft : C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}><MapPin size={12} color={C.soft} /> {v}</div>
+              <div style={{ flex: 1, height: 11, background: C.line, borderRadius: 6, overflow: "hidden" }}>
+                <div style={{ width: `${(n / vMaxx) * 100}%`, height: "100%", background: v === "Non renseignée" ? C.soft : C.caramel, borderRadius: 6 }} />
               </div>
-            ))}
-          </>);
+              <div style={{ width: 26, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.ink }}>{n}</div>
+            </div>
+          ));
         })()}
       </div>
 
       <div style={card()}>
-        <div style={{ ...h2 }}>Produits les plus vendus</div>
-        {top.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : top.map(([name, q]) => (
-          <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
-            <div style={{ width: 150, fontSize: 12.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-            <div style={{ flex: 1, height: 12, background: C.line, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ width: `${(q / topMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 6 }} />
-            </div>
-            <div style={{ width: 34, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.jam }}>{q}</div>
-          </div>
-        ))}
+        <div style={{ ...h2 }}>Fréquentation (scans QR / ouvertures)</div>
+        {vTotal === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Le comptage vient de démarrer : chaque scan du QR code et chaque ouverture de la boutique sera compté ici.</div> : (() => {
+          const bd = {};
+          (visits || []).forEach((v) => { const d = new Date(v.ts); const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; bd[k] = (bd[k] || 0) + 1; });
+          const ks = []; const now = new Date();
+          for (let i = 29; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); ks.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`); }
+          const vs = ks.map((k) => bd[k] || 0); const vm = Math.max(1, ...vs);
+          return <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 100 }}>
+            {vs.map((v, i) => <div key={i} title={`${v} visite(s)`} style={{ flex: 1, height: `${Math.max(v ? 6 : 1, (v / vm) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, alignSelf: "flex-end" }} />)}
+          </div>;
+        })()}
       </div>
     </div>
   );
 }
+
 const STATUSES = ["À préparer", "Prête", "Remise"];
 function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
@@ -2702,7 +2819,10 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   };
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  const todayK = dayKey(Date.now());
+  // Le récap suit le jour choisi dans le calendrier (aujourd'hui par défaut)
+  const focusTs = (retro && saleDate) ? new Date(saleDate + "T12:00:00").getTime() : Date.now();
+  const focusIsToday = !(retro && saleDate);
+  const todayK = dayKey(focusTs);
   const todayOrders = sales.filter((o) => dayKey(o.ts) === todayK);
   const todayTotal = todayOrders.reduce((a, o) => a + o.total, 0);
   const todayItems = todayOrders.reduce((a, o) => a + o.count, 0);
@@ -2746,7 +2866,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
 
       <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>Aujourd'hui · {todayK}</div>
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>{focusIsToday ? "Aujourd'hui" : "Saisie"} · {todayK}</div>
           <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eur(todayTotal)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -2829,7 +2949,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
       {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Commande enregistrée</div>}
 
       <div style={card}>
-        <div style={h2}>Ventes du jour</div>
+        <div style={h2}>{focusIsToday ? "Ventes du jour" : "Ventes du " + new Date(focusTs).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
         {todayOrders.length === 0 ? (
           <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune commande fermée aujourd'hui.</div>
         ) : todayOrders.map((o) => (
