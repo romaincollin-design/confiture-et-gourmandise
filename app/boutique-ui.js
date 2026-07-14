@@ -864,105 +864,118 @@ function ProFournisseurs({ pass }) {
   );
 }
 function ProStats({ sales, orders, visits, clients, products, onRefresh, loading }) {
-  const [gran, setGran] = useState("mois"); // jour | semaine | mois | annee
-  const [prodQ, setProdQ] = useState("");
+  const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
+  const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
 
-  // --- flux unifié : ventes caisse + commandes ---
+  const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+  const JN = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+
   const flux = useMemo(() => {
     const out = [];
-    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })), src: "caisse" }));
-    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })), src: "commande" }));
-    return out.sort((a, b) => a.ts - b.ts);
+    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })) }));
+    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })) }));
+    return out;
   }, [sales, orders]);
+  const costOf = (n) => { const p = (products || []).find((x) => x.name === n); return p ? Number(p.cost) || 0 : 0; };
 
-  const costOf = (name) => { const p = (products || []).find((x) => x.name === name); return p ? Number(p.cost) || 0 : 0; };
-  const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-  const JN = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-
-  // --- clé de regroupement selon la granularité ---
-  const keyOf = (ts) => {
-    const d = new Date(ts);
-    if (gran === "jour") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (gran === "semaine") { const t = new Date(d); const day = (t.getDay() + 6) % 7; t.setDate(t.getDate() - day + 3); const f = new Date(t.getFullYear(), 0, 4); const w = 1 + Math.round(((t - f) / 86400000 - 3 + ((f.getDay() + 6) % 7)) / 7); return `${t.getFullYear()}-S${String(w).padStart(2, "0")}`; }
-    if (gran === "mois") return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    return String(d.getFullYear());
+  // ---- bornes de la période sélectionnée (et de la précédente) ----
+  const bounds = (o) => {
+    const now = new Date();
+    let start, end, label;
+    if (gran === "jour") {
+      const d = new Date(now); d.setDate(now.getDate() + o); d.setHours(0,0,0,0);
+      start = d; end = new Date(d); end.setDate(d.getDate() + 1);
+      label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+    } else if (gran === "semaine") {
+      const d = new Date(now); d.setDate(now.getDate() + o * 7);
+      const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); d.setHours(0,0,0,0);
+      start = d; end = new Date(d); end.setDate(d.getDate() + 7);
+      const f = new Date(end); f.setDate(end.getDate() - 1);
+      label = `sem. du ${d.getDate()} ${M3[d.getMonth()]} au ${f.getDate()} ${M3[f.getMonth()]}`;
+    } else if (gran === "mois") {
+      const d = new Date(now.getFullYear(), now.getMonth() + o, 1);
+      start = d; end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      label = `${MOIS[d.getMonth()]} ${d.getFullYear()}`;
+    } else {
+      const d = new Date(now.getFullYear() + o, 0, 1);
+      start = d; end = new Date(d.getFullYear() + 1, 0, 1);
+      label = String(d.getFullYear());
+    }
+    return { start, end, label };
   };
-  const labelOf = (k) => {
-    if (gran === "jour") { const [, m, j] = k.split("-"); return `${j}/${m}`; }
-    if (gran === "semaine") return k.split("-")[1];
-    if (gran === "mois") { const [y, m] = k.split("-"); return `${MOIS[+m - 1]} ${String(y).slice(2)}`; }
-    return k;
-  };
+  const cur = bounds(off), prv = bounds(off - 1);
+  const now = new Date();
+  const enCours = off === 0 && now < cur.end;            // période pas terminée
+  const ecoule = Math.min(now - cur.start, cur.end - cur.start); // temps écoulé dans la période
 
-  // --- séries par période ---
-  const series = useMemo(() => {
-    const map = {};
-    flux.forEach((f) => { const k = keyOf(f.ts); if (!map[k]) map[k] = { ca: 0, nb: 0, qty: 0, marge: 0 };
-      map[k].ca += f.total; map[k].nb += 1;
-      f.items.forEach((i) => { map[k].qty += i.qty; map[k].marge += (i.price - costOf(i.name)) * i.qty; });
+  const agg = (a, b, cap) => {
+    const r = { ca: 0, nb: 0, qty: 0, marge: 0, prods: {} };
+    flux.forEach((f) => {
+      const t = new Date(f.ts);
+      if (t < a || t >= b) return;
+      if (cap && (t - a) > cap) return;                  // comparaison à durée égale
+      r.ca += f.total; r.nb += 1;
+      f.items.forEach((i) => {
+        r.qty += i.qty; r.marge += (i.price - costOf(i.name)) * i.qty;
+        if (!r.prods[i.name]) r.prods[i.name] = { qty: 0, ca: 0, marge: 0 };
+        r.prods[i.name].qty += i.qty; r.prods[i.name].ca += i.qty * i.price;
+        r.prods[i.name].marge += (i.price - costOf(i.name)) * i.qty;
+      });
     });
-    const keys = Object.keys(map).sort();
-    const lim = gran === "jour" ? 30 : gran === "semaine" ? 16 : gran === "mois" ? 12 : 6;
-    const kept = keys.slice(-lim);
-    return kept.map((k) => ({ k, label: labelOf(k), ...map[k] }));
-  }, [flux, gran, products]);
+    return r;
+  };
+  const A = agg(cur.start, cur.end);
+  // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
+  const B = agg(prv.start, prv.end, enCours ? ecoule : null);
+  const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
+  const GRANS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["annee","Année"]];
+  const PREV = { jour: "la veille", semaine: "la semaine précédente", mois: "le mois précédent", annee: "l'an dernier" };
 
-  const maxCa = Math.max(1, ...series.map((s) => s.ca));
-  const cur = series[series.length - 1] || { ca: 0, nb: 0, qty: 0, marge: 0 };
-  const prev = series[series.length - 2] || { ca: 0, nb: 0, qty: 0, marge: 0 };
-  const delta = prev.ca ? Math.round(((cur.ca - prev.ca) / prev.ca) * 1000) / 10 : (cur.ca ? 100 : 0);
-  const GRANS = [["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["annee", "Année"]];
-  const GLABEL = { jour: "hier", semaine: "semaine précédente", mois: "mois précédent", annee: "année précédente" };
+  // ---- produits de la période ----
+  const prods = Object.entries(A.prods).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
+  const pMax = Math.max(1, ...prods.map((p) => p.ca));
+  const DONUT = ["#7A2B33","#B5722B","#3F7A4B","#8C6A4A","#C09A5B","#5E6B34","#A34E5C","#D0A96B","#6E7F8D","#8E5A3C"];
+  const donut = prods.slice(0, 8);
+  const autres = prods.slice(8).reduce((a, p) => a + p.ca, 0);
+  if (autres > 0) donut.push({ name: "Autres", ca: autres, qty: 0, marge: 0 });
+  const dTot = donut.reduce((a, p) => a + p.ca, 0) || 1;
+  let acc = 0;
+  const R = 52, CX = 65, CY = 65, SW = 22;
+  const arcs = donut.map((p, i) => {
+    const frac = p.ca / dTot;
+    const a0 = acc * 2 * Math.PI - Math.PI / 2; acc += frac;
+    const a1 = acc * 2 * Math.PI - Math.PI / 2;
+    const large = frac > 0.5 ? 1 : 0;
+    const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0);
+    const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1);
+    return { d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}`, col: DONUT[i % DONUT.length], p, pct: Math.round(frac * 1000) / 10 };
+  });
 
-  // --- performance produits ---
-  const prodStats = useMemo(() => {
-    const m = {};
-    flux.forEach((f) => f.items.forEach((i) => {
-      if (!m[i.name]) m[i.name] = { qty: 0, ca: 0, marge: 0, last: 0, first: 0, months: {} };
-      const e = m[i.name];
-      e.qty += i.qty; e.ca += i.qty * i.price; e.marge += (i.price - costOf(i.name)) * i.qty;
-      e.last = Math.max(e.last, f.ts); e.first = e.first ? Math.min(e.first, f.ts) : f.ts;
-      const mo = new Date(f.ts).getMonth(); e.months[mo] = (e.months[mo] || 0) + i.qty;
-    }));
-    return Object.entries(m).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
-  }, [flux, products]);
-  const shown = prodStats.filter((p) => !prodQ || p.name.toLowerCase().includes(prodQ.toLowerCase()));
-  const pMax = Math.max(1, ...shown.map((p) => p.ca));
-  const jamais = (products || []).filter((p) => p.active !== false && !prodStats.find((x) => x.name === p.name));
+  // ---- courbe d'évolution (sous-périodes de la période courante) ----
+  const subs = useMemo(() => {
+    const out = [];
+    if (gran === "jour") { for (let h = 0; h < 24; h++) out.push({ lab: String(h).padStart(2,"0"), ca: 0 }); }
+    else if (gran === "semaine") { for (let i = 0; i < 7; i++) { const d = new Date(cur.start); d.setDate(cur.start.getDate() + i); out.push({ lab: JN[d.getDay()], ca: 0 }); } }
+    else if (gran === "mois") { const n = new Date(cur.start.getFullYear(), cur.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0 }); }
+    else { for (let i = 0; i < 12; i++) out.push({ lab: M3[i], ca: 0 }); }
+    flux.forEach((f) => {
+      const t = new Date(f.ts); if (t < cur.start || t >= cur.end) return;
+      let idx;
+      if (gran === "jour") idx = t.getHours();
+      else if (gran === "semaine") idx = Math.floor((t - cur.start) / 86400000);
+      else if (gran === "mois") idx = t.getDate() - 1;
+      else idx = t.getMonth();
+      if (out[idx]) out[idx].ca += f.total;
+    });
+    return out;
+  }, [flux, gran, off, products]);
+  const sMax = Math.max(1, ...subs.map((s) => s.ca));
 
-  // --- saisonnalité (12 mois, toutes années confondues) ---
-  const seasons = Array(12).fill(0);
-  flux.forEach((f) => { seasons[new Date(f.ts).getMonth()] += f.total; });
-  const sMax = Math.max(1, ...seasons);
-
-  // --- pics par jour de semaine ---
-  const byDow = [0, 0, 0, 0, 0, 0, 0];
-  flux.forEach((f) => { byDow[new Date(f.ts).getDay()] += f.total; });
-  const dMax = Math.max(1, ...byDow);
-
-  // --- comparatif année N vs N-1 (par mois) ---
-  const years = [...new Set(flux.map((f) => new Date(f.ts).getFullYear()))].sort();
-  const yNow = years[years.length - 1], yPrev = years[years.length - 2];
-  const perY = (yy) => { const a = Array(12).fill(0); flux.forEach((f) => { const d = new Date(f.ts); if (d.getFullYear() === yy) a[d.getMonth()] += f.total; }); return a; };
-  const cmpNow = yNow ? perY(yNow) : Array(12).fill(0);
-  const cmpPrev = yPrev ? perY(yPrev) : Array(12).fill(0);
-  const cMax = Math.max(1, ...cmpNow, ...cmpPrev);
-
-  const vTotal = (visits || []).length;
-  const caTotal = flux.reduce((a, f) => a + f.total, 0);
-  const margeTotal = prodStats.reduce((a, p) => a + p.marge, 0);
-  const conv = vTotal ? Math.round(((orders || []).length / vTotal) * 1000) / 10 : 0;
-
-  const W = 760, H = 160, pad = 10;
-  const pts = series.map((s, i) => { const x = pad + (i * (W - pad * 2)) / Math.max(1, series.length - 1); const y = H - pad - (s.ca / maxCa) * (H - pad * 2); return [x, y]; });
-  const path = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  const area = pts.length ? `${path} L${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L${pts[0][0].toFixed(1)} ${H - pad} Z` : "";
-  const dfr = (ts) => ts ? new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" }) : "—";
-
-  const kpi = (lbl, val, sub, accent) => (
-    <div style={{ flex: 1, minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px" }}>
-      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{lbl}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, marginTop: 3 }}>{val}</div>
+  const kpi = (l, v, sub, accent) => (
+    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px" }}>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{l}</div>
+      <div style={{ fontSize: "clamp(20px, 2.4vw, 26px)", fontWeight: 700, marginTop: 3 }}>{v}</div>
       {sub && <div style={{ fontSize: 11, opacity: .68, marginTop: 2 }}>{sub}</div>}
     </div>
   );
@@ -971,136 +984,102 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
     <div>
       <ProHead title="Tableau de bord" sub="Pilotage de l'activité" />
 
-      <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         {GRANS.map(([k, l]) => (
-          <button key={k} onClick={() => setGran(k)} className="ca-tap" style={{ border: `1px solid ${gran === k ? C.jam : C.line}`, background: gran === k ? C.jam : "#fff", color: gran === k ? "#fff" : C.ink, borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+          <button key={k} onClick={() => { setGran(k); setOff(0); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${gran === k ? C.jam : C.line}`, background: gran === k ? C.jam : "#fff", color: gran === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l}</button>
         ))}
-        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{loading ? "…" : "↻"}</button>}
       </div>
 
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 16 }}>
-        {kpi("CA période", eur(cur.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${GLABEL[gran]}`, true)}
-        {kpi("Marge période", eur(cur.marge), cur.ca ? `${Math.round((cur.marge / cur.ca) * 100)} % du CA` : "—")}
-        {kpi("Articles vendus", cur.qty, `${cur.nb} vente(s)`)}
-        {kpi("CA cumulé", eur(caTotal), `marge ${eur(margeTotal)}`)}
-        {kpi("Visites", vTotal, `conversion ${conv} %`)}
-      </div>
-
-      <div style={card()}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <div style={{ ...h2, marginBottom: 2 }}>Évolution du chiffre d'affaires</div>
-          <span style={{ fontSize: 12, color: delta >= 0 ? C.ok : C.jam, fontWeight: 700 }}>{delta >= 0 ? "+" : ""}{delta} %</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <button onClick={() => setOff(off - 1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={17} /></button>
+        <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cur.label}</div>
+          {enCours && <div style={{ fontSize: 10.5, color: C.caramel, fontWeight: 700 }}>en cours</div>}
         </div>
-        <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8 }}>Par {gran === "annee" ? "année" : gran}</div>
-        {series.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente enregistrée.</div> : (<>
-          <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 160, display: "block" }}>
-            <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.jam} stopOpacity=".3" /><stop offset="100%" stopColor={C.jam} stopOpacity="0" /></linearGradient></defs>
-            {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={pad} y1={pad + f * (H - pad * 2)} x2={W - pad} y2={pad + f * (H - pad * 2)} stroke={C.line} strokeWidth="1" />)}
-            {area && <path d={area} fill="url(#g1)" />}
-            {path && <path d={path} fill="none" stroke={C.jam} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />}
-            {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 4.5 : 2.8} fill={C.jam} />)}
-          </svg>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.soft, marginTop: 3 }}>
-            <span>{series[0] && series[0].label}</span><span>max {eur(maxCa)}</span><span>{series[series.length - 1] && series[series.length - 1].label}</span>
-          </div>
-        </>)}
+        <button onClick={() => setOff(Math.min(0, off + 1))} disabled={off >= 0} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: off >= 0 ? "default" : "pointer", display: "grid", placeItems: "center", color: off >= 0 ? "#C9C0AE" : C.jam, flexShrink: 0 }}><ChevronRight size={17} /></button>
+        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, height: 34, padding: "0 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", color: C.jam, flexShrink: 0 }}>{loading ? "…" : "↻"}</button>}
       </div>
 
-      {yPrev && (
-        <div style={card()}>
-          <div style={{ ...h2 }}>Comparatif {yNow} vs {yPrev}</div>
-          <div style={{ display: "flex", gap: 14, fontSize: 12, marginBottom: 10 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 11, height: 11, background: C.jam, borderRadius: 3, display: "inline-block" }} /> {yNow} — <b>{eur(cmpNow.reduce((a, b) => a + b, 0))}</b></span>
-            <span style={{ display: "flex", alignItems: "center", gap: 5, color: C.soft }}><span style={{ width: 11, height: 11, background: "#C9C0AE", borderRadius: 3, display: "inline-block" }} /> {yPrev} — <b>{eur(cmpPrev.reduce((a, b) => a + b, 0))}</b></span>
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 130 }}>
-            {MOIS.map((mo, i) => (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", gap: 3 }}>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 2, width: "100%", height: "100%", justifyContent: "center" }}>
-                  <div title={`${yPrev} : ${eur(cmpPrev[i])}`} style={{ width: "42%", height: `${Math.max(cmpPrev[i] ? 3 : 0, (cmpPrev[i] / cMax) * 100)}%`, background: "#C9C0AE", borderRadius: "3px 3px 0 0" }} />
-                  <div title={`${yNow} : ${eur(cmpNow[i])}`} style={{ width: "42%", height: `${Math.max(cmpNow[i] ? 3 : 0, (cmpNow[i] / cMax) * 100)}%`, background: C.jam, borderRadius: "3px 3px 0 0" }} />
-                </div>
-                <div style={{ fontSize: 9, color: C.soft }}>{mo.slice(0, 1)}</div>
-              </div>
-            ))}
-          </div>
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14 }}>
+        {kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
+        {kpi("Marge", eur(A.marge), A.ca ? `${Math.round((A.marge / A.ca) * 100)} % du CA` : "—")}
+        {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
+      </div>
+
+      {enCours && (
+        <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
+          Comparaison honnête : {PREV[gran]} est mesuré <b>sur la même durée écoulée</b> ({eur(B.ca)}), pas sur la période complète.
         </div>
       )}
 
       <div style={card()}>
-        <div style={{ ...h2 }}>Saisonnalité — CA par mois (toutes années)</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
-          {seasons.map((v, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-              <div style={{ fontSize: 8.5, color: C.soft, marginBottom: 2 }}>{v ? Math.round(v) : ""}</div>
-              <div style={{ width: "100%", height: `${Math.max(v ? 4 : 1, (v / sMax) * 76)}%`, background: v === sMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .18, borderRadius: "4px 4px 0 0" }} />
-              <div style={{ fontSize: 9.5, color: C.ink, marginTop: 4, fontWeight: 600 }}>{MOIS[i].slice(0, 3)}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={card()}>
-        <div style={{ ...h2 }}>Meilleurs jours de vente</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 110 }}>
-          {byDow.map((v, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-              <div style={{ fontSize: 10, color: C.soft, marginBottom: 3 }}>{v ? eur(v) : ""}</div>
-              <div style={{ width: "100%", height: `${Math.max(v ? 5 : 1, (v / dMax) * 72)}%`, background: v === dMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .2, borderRadius: "5px 5px 0 0" }} />
-              <div style={{ fontSize: 11, color: C.ink, marginTop: 5, fontWeight: 600 }}>{JN[i]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={card()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
-          <div style={{ ...h2, marginBottom: 0 }}>Performance par produit</div>
-          <span style={{ fontSize: 11.5, color: C.soft }}>{shown.length} produit(s)</span>
-        </div>
-        <input value={prodQ} onChange={(e) => setProdQ(e.target.value)} placeholder="Rechercher un produit…" style={{ ...inp(), margin: "8px 0 12px", padding: "9px 12px", fontSize: 13 }} />
-        {shown.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente enregistrée.</div> : shown.map((p) => {
-          const best = Object.entries(p.months).sort((a, b) => b[1] - a[1])[0];
-          return (
-            <div key={p.name} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
-                <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
+        <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : "mois par mois"}</div>
+        {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
+            {subs.map((s, i) => (
+              <div key={i} title={`${s.lab} · ${eur(s.ca)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0 }}>
+                <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s" }} />
+                <div style={{ fontSize: gran === "mois" ? 7.5 : 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{gran === "mois" ? (i % 3 === 0 ? s.lab : "") : s.lab}</div>
               </div>
-              <div style={{ height: 8, background: C.line, borderRadius: 4, overflow: "hidden", marginBottom: 5 }}>
-                <div style={{ width: `${(p.ca / pMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 4 }} />
-              </div>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: C.soft }}>
-                <span><b style={{ color: C.ink }}>{p.qty}</b> vendus</span>
-                <span>marge <b style={{ color: p.marge > 0 ? C.ok : C.soft }}>{eur(p.marge)}</b></span>
-                {best && <span>pic en <b style={{ color: C.ink }}>{MOIS[+best[0]]}</b></span>}
-                <span>dernière vente <b style={{ color: C.ink }}>{dfr(p.last)}</b></span>
-              </div>
-            </div>
-          );
-        })}
-        {jamais.length > 0 && (
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
-            <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 5 }}>Jamais vendus ({jamais.length})</div>
-            <div style={{ fontSize: 12.5, color: C.soft, lineHeight: 1.5 }}>{jamais.map((p) => p.name).join(", ")}</div>
+            ))}
           </div>
         )}
       </div>
 
       <div style={card()}>
+        <div style={{ ...h2 }}>Répartition des ventes par produit</div>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
+          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
+              {arcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
+              <text x={CX} y={CY - 4} textAnchor="middle" style={{ fontSize: 15, fontWeight: 700, fill: C.ink }}>{eur(A.ca)}</text>
+              <text x={CX} y={CY + 10} textAnchor="middle" style={{ fontSize: 8, fill: C.soft }}>{prods.length} produits</text>
+            </svg>
+            <div style={{ flex: "1 1 200px", minWidth: 190 }}>
+              {arcs.map((a, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5 }}>
+                  <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}</span>
+                  <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : prods.map((p, i) => (
+          <div key={p.name} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
+              <span style={{ width: 20, height: 20, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 11, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
+            </div>
+            <div style={{ height: 8, background: C.line, borderRadius: 4, overflow: "hidden", marginBottom: 5 }}>
+              <div style={{ width: `${(p.ca / pMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 4 }} />
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: C.soft }}>
+              <span><b style={{ color: C.ink }}>{p.qty}</b> vendus</span>
+              <span>marge <b style={{ color: p.marge > 0 ? C.ok : C.soft }}>{eur(p.marge)}</b></span>
+              <span><b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={card()}>
         <div style={{ ...h2 }}>Zone géographique</div>
         {(() => {
-          const byVille = {};
-          (clients || []).forEach((c) => { const v = (c.ville || "").trim() || "Non renseignée"; byVille[v] = (byVille[v] || 0) + 1; });
-          const villes = Object.entries(byVille).sort((a, b) => b[1] - a[1]).slice(0, 8);
-          const vMaxx = Math.max(1, ...villes.map(([, n]) => n));
-          if (!clients || clients.length === 0) return <div style={{ fontSize: 13, color: C.soft }}>Aucun client enregistré.</div>;
+          const bv = {}; (clients || []).forEach((c) => { const v = (c.ville || "").trim() || "Non renseignée"; bv[v] = (bv[v] || 0) + 1; });
+          const villes = Object.entries(bv).sort((a, b) => b[1] - a[1]).slice(0, 8);
+          const vm = Math.max(1, ...villes.map(([, n]) => n));
+          if (!clients || !clients.length) return <div style={{ fontSize: 13, color: C.soft }}>Aucun client enregistré.</div>;
           return villes.map(([v, n]) => (
             <div key={v} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
-              <div style={{ width: 125, fontSize: 12.5, color: v === "Non renseignée" ? C.soft : C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}><MapPin size={12} color={C.soft} /> {v}</div>
-              <div style={{ flex: 1, height: 11, background: C.line, borderRadius: 6, overflow: "hidden" }}>
-                <div style={{ width: `${(n / vMaxx) * 100}%`, height: "100%", background: v === "Non renseignée" ? C.soft : C.caramel, borderRadius: 6 }} />
-              </div>
+              <div style={{ width: 120, fontSize: 12.5, color: v === "Non renseignée" ? C.soft : C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}><MapPin size={12} color={C.soft} /> {v}</div>
+              <div style={{ flex: 1, height: 11, background: C.line, borderRadius: 6, overflow: "hidden" }}><div style={{ width: `${(n / vm) * 100}%`, height: "100%", background: v === "Non renseignée" ? C.soft : C.caramel, borderRadius: 6 }} /></div>
               <div style={{ width: 26, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.ink }}>{n}</div>
             </div>
           ));
@@ -1109,15 +1088,17 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
 
       <div style={card()}>
         <div style={{ ...h2 }}>Fréquentation (scans QR / ouvertures)</div>
-        {vTotal === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Le comptage vient de démarrer : chaque scan du QR code et chaque ouverture de la boutique sera compté ici.</div> : (() => {
-          const bd = {};
-          (visits || []).forEach((v) => { const d = new Date(v.ts); const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; bd[k] = (bd[k] || 0) + 1; });
-          const ks = []; const now = new Date();
-          for (let i = 29; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); ks.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`); }
-          const vs = ks.map((k) => bd[k] || 0); const vm = Math.max(1, ...vs);
-          return <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 100 }}>
-            {vs.map((v, i) => <div key={i} title={`${v} visite(s)`} style={{ flex: 1, height: `${Math.max(v ? 6 : 1, (v / vm) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, alignSelf: "flex-end" }} />)}
-          </div>;
+        {(visits || []).length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Le comptage vient de démarrer : chaque scan du QR et chaque ouverture de la boutique sera compté ici.</div> : (() => {
+          const bd = {}; (visits || []).forEach((v) => { const d = new Date(v.ts); bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] = (bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] || 0) + 1; });
+          const vs = []; const n2 = new Date();
+          for (let i = 29; i >= 0; i--) { const d = new Date(n2); d.setDate(n2.getDate() - i); vs.push(bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] || 0); }
+          const vm = Math.max(1, ...vs);
+          return <>
+            <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 8 }}>{(visits || []).length} visite(s) au total · 30 derniers jours</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 90 }}>
+              {vs.map((v, i) => <div key={i} title={`${v} visite(s)`} style={{ flex: 1, height: `${Math.max(v ? 6 : 1, (v / vm) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, alignSelf: "flex-end" }} />)}
+            </div>
+          </>;
         })()}
       </div>
     </div>
