@@ -686,7 +686,7 @@ function CalGrid({ sales, selected, onPick }) {
   const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   const nav = (delta) => setCur(new Date(y, m + delta, 1));
   return (
-    <div>
+    <div style={{ maxWidth: 420, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <button onClick={() => nav(-1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronLeft size={16} /></button>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, textTransform: "capitalize" }}>{MOIS[m]} {y}</div>
@@ -695,7 +695,7 @@ function CalGrid({ sales, selected, onPick }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <div key={i} style={{ textAlign: "center", fontSize: 10, color: C.soft, fontWeight: 700 }}>{d}</div>)}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "clamp(3px, 0.8vw, 6px)" }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />;
           const k = iso(d);
@@ -705,12 +705,12 @@ function CalGrid({ sales, selected, onPick }) {
           const isToday = k === todayIso;
           return (
             <button key={i} onClick={() => !isFuture && onPick(k)} disabled={isFuture} className="ca-tap"
-              style={{ position: "relative", aspectRatio: "1", borderRadius: 8, cursor: isFuture ? "default" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, padding: 2,
+              style={{ position: "relative", aspectRatio: "1", minHeight: 38, borderRadius: "clamp(8px, 1.4vw, 11px)", cursor: isFuture ? "default" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, padding: 2,
                 border: `1.5px solid ${isSel ? C.jam : (isToday ? C.caramel : "transparent")}`,
                 background: isSel ? C.jam : (ca ? `rgba(122,43,51,${0.08 + 0.32 * (ca / maxCa)})` : "#fff"),
                 color: isSel ? "#fff" : (isFuture ? "#C9C0AE" : C.ink), opacity: isFuture ? .45 : 1 }}>
-              <span style={{ fontSize: 12.5, fontWeight: ca || isSel ? 700 : 500, lineHeight: 1 }}>{d.getDate()}</span>
-              {ca > 0 && <span style={{ fontSize: 8.5, fontWeight: 700, color: isSel ? "#ffffffcc" : C.jam, lineHeight: 1 }}>{Math.round(ca)}€</span>}
+              <span style={{ fontSize: "clamp(12px, 1.6vw, 15px)", fontWeight: ca || isSel ? 700 : 500, lineHeight: 1 }}>{d.getDate()}</span>
+              {ca > 0 && <span style={{ fontSize: "clamp(8px, 1vw, 10px)", fontWeight: 700, color: isSel ? "#ffffffcc" : C.jam, lineHeight: 1 }}>{Math.round(ca)}€</span>}
             </button>
           );
         })}
@@ -1961,6 +1961,7 @@ function ProLogin({ pin, onOk }) {
 
 /* ---------------- Helpers ---------------- */
 const card = () => ({ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 11 });
+const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 12 };
 const inp = () => ({ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.line}`, background: C.cream, fontSize: 14, color: C.ink });
 const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid ${C.line}`, background: s === "Livrée" || s === "Retirée" ? "#3F7A4B14" : C.cream, fontSize: 12.5, fontWeight: 600, color: C.ink, cursor: "pointer" });
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
