@@ -645,7 +645,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Statistiques", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -656,6 +656,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
+        {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
@@ -665,6 +666,200 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout, pass }} />}
         {tab === "reglages" && <ProSettings {...{ paymentEnabled, setPaymentEnabled, pass }} />}
       </div>
+    </div>
+  );
+}
+function CalGrid({ sales, selected, onPick }) {
+  const [cur, setCur] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayIso = iso(new Date());
+  const byDay = {};
+  (sales || []).forEach((s) => { const k = iso(new Date(s.ts)); byDay[k] = (byDay[k] || 0) + (Number(s.total) || 0); });
+  const y = cur.getFullYear(), m = cur.getMonth();
+  const first = new Date(y, m, 1);
+  const startPad = (first.getDay() + 6) % 7; // lundi = 0
+  const nbDays = new Date(y, m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startPad; i++) cells.push(null);
+  for (let d = 1; d <= nbDays; d++) cells.push(new Date(y, m, d));
+  const maxCa = Math.max(1, ...Object.values(byDay));
+  const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const nav = (delta) => setCur(new Date(y, m + delta, 1));
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <button onClick={() => nav(-1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronLeft size={16} /></button>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, textTransform: "capitalize" }}>{MOIS[m]} {y}</div>
+        <button onClick={() => nav(1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronRight size={16} /></button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <div key={i} style={{ textAlign: "center", fontSize: 10, color: C.soft, fontWeight: 700 }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const k = iso(d);
+          const ca = byDay[k] || 0;
+          const isSel = selected === k || (!selected && k === todayIso);
+          const isFuture = k > todayIso;
+          const isToday = k === todayIso;
+          return (
+            <button key={i} onClick={() => !isFuture && onPick(k)} disabled={isFuture} className="ca-tap"
+              style={{ position: "relative", aspectRatio: "1", borderRadius: 8, cursor: isFuture ? "default" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, padding: 2,
+                border: `1.5px solid ${isSel ? C.jam : (isToday ? C.caramel : "transparent")}`,
+                background: isSel ? C.jam : (ca ? `rgba(122,43,51,${0.08 + 0.32 * (ca / maxCa)})` : "#fff"),
+                color: isSel ? "#fff" : (isFuture ? "#C9C0AE" : C.ink), opacity: isFuture ? .45 : 1 }}>
+              <span style={{ fontSize: 12.5, fontWeight: ca || isSel ? 700 : 500, lineHeight: 1 }}>{d.getDate()}</span>
+              {ca > 0 && <span style={{ fontSize: 8.5, fontWeight: 700, color: isSel ? "#ffffffcc" : C.jam, lineHeight: 1 }}>{Math.round(ca)}€</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: C.soft, marginTop: 8, lineHeight: 1.4 }}>Touchez un jour pour y enregistrer une vente. L'intensité indique le chiffre d'affaires.</div>
+    </div>
+  );
+}
+function ProFournisseurs({ pass }) {
+  const [list, setList] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const [inv, setInv] = useState(null);
+  const blank = { id: null, societe: "", contact_prenom: "", contact_nom: "", tel: "", email: "", adresse: "", cp: "", ville: "", siret: "", categorie: "", notes: "" };
+  const load = async () => {
+    if (!supabase || !pass) return;
+    setBusy(true);
+    try { const { data } = await supabase.rpc("admin_suppliers", { pass }); if (Array.isArray(data)) setList(data); } catch (e) {}
+    setBusy(false);
+  };
+  useEffect(() => { load(); }, []);
+  const save = async () => {
+    if (!edit || !edit.societe) return;
+    setBusy(true);
+    try {
+      await supabase.rpc("admin_save_supplier", { pass, p_id: edit.id, p_societe: edit.societe, p_prenom: edit.contact_prenom || "", p_nom: edit.contact_nom || "", p_tel: edit.tel || "", p_email: edit.email || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_siret: edit.siret || "", p_categorie: edit.categorie || "", p_notes: edit.notes || "" });
+      setEdit(null); await load();
+    } catch (e) {}
+    setBusy(false);
+  };
+  const remove = async (id) => {
+    if (!window.confirm("Supprimer ce fournisseur et ses factures ?")) return;
+    try { await supabase.rpc("admin_delete_supplier", { pass, p_id: id }); await load(); } catch (e) {}
+  };
+  const saveInv = async () => {
+    if (!inv || !inv.supplier_id) return;
+    setBusy(true);
+    try {
+      await supabase.rpc("admin_save_invoice", { pass, p_id: inv.id || null, p_supplier: inv.supplier_id, p_numero: inv.numero || "", p_date: inv.date_facture || null, p_ht: Number(inv.montant_ht) || 0, p_ttc: Number(inv.montant_ttc) || 0, p_payee: !!inv.payee, p_notes: inv.notes || "" });
+      setInv(null); await load();
+    } catch (e) {}
+    setBusy(false);
+  };
+  const F = ({ l, v, on, ph, type }) => (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input type={type || "text"} value={v || ""} placeholder={ph} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+  return (
+    <div>
+      <ProHead title="Fournisseurs" sub="Contacts, SIRET et factures d'achat" />
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button onClick={() => setEdit({ ...blank })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Nouveau fournisseur</button>
+        <button onClick={load} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "9px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{busy ? "…" : "↻ Actualiser"}</button>
+      </div>
+      {list.length === 0 && !busy && <div style={{ ...card(), fontSize: 13, color: C.soft }}>Aucun fournisseur enregistré. Créez le premier avec le bouton ci-dessus.</div>}
+      {list.map((s) => {
+        const factures = s.factures || [];
+        const totalTtc = factures.reduce((a, f) => a + (Number(f.montant_ttc) || 0), 0);
+        const impayees = factures.filter((f) => !f.payee).length;
+        const isOpen = openId === s.id;
+        return (
+          <div key={s.id} style={card()}>
+            <div onClick={() => setOpenId(isOpen ? null : s.id)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 16, flexShrink: 0, paddingTop: 3 }}>{(s.societe || "?").charAt(0).toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink }}>{s.societe}</div>
+                <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[s.categorie, s.ville, s.tel].filter(Boolean).join(" · ") || "—"}</div>
+              </div>
+              {factures.length > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: impayees ? C.caramel : C.ok, flexShrink: 0 }}>{impayees ? `${impayees} impayée${impayees > 1 ? "s" : ""}` : "à jour"}</span>}
+              <ChevronDown size={17} color={C.soft} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
+            </div>
+            {isOpen && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 14px", fontSize: 12.5, marginBottom: 12 }}>
+                  <div><span style={{ color: C.soft }}>Contact</span><br /><b>{[s.contact_prenom, s.contact_nom].filter(Boolean).join(" ") || "—"}</b></div>
+                  <div><span style={{ color: C.soft }}>Téléphone</span><br /><b>{s.tel || "—"}</b></div>
+                  <div><span style={{ color: C.soft }}>Email</span><br /><b style={{ wordBreak: "break-all" }}>{s.email || "—"}</b></div>
+                  <div><span style={{ color: C.soft }}>SIRET</span><br /><b>{s.siret || "—"}</b></div>
+                  <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft }}>Adresse</span><br /><b>{[s.adresse, s.cp, s.ville].filter(Boolean).join(", ") || "—"}</b></div>
+                  {s.notes && <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft }}>Notes</span><br />{s.notes}</div>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+                  <span style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>Factures ({factures.length})</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.jam }}>{eur(totalTtc)}</span>
+                </div>
+                {factures.map((f) => (
+                  <div key={f.id} onClick={() => setInv({ ...f, supplier_id: s.id })} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, cursor: "pointer" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: C.ink }}>{f.numero || "sans n°"}</div>
+                      <div style={{ fontSize: 11.5, color: C.soft }}>{f.date_facture ? new Date(f.date_facture).toLocaleDateString("fr-FR") : "—"}</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{eur(f.montant_ttc)}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: f.payee ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px" }}>{f.payee ? "PAYÉE" : "À PAYER"}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
+                  <button onClick={() => setInv({ id: null, supplier_id: s.id, numero: "", date_facture: new Date().toISOString().slice(0, 10), montant_ht: "", montant_ttc: "", payee: false, notes: "" })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Plus size={13} /> Facture</button>
+                  <button onClick={() => setEdit({ ...s })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.ink, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
+                  <button onClick={() => remove(s.id)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, borderRadius: 9, padding: "8px 10px", fontSize: 12.5, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Trash2 size={13} /> Supprimer</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {edit && (
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 500, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{edit.id ? "Modifier" : "Nouveau fournisseur"}</div>
+              <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <F l="Société *" v={edit.societe} on={(v) => setEdit({ ...edit, societe: v })} ph="Ex. Verrerie du Sud" />
+              <F l="Catégorie" v={edit.categorie} on={(v) => setEdit({ ...edit, categorie: v })} ph="Emballage, fruits…" />
+              <F l="Prénom contact" v={edit.contact_prenom} on={(v) => setEdit({ ...edit, contact_prenom: v })} />
+              <F l="Nom contact" v={edit.contact_nom} on={(v) => setEdit({ ...edit, contact_nom: v })} />
+              <F l="Téléphone" v={edit.tel} on={(v) => setEdit({ ...edit, tel: v })} />
+              <F l="Email" v={edit.email} on={(v) => setEdit({ ...edit, email: v })} type="email" />
+              <div style={{ flexBasis: "100%" }}><F l="Adresse" v={edit.adresse} on={(v) => setEdit({ ...edit, adresse: v })} /></div>
+              <F l="Code postal" v={edit.cp} on={(v) => setEdit({ ...edit, cp: v })} />
+              <F l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
+              <F l="SIRET" v={edit.siret} on={(v) => setEdit({ ...edit, siret: v })} />
+              <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
+            </div>
+            <button onClick={save} disabled={busy || !edit.societe} className="ca-tap" style={{ width: "100%", marginTop: 16, background: edit.societe ? C.ok : C.soft, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+          </div>
+        </div>
+      )}
+
+      {inv && (
+        <div onClick={() => !busy && setInv(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{inv.id ? "Modifier la facture" : "Nouvelle facture"}</div>
+              <button onClick={() => setInv(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <F l="N° facture" v={inv.numero} on={(v) => setInv({ ...inv, numero: v })} />
+              <F l="Date" v={inv.date_facture} on={(v) => setInv({ ...inv, date_facture: v })} type="date" />
+              <F l="Montant HT (€)" v={inv.montant_ht} on={(v) => setInv({ ...inv, montant_ht: v })} type="number" />
+              <F l="Montant TTC (€)" v={inv.montant_ttc} on={(v) => setInv({ ...inv, montant_ttc: v })} type="number" />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12, cursor: "pointer", fontSize: 13.5, fontWeight: 600 }}>
+              <input type="checkbox" checked={!!inv.payee} onChange={(e) => setInv({ ...inv, payee: e.target.checked })} style={{ width: 18, height: 18, accentColor: C.ok }} /> Facture payée
+            </label>
+            <button onClick={saveInv} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 16, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -771,6 +966,30 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Zone géographique</div>
+        {(() => {
+          const byVille = {};
+          (clients || []).forEach((c) => { const v = (c.ville || "").trim() || "Non renseignée"; byVille[v] = (byVille[v] || 0) + 1; });
+          const villes = Object.entries(byVille).sort((a, b) => b[1] - a[1]).slice(0, 8);
+          const vMaxx = Math.max(1, ...villes.map(([, n]) => n));
+          const renseignes = (clients || []).filter((c) => (c.ville || "").trim()).length;
+          if (!clients || clients.length === 0) return <div style={{ fontSize: 13, color: C.soft }}>Aucun client enregistré.</div>;
+          return (<>
+            <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>{renseignes} client(s) sur {clients.length} avec une ville renseignée. Complétez les fiches dans Clients (CRM).</div>
+            {villes.map(([v, n]) => (
+              <div key={v} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
+                <div style={{ width: 120, fontSize: 12.5, color: v === "Non renseignée" ? C.soft : C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}><MapPin size={12} color={C.soft} /> {v}</div>
+                <div style={{ flex: 1, height: 11, background: C.line, borderRadius: 6, overflow: "hidden" }}>
+                  <div style={{ width: `${(n / vMaxx) * 100}%`, height: "100%", background: v === "Non renseignée" ? C.soft : C.caramel, borderRadius: 6 }} />
+                </div>
+                <div style={{ width: 28, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.ink }}>{n}</div>
+              </div>
+            ))}
+          </>);
+        })()}
       </div>
 
       <div style={card()}>
@@ -1969,7 +2188,7 @@ export function EspacePro() {
         supabase.rpc("admin_visits", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
-      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in })));
+      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "" })));
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
       if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
@@ -2509,19 +2728,18 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
       <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
       <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la commande » pour l'enregistrer.</div>
 
-      <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: C.ink }}>
-          <input type="checkbox" checked={retro} onChange={(e) => { setRetro(e.target.checked); if (e.target.checked && !saleDate) setSaleDate(new Date().toISOString().slice(0, 10)); }} style={{ width: 18, height: 18, accentColor: C.jam }} />
-          Saisie rétroactive — vente déjà faite un autre jour
-        </label>
-        {retro && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1 }}><Lbl>Date de la vente</Lbl><input type="date" value={saleDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setSaleDate(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ width: 120 }}><Lbl>Heure</Lbl><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>
+      <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente</div>
+          <button onClick={() => { setRetro(false); setSaleDate(""); }} className="ca-tap" style={{ border: `1px solid ${!retro ? C.jam : C.line}`, background: !retro ? C.jam : "#fff", color: !retro ? "#fff" : C.ink, borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>
+        </div>
+        <CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} />
+        {retro && saleDate && (
+          <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1, fontSize: 12.5, color: C.jam, fontWeight: 700, lineHeight: 1.4 }}>Vente enregistrée pour le {new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
+              <div style={{ width: 104 }}><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></div>
             </div>
-            <div style={{ fontSize: 12.5, color: C.jam, fontWeight: 700, marginTop: 9, lineHeight: 1.4 }}>{saleDate ? `Cette vente sera enregistrée pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })} à ${saleTime}.` : "Choisissez la date."}</div>
-            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 4, lineHeight: 1.4 }}>Ajoutez les produits réellement vendus (pissaladière, caramels…) puis fermez la commande — autant de fois que nécessaire pour ce jour.</div>
           </div>
         )}
       </div>
