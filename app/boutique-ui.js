@@ -133,6 +133,19 @@ function Illu({ k, col, s = 46 }) {
   if (k === "cake") return wrap(<><path d="M10 30 L23 13 L36 30 Z" fill={col} /><circle cx="21" cy="25" r="2" fill="#5b2150" /><circle cx="27" cy="26" r="2" fill="#C0392B" /><circle cx="24" cy="20" r="1.8" fill="#E3B100" /></>);
   if (k === "loaf") return wrap(<><path d="M9 33 V23 q0 -7 14 -7 q14 0 14 7 v10 q0 1.6 -1.6 1.6 H10.6 Q9 34.6 9 33 z" fill={col} /><path d="M9 31 h28 v2 q0 1.6 -1.6 1.6 H10.6 Q9 34.6 9 31 z" fill="#5E3717" /><path d="M12 21 q11 -4 22 0" stroke={hl} strokeWidth="2.2" fill="none" strokeLinecap="round" /><g stroke="#F3ECD6" strokeWidth="1.3" strokeLinecap="round" opacity=".92" fill="none"><path d="M14 22 q1.6 4 -0.5 8" /><path d="M21 20.5 q1.6 5 -0.5 10" /><path d="M28 21 q1.6 4 -0.5 9" /></g><g fill="#3a2410"><circle cx="17" cy="29" r=".7" /><circle cx="25" cy="30" r=".7" /><circle cx="31" cy="28" r=".7" /></g></>);
   if (k === "pissa") return wrap(<><rect x="6" y="15" width="34" height="16" rx="3.5" fill="#E0AE55" /><rect x="8.5" y="17.2" width="29" height="11.6" rx="2.5" fill="#E9CE94" /><g stroke="#CDA663" strokeWidth=".8" strokeLinecap="round" opacity=".8" fill="none"><path d="M10 20 q6 -1.5 13 0 t14 0" /><path d="M10 26 q7 1.5 13 0 t13 0" /></g><g stroke="#9C6B45" strokeWidth="1.7" strokeLinecap="round"><line x1="12" y1="17.5" x2="19" y2="28.5" /><line x1="19" y1="17.5" x2="26" y2="28.5" /><line x1="26" y1="17.5" x2="33" y2="28.5" /><line x1="19" y1="17.5" x2="12" y2="28.5" /><line x1="26" y1="17.5" x2="19" y2="28.5" /><line x1="33" y1="17.5" x2="26" y2="28.5" /></g><g fill="#2B2620"><circle cx="15.5" cy="23" r="1.7" /><circle cx="23" cy="20" r="1.7" /><circle cx="23" cy="26" r="1.7" /><circle cx="30.5" cy="23" r="1.7" /></g></>);
+  if (k === "potpissa") return wrap(<>
+    <rect x="13" y="6" width="20" height="5" rx="2" fill="#123a52" />
+    <rect x="13" y="6" width="20" height="2.2" rx="1.1" fill="#1c516f" />
+    <path d="M12 11 h22 v24 q0 5 -5 5 h-12 q-5 0 -5 -5 z" fill="#b9772e" />
+    <path d="M15 12 h3 v26 h-1.4 q-1.6 0 -1.6 -2 z" fill="rgba(255,255,255,.22)" />
+    <rect x="12" y="17" width="22" height="16" rx="1.5" fill="#f6efdd" />
+    <rect x="12" y="17" width="22" height="16" rx="1.5" fill="none" stroke="#123a52" strokeWidth="1.1" />
+    <circle cx="16.4" cy="20.4" r="1.5" fill="#f4b32c" />
+    <circle cx="29.6" cy="20.4" r="1.5" fill="#f4b32c" />
+    <rect x="14.6" y="23.2" width="16.8" height="2.5" rx="1" fill="#123a52" />
+    <rect x="16.4" y="26.6" width="13.2" height="1.5" rx=".75" fill="#c65a35" />
+    <g fill="#123a52" opacity=".75"><rect x="17.4" y="29.4" width="11.2" height="1" rx=".5" /></g>
+  </>);
   if (k === "miel") return wrap(<><g transform="rotate(20 38 14)"><rect x="36.4" y="5" width="2.4" height="20" rx="1.2" fill="#B07E3A" /><ellipse cx="37.6" cy="21.5" rx="3.5" ry="4.2" fill="#C9912F" /><path d="M34.6 18.8 h6 M34.4 21.5 h6.2 M34.8 24.2 h5.4" stroke="#8a5e22" strokeWidth="0.9" strokeLinecap="round" /></g><rect x="12" y="17" width="22" height="23" rx="6" fill="#F7F1E2" stroke="#E2D6BC" strokeWidth="1" /><path d="M13 23 h20 v11 q0 5 -5 5 h-10 q-5 0 -5 -5 z" fill={col} /><rect x="15" y="24" width="3" height="12" rx="1.5" fill={hl} /><rect x="11" y="13" width="24" height="6" rx="2.5" fill="#A9742E" /><rect x="11" y="13" width="24" height="2.4" rx="1.2" fill="#C08A3C" /><path d="M23 27 l3 1.7 v3.4 l-3 1.7 l-3 -1.7 v-3.4 z" fill="none" stroke="#9A6A1E" strokeWidth="1.4" /><g transform="translate(9 12)"><ellipse cx="-2" cy="-3.6" rx="3.3" ry="2" fill="#e6f3f6" stroke="#c4dde2" strokeWidth=".6" transform="rotate(-25 -2 -3.6)" /><ellipse cx="3" cy="-3.6" rx="3.3" ry="2" fill="#e6f3f6" stroke="#c4dde2" strokeWidth=".6" transform="rotate(25 3 -3.6)" /><ellipse cx="0.5" cy="0.6" rx="4.4" ry="3.3" fill="#F2C53D" stroke="#d9a82f" strokeWidth=".5" /><path d="M-1 -2.1 v5.5 M1.7 -2.4 v6" stroke="#3a2a12" strokeWidth="1.4" /><circle cx="-3.7" cy="-0.5" r="2" fill="#2a1f10" /><path d="M-4.8 -2.1 q-1 -1.6 -2.3 -1.7 M-3.6 -2.3 q-0.6 -1.8 -1.5 -2.4" stroke="#2a1f10" strokeWidth=".7" fill="none" strokeLinecap="round" /></g></>);
   if (k === "marron") return wrap(<><rect x="11" y="15" width="24" height="5" rx="2.5" fill="#5A3A22" /><rect x="11" y="15" width="24" height="2" rx="1" fill="#6E4A2E" /><path d="M13 20 h20 v12 q0 4 -4 4 h-12 q-4 0 -4 -4 z" fill={col} /><rect x="16" y="22" width="3" height="11" rx="1.5" fill={hl} /><g transform="translate(15 34)"><path d="M-1 -8 q2 -2 0 -4" stroke="#4a2a12" strokeWidth="1.2" strokeLinecap="round" fill="none" /><path d="M-6 -2 q0 -7 6 -7 q6 0 6 7 q0 5 -6 6 q-6 -1 -6 -6 z" fill="#6B3F1E" /><path d="M-6 -2 q0 -7 6 -7" stroke="#9a6a3e" strokeWidth="1" fill="none" opacity=".55" /><ellipse cx="0" cy="4.4" rx="3.6" ry="1.5" fill="#E7C98F" /></g><g transform="translate(27 36) scale(.82)"><path d="M-1 -8 q2 -2 0 -4" stroke="#4a2a12" strokeWidth="1.4" strokeLinecap="round" fill="none" /><path d="M-6 -2 q0 -7 6 -7 q6 0 6 7 q0 5 -6 6 q-6 -1 -6 -6 z" fill="#7A4A26" /><path d="M-6 -2 q0 -7 6 -7" stroke="#a87a4a" strokeWidth="1" fill="none" opacity=".55" /><ellipse cx="0" cy="4.4" rx="3.6" ry="1.5" fill="#E7C98F" /></g></>);
   if (k === "berry") return wrap(<><path d="M23 9 Q19 6 16 8 M23 9 Q27 6 30 8" stroke="#6f8f3a" strokeWidth="2" fill="none" strokeLinecap="round" /><path d="M14 18 Q23 12 32 18 Q30 34 23 38 Q16 34 14 18 Z" fill={col} /><g fill="#ffe9a8">{[[19, 21], [26, 21], [22, 25], [18, 28], [27, 28], [23, 31]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1" />)}</g></>);
@@ -602,9 +615,9 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Statistiques", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -614,6 +627,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
+        {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
@@ -622,6 +636,126 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
         {tab === "profil" && <ProProfile {...{ profile, setProfile, onLogout, pass }} />}
         {tab === "reglages" && <ProSettings {...{ paymentEnabled, setPaymentEnabled, pass }} />}
+      </div>
+    </div>
+  );
+}
+function ProStats({ sales, orders, visits, clients, products, onRefresh, loading }) {
+  const [range, setRange] = useState(30);
+  const dayKeyOf = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const days = useMemo(() => {
+    const out = []; const now = new Date();
+    for (let i = range - 1; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); out.push(dayKeyOf(d.getTime())); }
+    return out;
+  }, [range]);
+  const label = (k) => { const [, m, d] = k.split("-"); return `${d}/${m}`; };
+
+  const caisseByDay = {}, orderByDay = {}, visitByDay = {};
+  (sales || []).forEach((s) => { const k = dayKeyOf(s.ts); caisseByDay[k] = (caisseByDay[k] || 0) + (Number(s.total) || 0); });
+  (orders || []).forEach((o) => { const k = dayKeyOf(o.ts); orderByDay[k] = (orderByDay[k] || 0) + (Number(o.total) || 0); });
+  (visits || []).forEach((v) => { const k = dayKeyOf(v.ts); visitByDay[k] = (visitByDay[k] || 0) + 1; });
+
+  const caSeries = days.map((k) => (caisseByDay[k] || 0) + (orderByDay[k] || 0));
+  const vSeries = days.map((k) => visitByDay[k] || 0);
+  const caMax = Math.max(1, ...caSeries), vMax = Math.max(1, ...vSeries);
+  const caTotal = caSeries.reduce((a, b) => a + b, 0);
+  const vTotal = vSeries.reduce((a, b) => a + b, 0);
+  const nbCmd = (orders || []).filter((o) => days.includes(dayKeyOf(o.ts))).length;
+  const conv = vTotal ? Math.round((nbCmd / vTotal) * 1000) / 10 : 0;
+  const panier = nbCmd ? Math.round(((orders || []).filter((o) => days.includes(dayKeyOf(o.ts))).reduce((a, o) => a + (Number(o.total) || 0), 0) / nbCmd) * 100) / 100 : 0;
+
+  // top produits (caisse + commandes)
+  const qtyByProduct = {};
+  (sales || []).forEach((s) => { if (!days.includes(dayKeyOf(s.ts))) return; (s.items || []).forEach((i) => { qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + (i.qty || 0); }); });
+  (orders || []).forEach((o) => { if (!days.includes(dayKeyOf(o.ts))) return; (o.lines || []).forEach((i) => { qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + (i.qty || 0); }); });
+  const top = Object.entries(qtyByProduct).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const topMax = Math.max(1, ...top.map(([, q]) => q));
+
+  // jours de la semaine (pics)
+  const JN = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  const byDow = [0, 0, 0, 0, 0, 0, 0];
+  days.forEach((k) => { const d = new Date(k + "T12:00:00"); byDow[d.getDay()] += (caisseByDay[k] || 0) + (orderByDay[k] || 0); });
+  const dowMax = Math.max(1, ...byDow);
+
+  const W = 760, H = 170, pad = 8;
+  const pts = caSeries.map((v, i) => { const x = pad + (i * (W - pad * 2)) / Math.max(1, caSeries.length - 1); const y = H - pad - (v / caMax) * (H - pad * 2); return [x, y]; });
+  const path = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const area = pts.length ? `${path} L${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L${pts[0][0].toFixed(1)} ${H - pad} Z` : "";
+  const kpi = (lbl, val, sub) => (
+    <div style={{ flex: 1, minWidth: 130, background: C.board, color: C.chalk, borderRadius: 14, padding: "13px 14px" }}>
+      <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{lbl}</div>
+      <div style={{ fontSize: 25, fontWeight: 700, marginTop: 3 }}>{val}</div>
+      {sub && <div style={{ fontSize: 11, opacity: .65, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+  return (
+    <div>
+      <ProHead title="Statistiques" sub="Fréquentation et courbe des ventes" />
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+        {[[7, "7 jours"], [30, "30 jours"], [90, "3 mois"], [365, "1 an"]].map(([n, l]) => (
+          <button key={n} onClick={() => setRange(n)} className="ca-tap" style={{ border: `1px solid ${range === n ? C.jam : C.line}`, background: range === n ? C.jam : "#fff", color: range === n ? "#fff" : C.ink, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{l}</button>
+        ))}
+        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ marginLeft: "auto", border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{loading ? "…" : "↻ Actualiser"}</button>}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        {kpi("Visites", vTotal, "scans + ouvertures")}
+        {kpi("Chiffre d'affaires", eur(caTotal), "caisse + commandes")}
+        {kpi("Commandes", nbCmd, `panier moyen ${eur(panier)}`)}
+        {kpi("Conversion", conv + " %", "visite → commande")}
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Courbe des ventes</div>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 170, display: "block" }}>
+          <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.jam} stopOpacity=".28" /><stop offset="100%" stopColor={C.jam} stopOpacity="0" /></linearGradient></defs>
+          {[0.25, 0.5, 0.75].map((f) => <line key={f} x1={pad} y1={pad + f * (H - pad * 2)} x2={W - pad} y2={pad + f * (H - pad * 2)} stroke={C.line} strokeWidth="1" />)}
+          {area && <path d={area} fill="url(#grad)" />}
+          {path && <path d={path} fill="none" stroke={C.jam} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />}
+          {pts.map(([x, y], i) => caSeries[i] > 0 ? <circle key={i} cx={x} cy={y} r="2.8" fill={C.jam} /> : null)}
+        </svg>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.soft, marginTop: 4 }}>
+          <span>{days.length ? label(days[0]) : ""}</span><span>Max {eur(caMax)}</span><span>{days.length ? label(days[days.length - 1]) : ""}</span>
+        </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Fréquentation (visites / scans QR)</div>
+        {vTotal === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune visite enregistrée pour l'instant. Le comptage démarre maintenant : chaque scan du QR code et chaque ouverture de la boutique sera compté ici.</div> : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 130 }}>
+            {vSeries.map((v, i) => (
+              <div key={i} title={`${label(days[i])} · ${v} visite(s)`} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+                <div style={{ height: `${Math.max(v ? 6 : 1, (v / vMax) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, transition: "height .25s" }} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Pics de vente par jour de la semaine</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+          {byDow.map((v, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+              <div style={{ fontSize: 10, color: C.soft, marginBottom: 3 }}>{v ? eur(v) : ""}</div>
+              <div style={{ width: "100%", height: `${Math.max(v ? 6 : 1, (v / dowMax) * 78)}%`, background: v === dowMax && v > 0 ? C.jam : C.caramel, opacity: v ? 1 : .25, borderRadius: 5 }} />
+              <div style={{ fontSize: 11, color: C.ink, marginTop: 5, fontWeight: 600 }}>{JN[i]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Produits les plus vendus</div>
+        {top.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : top.map(([name, q]) => (
+          <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
+            <div style={{ width: 150, fontSize: 12.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+            <div style={{ flex: 1, height: 12, background: C.line, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ width: `${(q / topMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 6 }} />
+            </div>
+            <div style={{ width: 34, textAlign: "right", fontSize: 12.5, fontWeight: 700, color: C.jam }}>{q}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1653,8 +1787,17 @@ export function BoutiquePublique() {
   const [reviews, setReviews] = useState([]);
   const [parrain, setParrain] = useState("");
   useEffect(() => {
-    try { const r = new URLSearchParams(window.location.search).get("ref"); if (r) setParrain(r); } catch (e) {}
+    let refCode = "";
+    try { const r = new URLSearchParams(window.location.search).get("ref"); if (r) { setParrain(r); refCode = r; } } catch (e) {}
     if (!supabase) return;
+    try {
+      const key = "ca_visit_" + new Date().toISOString().slice(0, 10);
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        const src = document.referrer ? "web" : "direct";
+        supabase.rpc("track_visit", { p_path: window.location.pathname || "/", p_ref: refCode, p_source: src }).then(() => {}, () => {});
+      }
+    } catch (e) {}
     supabase.from("profile").select("announce_title, announce_body").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setAnnounce({ title: data.announce_title || "", body: data.announce_body || "" });
     }, () => {});
@@ -1701,8 +1844,17 @@ export function BoutiquePublique() {
     setReturning(true);
     setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]);
     if (supabase && c.email) {
-      try { await supabase.from("customers").upsert({ prenom: c.prenom, nom: c.nom, tel: c.tel, email: c.email, opt_in: !!c.optin }, { onConflict: "email", ignoreDuplicates: true }); } catch (e) {}
+      try {
+        const { error } = await supabase.rpc("save_customer", { p_prenom: c.prenom || "", p_nom: c.nom || "", p_tel: c.tel || "", p_email: c.email, p_opt_in: !!c.optin });
+        if (error) { try { localStorage.setItem("ca_cust_pending", JSON.stringify(c)); } catch (e2) {} return false; }
+        try { localStorage.removeItem("ca_cust_pending"); } catch (e3) {}
+        return true;
+      } catch (e) {
+        try { localStorage.setItem("ca_cust_pending", JSON.stringify(c)); } catch (e4) {}
+        return false;
+      }
     }
+    return true;
   };
   const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email || ""));
   const placeOrder = async () => {
@@ -1716,10 +1868,16 @@ export function BoutiquePublique() {
     if (supabase) {
       const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
       try {
-        await supabase.from("customers").upsert({ prenom: cust.prenom, nom: cust.nom, tel: cust.tel, email: cust.email, opt_in: !!cust.optin }, { onConflict: "email", ignoreDuplicates: true });
+        await supabase.rpc("save_customer", { p_prenom: cust.prenom || "", p_nom: cust.nom || "", p_tel: cust.tel || "", p_email: cust.email, p_opt_in: !!cust.optin });
         const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false, parrain: parrain || "" });
-        if (!error) await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
-      } catch (e) {}
+        if (!error) {
+          await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
+        } else {
+          try { localStorage.setItem("ca_order_pending", JSON.stringify({ o, lines: cartLines, pickupDay, parrain })); } catch (e5) {}
+        }
+      } catch (e) {
+        try { localStorage.setItem("ca_order_pending", JSON.stringify({ o, lines: cartLines, pickupDay, parrain })); } catch (e6) {}
+      }
     }
     setPlacing(false);
     setStep("done");
@@ -1749,6 +1907,7 @@ export function EspacePro() {
   const [sales, setSales] = useState(SEED_SALES);
   const [clients, setClients] = useState(SEED_CLIENTS);
   const [promos, setPromos] = useState(SEED_PROMOS);
+  const [visits, setVisits] = useState([]);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
   const [profile, setProfile] = useState(SEED_PROFILE);
   const [proAuth, setProAuth] = useState(false);
@@ -1759,16 +1918,18 @@ export function EspacePro() {
     if (!supabase || !key) return;
     setLoading(true);
     try {
-      const [ro, rc, rs, rp] = await Promise.all([
+      const [ro, rc, rs, rp, rv] = await Promise.all([
         supabase.rpc("admin_orders", { pass: key }),
         supabase.rpc("admin_customers", { pass: key }),
         supabase.rpc("admin_sales", { pass: key }),
         supabase.from("products").select("*").order("sort", { ascending: true }),
+        supabase.rpc("admin_visits", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in })));
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
       if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
+      if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
     } catch (e) {}
     finally { setLoading(false); }
   };
@@ -1787,7 +1948,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
       <InstallBanner admin />
     </div>
