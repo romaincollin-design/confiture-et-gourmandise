@@ -428,7 +428,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
   const extra = [...new Set(products.filter((p) => p.active !== false && !CAT_ORDER.includes(p.cat)).map((p) => p.cat))];
   const cats = [...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c));
   const [open, setOpen] = useState({});
-  const toggle = (c) => setOpen((o) => ({ ...o, [c]: !o[c] }));
+  const toggle = (c) => setOpen((o) => (o[c] ? {} : { [c]: true }));
   return (
     <div className="ca-anim" style={{ padding: "4px 0 92px" }}>
       <div style={{ padding: "0 22px" }}>
@@ -1687,22 +1687,35 @@ function ReviewsCarousel({ reviews, setStep, title = "Ils ont aimé" }) {
   const list = reviews || [];
   const avg = list.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
   return (
-    <div style={{ marginTop: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", marginBottom: 10 }}>
-        <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700 }}>{title}</span>
-        {list.length > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.soft }}><Stars value={Math.round(avg)} size={13} /> {avg.toFixed(1)} · {list.length}</span>}
+    <div style={{ marginTop: 26, background: C.paper, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}`, padding: "20px 0 18px" }}>
+      <div style={{ padding: "0 22px", marginBottom: 14, textAlign: "center" }}>
+        <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, lineHeight: 1.1 }}>{title}</div>
+        {list.length > 0 ? (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 7, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 14px" }}>
+            <Stars value={Math.round(avg)} size={15} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{avg.toFixed(1)}</span>
+            <span style={{ fontSize: 12.5, color: C.soft }}>· {list.length} avis</span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 6 }}>Aucun avis pour l'instant — donnez le premier !</div>
+        )}
       </div>
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", padding: "0 22px 8px", scrollSnapType: "x mandatory" }}>
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "0 22px 6px", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}>
         {list.map((r) => (
-          <div key={r.id} style={{ flex: "0 0 76%", maxWidth: 280, scrollSnapAlign: "start", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-              <b style={{ fontSize: 13.5 }}>{r.prenom || "Client"}</b><Stars value={r.rating} size={13} />
+          <div key={r.id} style={{ flex: "0 0 78%", maxWidth: 290, scrollSnapAlign: "start", background: "#fff", border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.jam}`, borderRadius: 14, padding: "14px 16px", boxShadow: "0 6px 18px -10px #241f1733", position: "relative" }}>
+            <div style={{ position: "absolute", top: 6, right: 12, fontFamily: SCRIPT, fontSize: 34, color: C.jam, opacity: .16, lineHeight: 1 }}>&rdquo;</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{(r.prenom || "C").charAt(0).toUpperCase()}</div>
+              <div style={{ minWidth: 0 }}>
+                <b style={{ fontSize: 13.5, display: "block", color: C.ink }}>{r.prenom || "Client"}</b>
+                <Stars value={r.rating} size={12} />
+              </div>
             </div>
-            {r.comment && <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.45 }}>{r.comment}</div>}
+            {r.comment && <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.5 }}>{r.comment}</div>}
           </div>
         ))}
-        <button onClick={() => setStep("avis")} className="ca-tap" style={{ flex: "0 0 auto", scrollSnapAlign: "start", background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "14px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, minWidth: 130 }}>
-          <Stars value={5} size={16} /> {list.length ? "Donner mon avis" : "Soyez le premier à donner votre avis"}
+        <button onClick={() => setStep("avis")} className="ca-tap" style={{ flex: "0 0 auto", scrollSnapAlign: "start", background: C.board, color: C.chalk, border: "none", borderRadius: 14, padding: "16px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 145 }}>
+          <Stars value={5} size={17} /> {list.length ? "Donner mon avis" : "Soyez le premier"}
         </button>
       </div>
     </div>
