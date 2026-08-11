@@ -1255,7 +1255,21 @@ function ProProduction({ pass }) {
                 {NF("Nb de pots", "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft, alignItems: "center" }}>
+                {(() => {
+                  const nbAuto = (R.poidsFini && pfNum(p.format_g)) ? Math.floor((R.poidsFini * 1000) / pfNum(p.format_g)) : null;
+                  if (nbAuto == null) return null;
+                  const dejaBon = pfNum(p.nb) === nbAuto;
+                  return (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f6efdd", borderRadius: 8, padding: "4px 9px" }}>
+                      <Package size={13} color={PF.navy} />
+                      <span>≈ <b style={{ color: PF.navy }}>{nbAuto} pots</b> possibles ({R.poidsFini.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
+                      {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
+                    </span>
+                  );
+                })()}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8, fontSize: 12, color: C.soft }}>
                 <span>Coût/pot <b style={{ color: PF.navy }}>{eur3(pl.coutUnitaireTotal)}</b></span>
                 <span>Marge <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</b></span>
                 <span>Coef <b style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</b></span>
