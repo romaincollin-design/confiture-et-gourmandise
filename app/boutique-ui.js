@@ -1021,7 +1021,7 @@ function ProProduction({ pass }) {
   const NF = (l, key, unit, ph, obj, on) => (
     <div style={{ flex: "1 1 120px", minWidth: 110 }}>
       <Lbl>{l}{unit ? <span style={{ color: C.soft, fontWeight: 400 }}> ({unit})</span> : null}</Lbl>
-      <input inputMode="decimal" value={obj[key] == null ? "" : obj[key]} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value)} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, color: C.ink }} />
+      <input inputMode="decimal" value={obj[key] == null ? "" : String(obj[key]).replace(".", ",")} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, color: C.ink }} />
     </div>
   );
 
@@ -1196,8 +1196,8 @@ function ProProduction({ pass }) {
                 <Lbl>Ingrédient</Lbl>
                 <input value={e.label || ""} placeholder="ex. Anchois à l'huile" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
               </div>
-              <div style={{ flex: "1 1 100px" }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={e.qty == null ? "" : e.qty} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-              <div style={{ flex: "1 1 100px" }}><Lbl>Prix unitaire (€)</Lbl><input inputMode="decimal" value={e.price == null ? "" : e.price} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <div style={{ flex: "1 1 100px" }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <div style={{ flex: "1 1 100px" }}><Lbl>Prix unitaire (€)</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
               <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>
             </div>
           ))}
@@ -1222,7 +1222,7 @@ function ProProduction({ pass }) {
           {(f.personnel || []).map((p, i) => (
             <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
               <div style={{ flex: "2 1 120px" }}><Lbl>Nom</Lbl><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ flex: "1 1 90px" }}><Lbl>Taux (€/h)</Lbl><input inputMode="decimal" value={p.taux == null ? "" : p.taux} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ flex: "1 1 90px" }}><Lbl>Taux (€/h)</Lbl><input inputMode="decimal" value={p.taux == null ? "" : String(p.taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
               <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
             </div>
           ))}
