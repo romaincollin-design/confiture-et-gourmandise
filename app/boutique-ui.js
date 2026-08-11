@@ -990,8 +990,18 @@ function ProProduction({ pass }) {
   };
   useEffect(() => { load(); }, []);
 
-  const persist = async (f) => {
+  const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "taux_local", "transport", "poids_fini_kg", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
+  const pfNorm = (f) => {
+    const o = { ...f };
+    NUM_KEYS.forEach((k) => { if (o[k] === "" || o[k] == null) { if (k === "poids_fini_kg") o[k] = ""; else o[k] = 0; } else o[k] = pfNum(o[k]); });
+    o.personnel = (o.personnel || []).map((p) => ({ nom: p.nom || "", taux: p.taux === "" || p.taux == null ? 0 : pfNum(p.taux) }));
+    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente) }));
+    o.extra = (o.extra || []).map((e) => ({ label: e.label || "", qty: pfNum(e.qty), price: pfNum(e.price) }));
+    return o;
+  };
+  const persist = async (fRaw) => {
     if (!supabase || !pass) return;
+    const f = pfNorm(fRaw);
     try {
       const { data } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
       if (data && !f.id) { setCur((c) => c ? { ...c, id: data } : c); f.id = data; }
@@ -1036,7 +1046,7 @@ function ProProduction({ pass }) {
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ ...h2, marginBottom: 8 }}>Rendement</div>
         <Gauge pct={r.rendement ? r.rendement * 100 : 0} tag={r.rendement ? (r.isEstimated ? "Estimé" : "Mesuré") : null} big />
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.poidsFini ? `${r.poidsFini.toFixed(2)} kg cuits` : "poids à peser"}{r.oignon_kg}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.poidsFini ? `${r.poidsFini.toFixed(2)} kg cuits` : "poids à peser"}</div>
       </div>
       <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
