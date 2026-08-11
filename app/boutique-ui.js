@@ -929,7 +929,7 @@ const PF_ING = [
   { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f" },
 ];
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
-const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "", oignon_kg: "", temps_h: "", temps_min: "", personnel: [{ nom: "", taux: "" }], taux_local: "", transport: "", huile_cl: "", sel_g: "", poivre_g: "", anchois_g: "", thym_g: "", ail_g: "", px_oignon: "", px_huile: "", px_sel: "", px_poivre: "", px_anchois: "", px_thym: "", px_ail: "", poids_fini_kg: "", pots: [{ format_g: "", px_bocal: "", px_etiquette: "", nb: "", px_vente: "" }] });
+const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", oignon_kg: "", temps_h: 2, temps_min: 10, personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0, huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50, px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55, poids_fini_kg: "", pots: [{ format_g: 250, px_bocal: 0.85, px_etiquette: 0.30, nb: "", px_vente: "" }] });
 
 function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
@@ -973,7 +973,7 @@ const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 10
 
 function ProProduction({ pass }) {
   const [batches, setBatches] = useState([]);
-  const [rendementEstime, setRendementEstime] = useState(40);
+  const [rendementEstime, setRendementEstime] = useState(64.3);
   const [view, setView] = useState("list"); // list | edit | dash
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -984,7 +984,7 @@ function ProProduction({ pass }) {
   const load = async () => {
     if (!supabase || !pass) return;
     setBusy(true);
-    try { const { data } = await supabase.rpc("admin_batches", { pass }); if (data) { setBatches(Array.isArray(data.batches) ? data.batches : []); if (data.rendement != null) setRendementEstime(Number(data.rendement) || 40); } } catch (e) {}
+    try { const { data } = await supabase.rpc("admin_batches", { pass }); if (data) { setBatches(Array.isArray(data.batches) ? data.batches : []); if (data.rendement != null) setRendementEstime(Number(data.rendement) || 64.3); } } catch (e) {}
     setBusy(false);
   };
   useEffect(() => { load(); }, []);
