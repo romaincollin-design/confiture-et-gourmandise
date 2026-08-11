@@ -929,12 +929,13 @@ const PF_ING = [
   { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f" },
 ];
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
-const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", oignon_kg: "", temps_h: 2, temps_min: 10, personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0, huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50, px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55, poids_fini_kg: "", pots: [{ format_g: 250, px_bocal: 0.85, px_etiquette: 0.30, nb: "", px_vente: "" }] });
+const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", oignon_kg: "", temps_h: 2, temps_min: 10, personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0, huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50, px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55, poids_fini_kg: "", extra: [], pots: [{ format_g: 250, px_bocal: 0.85, px_etiquette: 0.30, nb: "", px_vente: "" }] });
 
 function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
   let totalMatieres = 0;
   PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
+  (f.extra || []).forEach((e) => { totalMatieres += pfNum(e.qty) * pfNum(e.price); });
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
   const coutMO = tempsTotal * tauxSum;
   const coutLocal = tempsTotal * pfNum(f.taux_local);
@@ -1010,7 +1011,7 @@ function ProProduction({ pass }) {
   const NF = (l, key, unit, ph, obj, on) => (
     <div style={{ flex: "1 1 120px", minWidth: 110 }}>
       <Lbl>{l}{unit ? <span style={{ color: C.soft, fontWeight: 400 }}> ({unit})</span> : null}</Lbl>
-      <input inputMode="decimal" value={obj[key] == null ? "" : obj[key]} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+      <input inputMode="decimal" value={obj[key] == null ? "" : obj[key]} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value)} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, color: C.ink }} />
     </div>
   );
 
@@ -1179,6 +1180,18 @@ function ProProduction({ pass }) {
               {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
             </div>
           ))}
+          {(f.extra || []).map((e, i) => (
+            <div key={"x" + i} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ width: 90, flexShrink: 0 }}>
+                <Lbl>Ingrédient</Lbl>
+                <input value={e.label || ""} placeholder="ex. Anchois à l'huile" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
+              </div>
+              <div style={{ flex: "1 1 100px" }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={e.qty == null ? "" : e.qty} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <div style={{ flex: "1 1 100px" }}><Lbl>Prix unitaire (€)</Lbl><input inputMode="decimal" value={e.price == null ? "" : e.price} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>
+            </div>
+          ))}
+          <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
           <div style={{ marginTop: 12, fontSize: 13, color: C.ink, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.soft }}>Total matières</span><b>{eur2(R.totalMatieres)}</b></div>
           <div style={{ marginTop: 14, ...h2 }}>Rendement</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -1247,6 +1260,8 @@ function ProProduction({ pass }) {
           )}
         </div>
       )}
+
+      <button onClick={async () => { clearTimeout(timer.current); await persist(cur); setView("list"); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée</button>
     </div>
   );
 }
