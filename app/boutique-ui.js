@@ -929,7 +929,7 @@ const PF_ING = [
   { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f" },
 ];
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
-const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", oignon_kg: "", temps_h: 2, temps_min: 10, personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0, huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50, px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55, poids_fini_kg: "", extra: [], pots: [{ format_g: 250, px_bocal: 0.85, px_etiquette: 0.30, nb: "", px_vente: "" }] });
+const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", oignon_kg: "", temps_h: 2, temps_min: 10, personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0, huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50, px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55, poids_fini_kg: "", extra: [], frais_extra: [], pissa_poids_plaque: "", pissa_nb_plaques: "", pots: [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }] });
 
 function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
@@ -940,18 +940,21 @@ function pfCalc(f, rendementEstime) {
   const coutMO = tempsTotal * tauxSum;
   const coutLocal = tempsTotal * pfNum(f.taux_local);
   const coutTransport = pfNum(f.transport);
-  const revientHE = totalMatieres + coutMO + coutLocal + coutTransport;
+  const coutFraisExtra = (f.frais_extra || []).reduce((sum, x) => sum + pfNum(x.montant), 0);
+  const revientHE = totalMatieres + coutMO + coutLocal + coutTransport + coutFraisExtra;
   let poidsFini = f.poids_fini_kg !== "" && f.poids_fini_kg != null ? pfNum(f.poids_fini_kg) : null;
   let isEstimated = false;
   if (!poidsFini && pfNum(f.oignon_kg) && rendementEstime) { poidsFini = pfNum(f.oignon_kg) * (rendementEstime / 100); isEstimated = true; }
   const rendement = (poidsFini && pfNum(f.oignon_kg)) ? poidsFini / pfNum(f.oignon_kg) : null;
   const coutKg = poidsFini ? revientHE / poidsFini : null;
+  const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
+  const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
   const pots = f.pots || [];
   let poidsAlloue = 0, coutEmballageTotal = 0, nbPotsTotal = 0, coutProduitTotal = 0, margeTotale = 0, revenuTotal = 0, nbPotsPrix = 0, coutProduitAvecPrix = 0;
   const potLines = pots.map((p) => {
     const nb = pfNum(p.nb);
     const formatKg = pfNum(p.format_g) / 1000;
-    const cEmb = pfNum(p.px_bocal) + pfNum(p.px_etiquette);
+    const cEmb = pfNum(p.px_bocal) + pfNum(p.px_capuchon) + pfNum(p.px_etiquette);
     const cProd = coutKg !== null ? coutKg * formatKg : null;
     const cTot = cProd !== null ? cProd + cEmb : null;
     const pxv = (p.px_vente === "" || p.px_vente == null) ? null : pfNum(p.px_vente);
@@ -962,12 +965,12 @@ function pfCalc(f, rendementEstime) {
     if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
     return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU };
   });
-  const ecartPoids = poidsFini !== null ? poidsFini - poidsAlloue : null;
+  const ecartPoids = poidsDispoPots !== null ? poidsDispoPots - poidsAlloue : null;
   const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
   const margeMoyenne = nbPotsPrix ? margeTotale / nbPotsPrix : null;
   const coefMoyen = coutProduitAvecPrix ? revenuTotal / coutProduitAvecPrix : null;
   const prixVenteMoyen = nbPotsPrix ? revenuTotal / nbPotsPrix : null;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, revientHE, poidsFini, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -990,13 +993,14 @@ function ProProduction({ pass }) {
   };
   useEffect(() => { load(); }, []);
 
-  const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "taux_local", "transport", "poids_fini_kg", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
+  const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "taux_local", "transport", "poids_fini_kg", "pissa_poids_plaque", "pissa_nb_plaques", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
   const pfNorm = (f) => {
     const o = { ...f };
     NUM_KEYS.forEach((k) => { if (o[k] === "" || o[k] == null) { if (k === "poids_fini_kg") o[k] = ""; else o[k] = 0; } else o[k] = pfNum(o[k]); });
     o.personnel = (o.personnel || []).map((p) => ({ nom: p.nom || "", taux: p.taux === "" || p.taux == null ? 0 : pfNum(p.taux) }));
-    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente) }));
+    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_capuchon: pfNum(p.px_capuchon), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente) }));
     o.extra = (o.extra || []).map((e) => ({ label: e.label || "", qty: pfNum(e.qty), price: pfNum(e.price) }));
+    o.frais_extra = (o.frais_extra || []).map((x) => ({ label: x.label || "", montant: pfNum(x.montant) }));
     return o;
   };
   const persist = async (fRaw) => {
@@ -1044,7 +1048,7 @@ function ProProduction({ pass }) {
   const heroCards = (r) => (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
-        <div style={{ ...h2, marginBottom: 8 }}>Rendement</div>
+        <div style={{ ...h2, marginBottom: 8 }}>Transformation</div>
         <Gauge pct={r.rendement ? r.rendement * 100 : 0} tag={r.rendement ? (r.isEstimated ? "Estimé" : "Mesuré") : null} big />
         <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.poidsFini ? `${r.poidsFini.toFixed(2)} kg cuits` : "poids à peser"}</div>
       </div>
@@ -1084,7 +1088,7 @@ function ProProduction({ pass }) {
         </div>
 
         <div style={{ ...card(), background: "#fff7e0", borderColor: PF.yellow + "66", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 12.5, color: C.ink, flex: 1, minWidth: 200 }}><b>Rendement estimé par défaut</b><br /><span style={{ color: C.soft }}>utilisé tant que le poids cuit n'est pas pesé</span></div>
+          <div style={{ fontSize: 12.5, color: C.ink, flex: 1, minWidth: 200 }}><b>Taux de transformation estimé</b><br /><span style={{ color: C.soft }}>utilisé tant que le poids cuit n'est pas pesé</span></div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 80, textAlign: "center" }} />
             <span style={{ fontWeight: 700, color: PF.navy }}>%</span>
@@ -1202,8 +1206,11 @@ function ProProduction({ pass }) {
             </div>
           ))}
           <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
-          <div style={{ marginTop: 12, fontSize: 13, color: C.ink, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.soft }}>Total matières</span><b>{eur2(R.totalMatieres)}</b></div>
-          <div style={{ marginTop: 14, ...h2 }}>Rendement</div>
+          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
+            <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
+          </div>
+          <div style={{ marginTop: 14, ...h2 }}>Poids (cru → cuit)</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {NF("Oignon cru", "oignon_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Poids cuit — à peser", "poids_fini_kg", "kg", "estimé si vide", f, (k, v) => change({ [k]: v }))}
@@ -1232,8 +1239,16 @@ function ProProduction({ pass }) {
             {NF("Location du local", "taux_local", "€/h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Transport", "transport", "€", "0", f, (k, v) => change({ [k]: v }))}
           </div>
+          {(f.frais_extra || []).map((fr, i) => (
+            <div key={"fr" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
+              <div style={{ flex: "2 1 140px" }}><Lbl>Libellé du frais</Lbl><input value={fr.label || ""} placeholder="ex. Gaz, électricité…" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], label: e.target.value }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ flex: "1 1 90px" }}><Lbl>Montant (€)</Lbl><input inputMode="decimal" value={fr.montant == null ? "" : String(fr.montant).replace(".", ",")} placeholder="0" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], montant: e.target.value.replace(",", ".") }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <button onClick={() => change({ frais_extra: f.frais_extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+            </div>
+          ))}
+          <button onClick={() => change({ frais_extra: [...(f.frais_extra || []), { label: "", montant: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un frais</button>
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
-            {[["Matières", R.totalMatieres], ["Main d'œuvre", R.coutMO], ["Local", R.coutLocal], ["Transport", R.coutTransport]].map(([l, v]) => <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>{l}</span><span style={{ color: C.ink }}>{eur2(v)}</span></div>)}
+            {[["Matières", R.totalMatieres], ["Main d'œuvre", R.coutMO], ["Local", R.coutLocal], ["Transport", R.coutTransport], ["Autres frais", R.coutFraisExtra]].filter(([, v]) => v > 0 || true).map(([l, v]) => <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>{l}</span><span style={{ color: C.ink }}>{eur2(v)}</span></div>)}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
           </div>
         </div>
@@ -1242,7 +1257,27 @@ function ProProduction({ pass }) {
       {etab === "pot" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Contenants & vente</div>
-          {(f.pots || []).map((p, i) => { const pl = R.potLines[i] || {}; return (
+
+          <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 13, marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Production pissaladière (hors pots)</div>
+            <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 9, lineHeight: 1.4 }}>Oignons destinés aux plaques de pissaladière — ce poids est déduit du total avant le calcul des pots.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {NF("Poids par plaque", "pissa_poids_plaque", "kg", "0", f, (k, v) => change({ [k]: v }))}
+              {NF("Nombre de plaques", "pissa_nb_plaques", "", "0", f, (k, v) => change({ [k]: v }))}
+            </div>
+            {R.poidsPissa > 0 && (
+              <div style={{ marginTop: 9, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
+                <span style={{ color: C.soft }}>Poids pissaladière</span><b style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</b>
+              </div>
+            )}
+            {R.poidsDispoPots != null && (
+              <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
+                <span style={{ color: C.soft }}>Poids disponible pour les pots</span><b style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</b>
+              </div>
+            )}
+          </div>
+
+          {(f.pots || []).map((p, i) => { const pl = R.potLines[i] || {}; const cTot = pl.coutUnitaireTotal; return (
             <div key={i} style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <b style={{ fontSize: 13, color: PF.navy }}>Format {i + 1}</b>
@@ -1251,35 +1286,57 @@ function ProProduction({ pass }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
                 {NF("Format", "format_g", "g", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF("Bocal", "px_bocal", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {NF("Capuchon", "px_capuchon", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF("Étiquette", "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF("Nb de pots", "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 9, alignItems: "flex-end" }}>
+                <div style={{ flex: "1 1 120px", minWidth: 110 }}>
+                  <Lbl>Coefficient de vente</Lbl>
+                  <input inputMode="decimal" value={p.px_vente && cTot ? String(Math.round((pfNum(p.px_vente) / cTot) * 100) / 100).replace(".", ",") : ""} placeholder="ex. 3" onChange={(e) => { const coef = pfNum(e.target.value); const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: cTot ? Math.round(cTot * coef * 100) / 100 : "" }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+                </div>
                 {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft, alignItems: "center" }}>
                 {(() => {
-                  const nbAuto = (R.poidsFini && pfNum(p.format_g)) ? Math.floor((R.poidsFini * 1000) / pfNum(p.format_g)) : null;
+                  const nbAuto = (R.poidsDispoPots && pfNum(p.format_g)) ? Math.floor((R.poidsDispoPots * 1000) / pfNum(p.format_g)) : null;
                   if (nbAuto == null) return null;
                   const dejaBon = pfNum(p.nb) === nbAuto;
                   return (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f6efdd", borderRadius: 8, padding: "4px 9px" }}>
                       <Package size={13} color={PF.navy} />
-                      <span>≈ <b style={{ color: PF.navy }}>{nbAuto} pots</b> possibles ({R.poidsFini.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
+                      <span>≈ <b style={{ color: PF.navy }}>{nbAuto} pots</b> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
                 })()}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8, fontSize: 12, color: C.soft }}>
-                <span>Coût/pot <b style={{ color: PF.navy }}>{eur3(pl.coutUnitaireTotal)}</b></span>
-                <span>Marge <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</b></span>
-                <span>Coef <b style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</b></span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}`, fontSize: 12.5 }}>
+                <span style={{ color: C.soft }}>Coût/pot <b style={{ color: PF.navy }}>{eur3(cTot)}</b></span>
+                <span style={{ color: C.soft }}>Marge/pot <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</b></span>
+                <span style={{ color: C.soft }}>Coef <b style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</b></span>
+                {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span style={{ color: C.soft }}>Total ventes <b style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</b></span>}
+                {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span style={{ color: C.soft }}>Marge totale <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</b></span>}
               </div>
             </div>
           ); })}
-          <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
+          <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
+
+          {(R.revenuTotal > 0 || R.nbPotsTotal > 0) && (
+            <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "15px 18px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Total ventes ({R.nbPotsTotal} pots)</span>
+                <b style={{ fontSize: 26, fontWeight: 800 }}>{eur2(R.revenuTotal)}</b>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 12.5, opacity: .85 }}>
+                <span>Marge totale</span><b>{eur2(R.margeTotale)}</b>
+              </div>
+            </div>
+          )}
+
           {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
             <div style={{ marginTop: 12, fontSize: 12, color: R.ecartPoids < 0 ? PF.warn : C.soft, background: R.ecartPoids < 0 ? "#faece5" : "#f6efdd", borderRadius: 9, padding: "9px 11px" }}>
-              Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le cuit ({R.poidsFini ? R.poidsFini.toFixed(2) : "—"}) et les pots remplis ({R.poidsAlloue.toFixed(2)}).
+              Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"}) et les pots remplis ({R.poidsAlloue.toFixed(2)}).
             </div>
           )}
         </div>
