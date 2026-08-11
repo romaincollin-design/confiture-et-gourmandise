@@ -628,7 +628,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
       <button onClick={() => setStep("avis")} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: `1.5px solid ${C.line}`, color: C.ink, borderRadius: 13, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Stars value={5} size={15} /> Donner mon avis</button>
       <button onClick={resetClient} className="ca-tap" style={{ ...backBtn(), margin: "16px auto 0" }}>Nouvelle commande</button>
       {ask && (
-        <div onClick={() => setAsk(false)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+        <div onClick={() => setAsk(false)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "22px 18px", textAlign: "center", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 4 }}>Merci {cust?.prenom || ""} !</div>
             <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique 🍓</p>
@@ -645,7 +645,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Contrôle de gestion", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -657,6 +657,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
+        {tab === "gestion" && <ProProduction {...{ pass }} />}
         {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
@@ -815,8 +816,8 @@ function ProFournisseurs({ pass }) {
         const totalTtc = tot(selS);
         const impaye = fs.filter((f) => !f.payee).reduce((a, f) => a + (Number(f.montant_ttc) || 0), 0);
         return (
-          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 19, flexShrink: 0, paddingTop: 3 }}>{(selS.societe || "?")[0].toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -868,8 +869,8 @@ function ProFournisseurs({ pass }) {
       })()}
 
       {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 500, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 500, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{edit.id ? "Modifier" : "Nouveau fournisseur"}</div>
               <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
@@ -893,7 +894,7 @@ function ProFournisseurs({ pass }) {
       )}
 
       {inv && (
-        <div onClick={() => !busy && setInv(null)} style={{ position: "fixed", inset: 0, zIndex: 102, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+        <div onClick={() => !busy && setInv(null)} style={{ position: "fixed", inset: 0, zIndex: 102, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{inv.id ? "Modifier la facture" : "Nouvel achat"}</div>
@@ -910,6 +911,340 @@ function ProFournisseurs({ pass }) {
             </label>
             <button onClick={saveInv} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ MODULE PILOTAGE DE PRODUCTION (fournées) ============
+const PF = { navy: "#123A52", ochre: "#C65A35", yellow: "#F4B32C", good: "#4b7a57", warn: "#a6482a" };
+const PF_ING = [
+  { key: "oignon", label: "Oignon", unit: "kg", qf: "oignon_kg", pf: "px_oignon", pu: "€/kg", div: 1, color: "#123A52" },
+  { key: "huile", label: "Huile d'olive", unit: "cl", qf: "huile_cl", pf: "px_huile", pu: "€/L", div: 100, color: "#C65A35" },
+  { key: "sel", label: "Sel", unit: "g", qf: "sel_g", pf: "px_sel", pu: "€/kg", div: 1000, color: "#F4B32C" },
+  { key: "poivre", label: "Poivre", unit: "g", qf: "poivre_g", pf: "px_poivre", pu: "€/kg", div: 1000, color: "#4b7a57" },
+  { key: "anchois", label: "Anchois", unit: "g", qf: "anchois_g", pf: "px_anchois", pu: "€/kg", div: 1000, color: "#8B3A3A" },
+  { key: "thym", label: "Thym", unit: "g", qf: "thym_g", pf: "px_thym", pu: "€/kg", div: 1000, color: "#6b4d8f" },
+  { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f" },
+];
+const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
+const pfBlank = () => ({ id: null, date: new Date().toISOString().slice(0, 10), lieu: "", oignon_kg: "", temps_h: "", temps_min: "", personnel: [{ nom: "", taux: "" }], taux_local: "", transport: "", huile_cl: "", sel_g: "", poivre_g: "", anchois_g: "", thym_g: "", ail_g: "", px_oignon: "", px_huile: "", px_sel: "", px_poivre: "", px_anchois: "", px_thym: "", px_ail: "", poids_fini_kg: "", pots: [{ format_g: "", px_bocal: "", px_etiquette: "", nb: "", px_vente: "" }] });
+
+function pfCalc(f, rendementEstime) {
+  const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
+  let totalMatieres = 0;
+  PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
+  const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
+  const coutMO = tempsTotal * tauxSum;
+  const coutLocal = tempsTotal * pfNum(f.taux_local);
+  const coutTransport = pfNum(f.transport);
+  const revientHE = totalMatieres + coutMO + coutLocal + coutTransport;
+  let poidsFini = f.poids_fini_kg !== "" && f.poids_fini_kg != null ? pfNum(f.poids_fini_kg) : null;
+  let isEstimated = false;
+  if (!poidsFini && pfNum(f.oignon_kg) && rendementEstime) { poidsFini = pfNum(f.oignon_kg) * (rendementEstime / 100); isEstimated = true; }
+  const rendement = (poidsFini && pfNum(f.oignon_kg)) ? poidsFini / pfNum(f.oignon_kg) : null;
+  const coutKg = poidsFini ? revientHE / poidsFini : null;
+  const pots = f.pots || [];
+  let poidsAlloue = 0, coutEmballageTotal = 0, nbPotsTotal = 0, coutProduitTotal = 0, margeTotale = 0, revenuTotal = 0, nbPotsPrix = 0, coutProduitAvecPrix = 0;
+  const potLines = pots.map((p) => {
+    const nb = pfNum(p.nb);
+    const formatKg = pfNum(p.format_g) / 1000;
+    const cEmb = pfNum(p.px_bocal) + pfNum(p.px_etiquette);
+    const cProd = coutKg !== null ? coutKg * formatKg : null;
+    const cTot = cProd !== null ? cProd + cEmb : null;
+    const pxv = (p.px_vente === "" || p.px_vente == null) ? null : pfNum(p.px_vente);
+    const mU = (pxv != null && cTot !== null) ? pxv - cTot : null;
+    const coefU = (pxv != null && cTot) ? pxv / cTot : null;
+    poidsAlloue += formatKg * nb; coutEmballageTotal += cEmb * nb; nbPotsTotal += nb;
+    if (cTot !== null) coutProduitTotal += cTot * nb;
+    if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
+    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU };
+  });
+  const ecartPoids = poidsFini !== null ? poidsFini - poidsAlloue : null;
+  const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
+  const margeMoyenne = nbPotsPrix ? margeTotale / nbPotsPrix : null;
+  const coefMoyen = coutProduitAvecPrix ? revenuTotal / coutProduitAvecPrix : null;
+  const prixVenteMoyen = nbPotsPrix ? revenuTotal / nbPotsPrix : null;
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, revientHE, poidsFini, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen };
+}
+const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
+
+function ProProduction({ pass }) {
+  const [batches, setBatches] = useState([]);
+  const [rendementEstime, setRendementEstime] = useState(40);
+  const [view, setView] = useState("list"); // list | edit | dash
+  const [cur, setCur] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [etab, setEtab] = useState("mat");
+  const timer = useRef(null);
+
+  const load = async () => {
+    if (!supabase || !pass) return;
+    setBusy(true);
+    try { const { data } = await supabase.rpc("admin_batches", { pass }); if (data) { setBatches(Array.isArray(data.batches) ? data.batches : []); if (data.rendement != null) setRendementEstime(Number(data.rendement) || 40); } } catch (e) {}
+    setBusy(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const persist = async (f) => {
+    if (!supabase || !pass) return;
+    try {
+      const { data } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
+      if (data && !f.id) { setCur((c) => c ? { ...c, id: data } : c); f.id = data; }
+      setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
+      setSaved(true); setTimeout(() => setSaved(false), 1200);
+    } catch (e) {}
+  };
+  const change = (patch) => { setCur((c) => { const nf = { ...c, ...patch }; clearTimeout(timer.current); timer.current = setTimeout(() => persist(nf), 600); return nf; }); };
+  const openNew = () => { setCur(pfBlank()); setEtab("mat"); setView("edit"); };
+  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("mat"); setView("edit"); };
+  const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
+  const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
+
+  const R = cur ? pfCalc(cur, rendementEstime) : null;
+
+  // -------- champ numérique --------
+  const NF = (l, key, unit, ph, obj, on) => (
+    <div style={{ flex: "1 1 120px", minWidth: 110 }}>
+      <Lbl>{l}{unit ? <span style={{ color: C.soft, fontWeight: 400 }}> ({unit})</span> : null}</Lbl>
+      <input inputMode="decimal" value={obj[key] == null ? "" : obj[key]} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+    </div>
+  );
+
+  // -------- jauge de rendement --------
+  const Gauge = ({ pct, tag, big }) => {
+    const p = Math.max(0, Math.min(100, pct || 0));
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontSize: big ? 30 : 22, fontWeight: 800, color: PF.navy }}>{pct ? p.toFixed(0) : "—"}<span style={{ fontSize: 14 }}>%</span></span>
+          {tag && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: tag === "Mesuré" ? PF.good : PF.ochre, borderRadius: 5, padding: "2px 7px" }}>{tag}</span>}
+        </div>
+        <div style={{ height: 9, background: "#ebdcb8", borderRadius: 5, overflow: "hidden", marginTop: 6 }}>
+          <div style={{ width: p + "%", height: "100%", background: `linear-gradient(90deg, ${PF.ochre}, ${PF.yellow})`, borderRadius: 5, transition: "width .3s" }} />
+        </div>
+      </div>
+    );
+  };
+
+  const heroCards = (r) => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
+      <div style={{ ...card(), background: "#fff", margin: 0 }}>
+        <div style={{ ...h2, marginBottom: 8 }}>Rendement</div>
+        <Gauge pct={r.rendement ? r.rendement * 100 : 0} tag={r.rendement ? (r.isEstimated ? "Estimé" : "Mesuré") : null} big />
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.poidsFini ? `${r.poidsFini.toFixed(2)} kg cuits` : "poids à peser"}{r.oignon_kg}</div>
+      </div>
+      <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
+        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
+        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{eur2(r.coutKg)}<span style={{ fontSize: 13, opacity: .8 }}>/kg</span></div>
+        <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>revient total {eur2(r.revientHE)}</div>
+      </div>
+      <div style={{ ...card(), background: "#fff", margin: 0 }}>
+        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / pot moyen</div>
+        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.navy }}>{eur3(r.coutPotMoyen)}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>{r.nbPotsTotal || 0} pot(s)</div>
+      </div>
+      <div style={{ ...card(), background: "#fff", margin: 0 }}>
+        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coefficient moyen</div>
+        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.ochre }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>PV moyen {eur2(r.prixVenteMoyen)}</div>
+      </div>
+      <div style={{ ...card(), background: r.margeMoyenne >= 0 ? "#e7f0e8" : "#faece5", margin: 0, borderColor: r.margeMoyenne >= 0 ? PF.good + "55" : PF.warn + "55" }}>
+        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Marge / pot</div>
+        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: r.margeMoyenne >= 0 ? PF.good : PF.warn }}>{eur3(r.margeMoyenne)}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>marge totale {eur2(r.margeTotale)}</div>
+      </div>
+    </div>
+  );
+
+  // ================= VUE LISTE =================
+  if (view === "list") {
+    return (
+      <div className="ca-anim">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+          <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Contrôle de gestion</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Pilotage des fournées · coût de revient & marges</div></div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
+            <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
+          </div>
+        </div>
+
+        <div style={{ ...card(), background: "#fff7e0", borderColor: PF.yellow + "66", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12.5, color: C.ink, flex: 1, minWidth: 200 }}><b>Rendement estimé par défaut</b><br /><span style={{ color: C.soft }}>utilisé tant que le poids cuit n'est pas pesé</span></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 80, textAlign: "center" }} />
+            <span style={{ fontWeight: 700, color: PF.navy }}>%</span>
+          </div>
+        </div>
+
+        {batches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : "Aucune fournée. Créez la première avec le bouton « Fournée »."}</div> : (
+          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
+                <thead><tr>
+                  {["Date", "Lieu", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"].map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: i > 1 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
+                </tr></thead>
+                <tbody>
+                  {batches.map((f, i) => { const r = pfCalc(f, rendementEstime); return (
+                    <tr key={f.id} onClick={() => openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: i % 2 ? "#ffffff66" : "transparent", borderBottom: `1px solid ${C.line}` }}>
+                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
+                      <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.lieu || "—"}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right" }}>{pfNum(f.oignon_kg) || "—"}{pfNum(f.oignon_kg) ? " kg" : ""}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(1) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: PF.navy }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutKg)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.ochre }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap" }}>{eur3(r.margeMoyenne)}</td>
+                    </tr>
+                  ); })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>* rendement estimé (poids non pesé). Touchez une ligne pour ouvrir la fournée.</div>
+      </div>
+    );
+  }
+
+  // ================= VUE ANALYSE (dashboard) =================
+  if (view === "dash") {
+    const rows = batches.map((f) => ({ f, r: pfCalc(f, rendementEstime) })).filter((x) => x.r.coutKg != null).reverse();
+    const bar = (title, get, fmt, col) => {
+      const vals = rows.map((x) => get(x)).filter((v) => v != null && !isNaN(v));
+      const mx = Math.max(1, ...vals);
+      return (
+        <div style={card()}>
+          <div style={{ ...h2 }}>{title}</div>
+          {rows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Pas assez de données.</div> : (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 130 }}>
+              {rows.map((x, i) => { const v = get(x); return (
+                <div key={i} title={`${x.f.date} · ${fmt(v)}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0 }}>
+                  <div style={{ fontSize: 8.5, color: C.soft, marginBottom: 2, whiteSpace: "nowrap" }}>{v != null ? fmt(v) : ""}</div>
+                  <div style={{ width: "100%", height: `${Math.max(v ? 4 : 1, (v / mx) * 80)}%`, background: col, borderRadius: "4px 4px 0 0" }} />
+                  <div style={{ fontSize: 8, color: C.soft, marginTop: 3, whiteSpace: "nowrap" }}>{x.f.date ? new Date(x.f.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : ""}</div>
+                </div>
+              ); })}
+            </div>
+          )}
+        </div>
+      );
+    };
+    return (
+      <div className="ca-anim">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronLeft size={18} /></button>
+          <div><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam }}>Analyse des fournées</h2><div style={{ fontSize: 12.5, color: C.soft }}>{rows.length} fournée(s) exploitable(s)</div></div>
+        </div>
+        {bar("Rendement par fournée (%)", (x) => x.r.rendement ? x.r.rendement * 100 : null, (v) => v.toFixed(0) + "%", PF.navy)}
+        {bar("Coût de revient / kg", (x) => x.r.coutKg, (v) => eur2(v), PF.ochre)}
+        {bar("Coefficient multiplicateur moyen", (x) => x.r.coefMoyen, (v) => "×" + v.toFixed(2), PF.good)}
+        {bar("Coût des contenants / pot (bocal + étiquette)", (x) => x.r.nbPotsTotal ? x.r.coutEmballageTotal / x.r.nbPotsTotal : null, (v) => eur3(v), PF.yellow)}
+      </div>
+    );
+  }
+
+  // ================= VUE ÉDITEUR =================
+  const f = cur;
+  return (
+    <div className="ca-anim">
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
+        <div style={{ flex: 1, minWidth: 0 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam }}>Fournée</h2><div style={{ fontSize: 12, color: saved ? PF.good : C.soft }}>{saved ? "✓ enregistré" : "enregistrement automatique"}</div></div>
+        {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
+      </div>
+
+      {heroCards(R)}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {[["mat", "Matières"], ["mo", "Main d'œuvre & frais"], ["pot", "Contenants & vente"]].map(([k, l]) => (
+          <button key={k} onClick={() => setEtab(k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etab === k ? C.jam : C.line}`, background: etab === k ? C.jam : "#fff", color: etab === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+        ))}
+      </div>
+
+      {etab === "mat" && (
+        <div style={card()}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+            <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. 3AD Kitchen, Carros" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+          </div>
+          <div style={{ ...h2 }}>Matières premières</div>
+          {PF_ING.map((ing) => (
+            <div key={ing.key} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
+              {NF("Quantité", ing.qf, ing.unit, "0", f, (k, v) => change({ [k]: v }))}
+              {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
+            </div>
+          ))}
+          <div style={{ marginTop: 12, fontSize: 13, color: C.ink, display: "flex", justifyContent: "space-between" }}><span style={{ color: C.soft }}>Total matières</span><b>{eur2(R.totalMatieres)}</b></div>
+          <div style={{ marginTop: 14, ...h2 }}>Rendement</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {NF("Oignon cru", "oignon_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
+            {NF("Poids cuit — à peser", "poids_fini_kg", "kg", "estimé si vide", f, (k, v) => change({ [k]: v }))}
+          </div>
+        </div>
+      )}
+
+      {etab === "mo" && (
+        <div style={card()}>
+          <div style={{ ...h2 }}>Temps de production</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
+            {NF("dont", "temps_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+          </div>
+          <div style={{ ...h2 }}>Personnel (€/h par personne)</div>
+          {(f.personnel || []).map((p, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
+              <div style={{ flex: "2 1 120px" }}><Lbl>Nom</Lbl><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ flex: "1 1 90px" }}><Lbl>Taux (€/h)</Lbl><input inputMode="decimal" value={p.taux == null ? "" : p.taux} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+              <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+            </div>
+          ))}
+          <button onClick={() => change({ personnel: [...(f.personnel || []), { nom: "", taux: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une personne</button>
+          <div style={{ ...h2, marginTop: 16 }}>Frais</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {NF("Location du local", "taux_local", "€/h", "0", f, (k, v) => change({ [k]: v }))}
+            {NF("Transport", "transport", "€", "0", f, (k, v) => change({ [k]: v }))}
+          </div>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
+            {[["Matières", R.totalMatieres], ["Main d'œuvre", R.coutMO], ["Local", R.coutLocal], ["Transport", R.coutTransport]].map(([l, v]) => <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>{l}</span><span style={{ color: C.ink }}>{eur2(v)}</span></div>)}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
+          </div>
+        </div>
+      )}
+
+      {etab === "pot" && (
+        <div style={card()}>
+          <div style={{ ...h2 }}>Contenants & vente</div>
+          {(f.pots || []).map((p, i) => { const pl = R.potLines[i] || {}; return (
+            <div key={i} style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <b style={{ fontSize: 13, color: PF.navy }}>Format {i + 1}</b>
+                {f.pots.length > 1 && <button onClick={() => change({ pots: f.pots.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                {NF("Format", "format_g", "g", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {NF("Bocal", "px_bocal", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {NF("Étiquette", "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {NF("Nb de pots", "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft }}>
+                <span>Coût/pot <b style={{ color: PF.navy }}>{eur3(pl.coutUnitaireTotal)}</b></span>
+                <span>Marge <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</b></span>
+                <span>Coef <b style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</b></span>
+              </div>
+            </div>
+          ); })}
+          <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
+          {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
+            <div style={{ marginTop: 12, fontSize: 12, color: R.ecartPoids < 0 ? PF.warn : C.soft, background: R.ecartPoids < 0 ? "#faece5" : "#f6efdd", borderRadius: 9, padding: "9px 11px" }}>
+              Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le cuit ({R.poidsFini ? R.poidsFini.toFixed(2) : "—"}) et les pots remplis ({R.poidsAlloue.toFixed(2)}).
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1096,8 +1431,8 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
           : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
         const tickets = flux.filter((f) => { const t = new Date(f.ts); return t >= a && t < b; }).sort((x, y) => y.ts - x.ts);
         return (
-          <div onClick={() => setDrill(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto" }}>
+          <div onClick={() => setDrill(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, textTransform: "capitalize", lineHeight: 1.15 }}>{titre}</div>
@@ -1313,8 +1648,8 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
         );
       })}
       {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la commande</div>
               <button onClick={() => !busy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
@@ -1553,8 +1888,8 @@ function ProClients({ clients, orders, pass }) {
         os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
         const favs = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 5);
         return (
-          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 18, flexShrink: 0, paddingTop: 3 }}>{(selClient.prenom || "")[0]}{(selClient.nom || "")[0]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1607,8 +1942,8 @@ function ProClients({ clients, orders, pass }) {
       })()}
 
       {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "88vh", overflowY: "auto" }}>
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>Modifier la fiche</div>
               <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
@@ -2662,7 +2997,7 @@ function InstallBanner({ admin = false }) {
   return (
     <>
       {steps && (
-        <div onClick={() => setSteps(false)} style={{ position: "fixed", inset: 0, zIndex: 80, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
+        <div onClick={() => setSteps(false)} style={{ position: "fixed", inset: 0, zIndex: 80, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, color: C.ink, borderRadius: 20, padding: "20px 18px", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{admin ? "Raccourci Espace Pro" : "Installer"} · {plat === "ios" ? "iPhone" : "Android"}</div>
@@ -2861,8 +3196,8 @@ function ProVentes({ sales, setSales, orders, products, pass }) {
         })}
       </div>
       {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la vente</div>
               <button onClick={() => !busy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
@@ -3164,8 +3499,8 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         ))}
       </div>
       {edit && (
-        <div onClick={() => !ebusy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+        <div onClick={() => !ebusy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la vente</div>
               <button onClick={() => !ebusy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
@@ -3201,8 +3536,8 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         </div>
       )}
       {oEdit && (
-        <div onClick={() => !obusy && setOEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 12px max(12px, env(safe-area-inset-bottom))" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "86vh", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
+        <div onClick={() => !obusy && setOEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la commande</div>
               <button onClick={() => !obusy && setOEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
