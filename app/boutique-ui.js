@@ -1362,10 +1362,10 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const sMax = Math.max(1, ...subs.map((s) => s.ca));
 
   const kpi = (l, v, sub, accent) => (
-    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px" }}>
-      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7 }}>{l}</div>
-      <div style={{ fontSize: "clamp(20px, 2.4vw, 26px)", fontWeight: 700, marginTop: 3 }}>{v}</div>
-      {sub && <div style={{ fontSize: 11, opacity: .68, marginTop: 2 }}>{sub}</div>}
+    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px", display: "flex", flexDirection: "column" }}>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7, minHeight: 26 }}>{l}</div>
+      <div style={{ fontSize: "clamp(20px, 2.4vw, 26px)", fontWeight: 700, marginTop: "auto" }}>{v}</div>
+      <div style={{ fontSize: 11, opacity: .68, marginTop: 2, minHeight: 15 }}>{sub || ""}</div>
     </div>
   );
 
@@ -1389,7 +1389,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
         {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, height: 34, padding: "0 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", color: C.jam, flexShrink: 0 }}>{loading ? "…" : "↻"}</button>}
       </div>
 
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
         {kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
         {kpi("Marge", eur(A.marge), A.ca ? `${Math.round((A.marge / A.ca) * 100)} % du CA` : "—")}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
