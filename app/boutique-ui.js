@@ -645,7 +645,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["ventes", "Ventes", BarChart3], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Contrôle de gestion", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Contrôle de gestion", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -658,7 +658,6 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass }} />}
-        {tab === "ventes" && <ProVentes {...{ sales, setSales, orders, products, pass }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
@@ -1351,6 +1350,8 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
   const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
+  const [calDay, setCalDay] = useState(null); // jour précis choisi via le calendrier (iso)
+  const [calOpen, setCalOpen] = useState(false);
 
   const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
@@ -1469,6 +1470,18 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
     <div>
       <ProHead title="Tableau de bord" sub="Pilotage de l'activité" />
 
+      <div style={{ ...card(), marginBottom: 14, padding: calOpen ? undefined : "12px 14px" }}>
+        <button onClick={() => setCalOpen((o) => !o)} className="ca-tap" style={{ width: "100%", background: "transparent", border: "none", padding: 0, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", color: C.ink }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700 }}><Calendar size={16} color={C.jam} /> Consulter un jour précis</span>
+          <ChevronDown size={18} color={C.soft} style={{ transform: calOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+        </button>
+        {calOpen && (
+          <div style={{ marginTop: 14 }}>
+            <CalGrid sales={flux} selected={calDay || ""} onPick={(iso) => setCalDay(iso)} />
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         {GRANS.map(([k, l]) => (
           <button key={k} onClick={() => { setGran(k); setOff(0); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${gran === k ? C.jam : C.line}`, background: gran === k ? C.jam : "#fff", color: gran === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l}</button>
@@ -1512,29 +1525,36 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
         </>)}
       </div>
 
-      {drill !== null && subs[drill] && (() => {
-        // bornes de la sous-période cliquée
-        let a, b;
-        if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
-        else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
-        else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
-        else { a = new Date(cur.start.getFullYear(), drill, 1); b = new Date(cur.start.getFullYear(), drill + 1, 1); }
+      {((drill !== null && subs[drill]) || calDay) && (() => {
+        // bornes de la période cliquée : soit une sous-période du graphique, soit un jour choisi au calendrier
+        let a, b, titre;
+        const closeAll = () => { setDrill(null); setCalDay(null); };
+        if (calDay) {
+          const [Y, M, Dd] = calDay.split("-").map(Number);
+          a = new Date(Y, M - 1, Dd); b = new Date(a); b.setDate(a.getDate() + 1);
+          titre = a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+        } else {
+          if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
+          else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
+          else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
+          else { a = new Date(cur.start.getFullYear(), drill, 1); b = new Date(cur.start.getFullYear(), drill + 1, 1); }
+          titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
+            : gran === "annee" ? `${MOIS[drill]} ${cur.start.getFullYear()}`
+            : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+        }
         const D = agg(a, b);
         const dp = Object.entries(D.prods).map(([name, v]) => ({ name, ...v })).sort((x, y) => y.ca - x.ca);
         const dMaxx = Math.max(1, ...dp.map((x) => x.ca));
-        const titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
-          : gran === "annee" ? `${MOIS[drill]} ${cur.start.getFullYear()}`
-          : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
         const tickets = flux.filter((f) => { const t = new Date(f.ts); return t >= a && t < b; }).sort((x, y) => y.ts - x.ts);
         return (
-          <div onClick={() => setDrill(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div onClick={closeAll} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
             <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, textTransform: "capitalize", lineHeight: 1.15 }}>{titre}</div>
                   <div style={{ fontSize: 12, color: C.soft }}>{D.nb} vente(s) · {D.qty} article(s)</div>
                 </div>
-                <button onClick={() => setDrill(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+                <button onClick={closeAll} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Chiffre d'affaires</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.ca)}</div></div>
@@ -3132,206 +3152,6 @@ function InstallBanner({ admin = false }) {
   );
 }
 
-/* ---------------- Ventes — tableau de bord (jour/semaine/mois/année) ---------------- */
-function ProVentes({ sales, setSales, orders, products, pass }) {
-  const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
-  const [per, setPer] = useState("jour");
-  const [openDay, setOpenDay] = useState(null);
-  const [edit, setEdit] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const addItem = (p) => setEdit((e) => {
-    const idx = e.items.findIndex((i) => i.name === p.name);
-    if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
-    return { ...e, items: [...e.items, { pid: p.id, name: p.name, qty: 1, price: p.price, cost: p.cost || 0 }] };
-  });
-  const pad = (n) => String(n).padStart(2, "0");
-  const isCaisse = (s) => !String(s.id).startsWith("o-");
-  const openEdit = (s) => {
-    const d = new Date(s.ts);
-    setEdit({ id: s.id, items: s.items.map((i) => ({ ...i })), date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` });
-  };
-  const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
-  const setQty = (k, delta) => setEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + delta) } : i) }));
-  const rmLine = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
-  const saveEdit = async () => {
-    if (busy) return;
-    setBusy(true);
-    const items = edit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const count = items.reduce((a, i) => a + i.qty, 0);
-    const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
-    if (items.length === 0) { await delSale(); return; }
-    if (setSales) setSales((list) => list.map((s) => s.id === edit.id ? { ...s, items, total, count, ts } : s));
-    if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: count, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
-    setBusy(false); setEdit(null);
-  };
-  const delSale = async () => {
-    if (setSales) setSales((list) => list.filter((s) => s.id !== edit.id));
-    if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} }
-    setBusy(false); setEdit(null);
-  };
-  const now = new Date();
-  const orderSales = (orders || []).map((o) => ({ id: "o-" + o.id, ts: o.ts || Date.now(), total: o.total, count: o.items, items: (o.lines || []).map((l) => ({ name: l.name, qty: l.qty, price: l.price, cost: 0 })) }));
-  const allSales = [...(sales || []), ...orderSales];
-  const inPeriod = (ts) => { const d = new Date(ts); if (per === "jour") return d.toDateString() === now.toDateString(); if (per === "semaine") return (now - d) <= 7 * 86400000 && d <= now; if (per === "mois") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); return d.getFullYear() === now.getFullYear(); };
-  const list = allSales.filter((s) => inPeriod(s.ts));
-  const ca = list.reduce((a, s) => a + s.total, 0);
-  const marge = list.reduce((a, s) => a + s.items.reduce((m, i) => m + (i.price - (i.cost || 0)) * i.qty, 0), 0);
-  const nb = list.length;
-  const panier = nb ? ca / nb : 0;
-  const costKnown = list.length > 0 && list.every((s) => s.items.every((i) => i.cost > 0));
-
-  let buckets = [];
-  if (per === "jour") { const h = {}; list.forEach((s) => { const k = new Date(s.ts).getHours(); h[k] = (h[k] || 0) + s.total; }); for (let i = 7; i <= 20; i++) buckets.push({ label: i + "h", value: h[i] || 0 }); }
-  else if (per === "semaine") { for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(now.getDate() - i); const key = d.toDateString(); const v = list.filter((s) => new Date(s.ts).toDateString() === key).reduce((a, s) => a + s.total, 0); buckets.push({ label: d.toLocaleDateString("fr-FR", { weekday: "narrow" }), value: v }); } }
-  else if (per === "mois") { const bd = {}; list.forEach((s) => { const d = new Date(s.ts).getDate(); bd[d] = (bd[d] || 0) + s.total; }); const ds = Object.keys(bd).map(Number).sort((a, b) => a - b); buckets = ds.length ? ds.map((d) => ({ label: String(d), value: bd[d] })) : [{ label: "—", value: 0 }]; }
-  else { const M = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]; const bm = Array(12).fill(0); list.forEach((s) => { bm[new Date(s.ts).getMonth()] += s.total; }); buckets = bm.map((v, i) => ({ label: M[i], value: v })); }
-  const max = Math.max(1, ...buckets.map((b) => b.value));
-
-  const top = {}; list.forEach((s) => s.items.forEach((i) => { top[i.name] = top[i.name] || { qty: 0, ca: 0 }; top[i.name].qty += i.qty; top[i.name].ca += i.qty * i.price; }));
-  const topRows = Object.entries(top).sort((a, b) => b[1].ca - a[1].ca).slice(0, 6);
-
-  const fmtDay = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
-  const fmtTime = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  const dayMap = {};
-  [...list].sort((a, b) => b.ts - a.ts).forEach((s) => { const k = new Date(s.ts).toDateString(); (dayMap[k] = dayMap[k] || { ts: s.ts, key: k, label: fmtDay(s.ts), sales: [] }).sales.push(s); });
-  const dayList = Object.values(dayMap).sort((a, b) => b.ts - a.ts);
-  const saleMargin = (s) => s.items.reduce((m, i) => m + (i.price - (i.cost || 0)) * i.qty, 0);
-  const exportCsv = () => {
-    const rows = [];
-    [...list].sort((a, b) => a.ts - b.ts).forEach((s) => s.items.forEach((i) => {
-      rows.push([fmtDay(s.ts), fmtTime(s.ts), s.id, i.name, i.qty, eur(i.price), eur(i.cost || 0), eur((i.price - (i.cost || 0)) * i.qty)]);
-    }));
-    downloadCSV(`ventes-${per}-${now.toISOString().slice(0, 10)}.csv`, ["Jour", "Heure", "Ticket", "Produit", "Quantité", "Prix vente", "Prix achat", "Marge"], rows);
-  };
-
-  const PERIODS = [["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"], ["année", "Année"]];
-  const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
-  const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 12 };
-  const kpi = (label, value, Ic, color) => (
-    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 14px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.soft, marginBottom: 4 }}><Ic size={13} /> {label}</div>
-      <div style={{ fontFamily: SCRIPT, fontSize: 22, color: color || C.jam, lineHeight: 1.1 }}>{value}</div>
-    </div>
-  );
-
-  return (
-    <div className="ca-anim" style={{ paddingBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Ventes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Contrôle de gestion · CA, marge, détail & export</div></div>
-        <button onClick={exportCsv} disabled={!list.length} className="ca-tap" style={{ background: list.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: list.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0 }}><Send size={14} /> Export CSV</button>
-      </div>
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 14 }}>
-        {PERIODS.map(([k, lbl]) => { const s = per === k; return (
-          <button key={k} onClick={() => setPer(k)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${s ? C.board : C.line}`, background: s ? C.board : C.paper, color: s ? C.chalk : C.ink, borderRadius: 20, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{lbl}</button>
-        ); })}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-        {kpi("Chiffre d'affaires", eur(ca), TrendingUp)}
-        {kpi("Marge", eur(marge), Percent, C.ok)}
-        {kpi("Ventes", String(nb), CreditCard)}
-        {kpi("Panier moyen", eur(panier), Wallet)}
-      </div>
-      {!costKnown && <div style={{ fontSize: 11.5, color: C.soft, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 10, padding: "9px 12px", marginBottom: 14, lineHeight: 1.4 }}>La marge se calcule avec les prix d'achat saisis dans l'onglet Produits — complétez-les pour une marge exacte.</div>}
-      <div style={card}>
-        <div style={h2}>Évolution · {PERIODS.find((p) => p[0] === per)[1].toLowerCase()}</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120, paddingTop: 6 }}>
-          {buckets.map((b, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: 0 }}>
-              <div style={{ fontSize: 8.5, color: C.soft, height: 10 }}>{b.value > 0 ? Math.round(b.value) : ""}</div>
-              <div style={{ width: "100%", maxWidth: 26, height: Math.round((b.value / max) * 80) || 2, background: b.value ? C.jam : C.line, borderRadius: 4, transition: "height .3s" }} />
-              <span style={{ fontSize: 9, color: C.soft, whiteSpace: "nowrap" }}>{b.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={card}>
-        <div style={h2}>Top produits</div>
-        {topRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : topRows.map(([name, v]) => (
-          <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name} <span style={{ color: C.soft }}>×{v.qty}</span></span>
-            <span style={{ fontWeight: 700, color: C.jam, flexShrink: 0, marginLeft: 8 }}>{eur(v.ca)}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ ...card, marginBottom: 0 }}>
-        <div style={h2}>Détail par jour</div>
-        {dayList.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur la période.</div> : dayList.map((d) => {
-          const dayCa = d.sales.reduce((a, s) => a + s.total, 0);
-          const dayMarge = d.sales.reduce((a, s) => a + saleMargin(s), 0);
-          const open = openDay === d.key;
-          return (
-            <div key={d.key} style={{ borderBottom: `1px solid ${C.line}` }}>
-              <button onClick={() => setOpenDay(open ? null : d.key)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "transparent", border: "none", cursor: "pointer", padding: "11px 0", textAlign: "left" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <ChevronDown size={16} color={C.soft} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
-                  <span style={{ minWidth: 0 }}><span style={{ fontWeight: 600, fontSize: 13.5, textTransform: "capitalize" }}>{d.label}</span><span style={{ fontSize: 11.5, color: C.soft, marginLeft: 8 }}>{d.sales.length} vente{d.sales.length > 1 ? "s" : ""}</span></span>
-                </span>
-                <span style={{ textAlign: "right", flexShrink: 0 }}><span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam }}>{eur(dayCa)}</span><span style={{ display: "block", fontSize: 10.5, color: C.ok }}>marge {eur(dayMarge)}</span></span>
-              </button>
-              {open && (
-                <div style={{ padding: "0 0 12px 24px" }}>
-                  {d.sales.map((s) => (
-                    <div key={s.id} style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "10px 12px", marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, marginBottom: 5 }}><span>{fmtTime(s.ts)}</span><span>{s.count} art. · <b style={{ color: C.jam }}>{eur(s.total)}</b></span></div>
-                      {s.items.map((i, k) => (
-                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.ink, padding: "2px 0" }}>
-                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.qty}× {i.name}</span>
-                          <span style={{ flexShrink: 0, marginLeft: 8 }}>{eur(i.price * i.qty)}</span>
-                        </div>
-                      ))}
-                      {isCaisse(s)
-                        ? <button onClick={() => openEdit(s)} className="ca-tap" style={{ marginTop: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, borderRadius: 9, padding: "7px 12px", fontWeight: 600, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Settings size={13} /> Modifier / corriger</button>
-                        : <div style={{ marginTop: 6, fontSize: 11, color: C.soft }}>Commande client — à gérer dans l'onglet Commandes</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {edit && (
-        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
-          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>Modifier la vente</div>
-              <button onClick={() => !busy && setEdit(null)} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", padding: 2, lineHeight: 0 }}><X size={20} /></button>
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <div style={{ flex: 1 }}><Lbl>Date</Lbl><input type="date" value={edit.date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEdit({ ...edit, date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ width: 120 }}><Lbl>Heure</Lbl><input type="time" value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
-            </div>
-            <Lbl>Articles</Lbl>
-            <div style={{ marginTop: 6 }}>
-              {edit.items.length === 0 ? <div style={{ fontSize: 13, color: C.soft, padding: "8px 0" }}>Plus aucun article — la vente sera supprimée à la validation.</div> : edit.items.map((i, k) => (
-                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}</div>
-                    <div style={{ fontSize: 11.5, color: C.soft }}>{eur(i.price)} l'unité · {eur(i.price * i.qty)}</div>
-                  </div>
-                  <button onClick={() => setQty(k, -1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>−</button>
-                  <span style={{ minWidth: 20, textAlign: "center", fontWeight: 700 }}>{i.qty}</span>
-                  <button onClick={() => setQty(k, 1)} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${C.line}`, background: C.paper, color: C.jam, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
-                  <button onClick={() => rmLine(k)} aria-label="Retirer" className="ca-tap" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "transparent", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>
-                </div>
-              ))}
-            </div>
-            <select value="" onChange={(e) => { const p = sellable.find((x) => x.id === e.target.value); if (p) addItem(p); e.target.value = ""; }} style={{ ...inp(), marginTop: 12, color: C.jam, fontWeight: 600 }}>
-              <option value="">+ Ajouter un article…</option>
-              {sellable.map((p) => <option key={p.id} value={p.id} style={{ color: C.ink, fontWeight: 400 }}>{p.name} · {p.unit} · {eur(p.price)}</option>)}
-            </select>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0", fontSize: 15 }}>
-              <span style={{ color: C.soft }}>Total</span><span style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam }}>{eur(editTotal)}</span>
-            </div>
-            <button onClick={saveEdit} disabled={busy} className="ca-tap" style={{ width: "100%", background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Valider les modifications"}</button>
-            <button onClick={delSale} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", color: C.jam, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Trash2 size={15} /> Supprimer cette vente</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const [ticket, setTicket] = useState(() => {
     try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
