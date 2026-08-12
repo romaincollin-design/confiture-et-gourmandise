@@ -26,7 +26,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pro-content { flex: 1; padding: 24px 26px; max-height: 706px; overflow-y: auto; background: #EFE7D5; }
 .caisse-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (min-width: 600px) { .caisse-grid { grid-template-columns: repeat(3, 1fr); } }
+.caisse-empty-ticket { display: none; }
+.caisse-mobilebar { display: none; }
+@media (min-width: 900px) {
+  .caisse-work { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
+  .caisse-ticket { position: sticky; top: 0; }
+  .caisse-empty-ticket { display: block; }
+}
 @media (max-width: 720px) {
+  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: 14px; z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
   .pro-shell { flex-direction: column; min-height: 0; }
   .pro-nav { width: 100%; display: flex; gap: 6px; overflow-x: auto; border-right: none; border-bottom: 1px solid #241F1718; padding: 8px; -webkit-overflow-scrolling: touch; }
   .pro-nav button { width: auto !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; }
@@ -3153,6 +3161,7 @@ function InstallBanner({ admin = false }) {
 }
 
 function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
+  const ticketRef = useRef(null);
   const [ticket, setTicket] = useState(() => {
     try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
     return {};
@@ -3322,48 +3331,66 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
-        {cats.map((c) => {
-          const sel = c === activeCat;
-          return (
-            <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${sel ? C.board : C.line}`, background: sel ? C.board : C.paper, color: sel ? C.chalk : C.ink, borderRadius: 20, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-              {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="caisse-grid" style={{ marginBottom: 6 }}>
-        {catItems.map((p) => (
-          <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
-              {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
-            </span>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-            <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-            {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
-          </button>
-        ))}
+      <div className="caisse-work">
+        <div className="caisse-products">
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
+            {cats.map((c) => {
+              const sel = c === activeCat;
+              return (
+                <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${sel ? C.board : C.line}`, background: sel ? C.board : C.paper, color: sel ? C.chalk : C.ink, borderRadius: 20, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="caisse-grid" style={{ marginBottom: 6 }}>
+            {catItems.map((p) => (
+              <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+                  {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
+                </span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+                <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+                {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="caisse-ticket" ref={ticketRef}>
+          {tCount > 0 ? (
+            <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
+              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Commande en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
+              {lines.map(([pid, l]) => (
+                <div key={pid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name} <span style={{ color: C.soft }}>· {eur(l.price)}</span></span>
+                  <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
+                  <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
+                  <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price })} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
+                  <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
+                </div>
+              ))}
+              <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
+                <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
+              </button>
+              <button onClick={() => setTicket({})} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
+            </div>
+          ) : (
+            <div className="caisse-empty-ticket" style={card}>
+              <div style={h2}>Commande en cours</div>
+              <div style={{ fontSize: 13, color: C.soft }}>Touchez un produit pour commencer une vente.</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {tCount > 0 && (
-        <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-          <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Commande en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
-          {lines.map(([pid, l]) => (
-            <div key={pid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name} <span style={{ color: C.soft }}>· {eur(l.price)}</span></span>
-              <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
-              <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
-              <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price })} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
-              <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
-            </div>
-          ))}
-          <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
-            <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
-          </button>
-          <button onClick={() => setTicket({})} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
-        </div>
+        <button onClick={() => ticketRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="caisse-mobilebar ca-tap">
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700 }}><ShoppingBag size={16} /> {tCount} art.</span>
+          <span style={{ fontFamily: SCRIPT, fontSize: 19 }}>{eur(tTotal)}</span>
+        </button>
       )}
 
       {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Commande enregistrée</div>}
