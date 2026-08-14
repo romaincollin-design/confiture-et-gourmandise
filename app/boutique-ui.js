@@ -2892,6 +2892,23 @@ function Switch({ on, onClick }) {
 const SEED_PROMOS = [{ code: "SAVEURS10", pct: 10, active: true }];
 const SEED_PROFILE = { name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "confituresetgourmandise@gmail.com", wa: "33613545224", site: "https://confiture-et-gourmandise.vercel.app", pin: "1234" };
 
+// Filet de sécurité : si un fragment JS périmé (après déploiement) échoue à charger, on recharge une seule fois au lieu de laisser l'écran blanc.
+function useChunkErrorRecovery() {
+  useEffect(() => {
+    const t = setTimeout(() => { try { sessionStorage.removeItem("ca_chunk_reload"); } catch (e) {} }, 8000);
+    const isChunkError = (msg) => typeof msg === "string" && /Loading chunk|ChunkLoadError|dynamically imported module|Importing a module script failed/i.test(msg);
+    const reloadOnce = () => {
+      try { if (sessionStorage.getItem("ca_chunk_reload") === "1") return; sessionStorage.setItem("ca_chunk_reload", "1"); } catch (e) {}
+      window.location.reload();
+    };
+    const onError = (e) => { if (isChunkError(e && e.message)) reloadOnce(); };
+    const onRejection = (e) => { const msg = (e && e.reason && e.reason.message) || String((e && e.reason) || ""); if (isChunkError(msg)) reloadOnce(); };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => { clearTimeout(t); window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onRejection); };
+  }, []);
+}
+
 function Header({ profile, badge }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderBottom: `1px solid ${C.line}`, background: C.paper }}>
@@ -2908,6 +2925,7 @@ function Header({ profile, badge }) {
 }
 
 export function BoutiquePublique() {
+  useChunkErrorRecovery();
   const [products, setProducts] = useState(SEED_PRODUCTS);
   const [promos] = useState(SEED_PROMOS);
   const [profile] = useState(SEED_PROFILE);
@@ -3031,6 +3049,7 @@ const mapOrderRow = (o) => {
 };
 
 export function EspacePro() {
+  useChunkErrorRecovery();
   const [products, setProducts] = useState(SEED_PRODUCTS);
   const [orders, setOrders] = useState(SEED_ORDERS);
   const [sales, setSales] = useState(SEED_SALES);
@@ -3284,18 +3303,29 @@ function InstallBanner({ admin = false }) {
 
 function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const ticketRef = useRef(null);
-  const [ticket, setTicket] = useState(() => {
-    try { if (typeof window !== "undefined") { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) return JSON.parse(raw) || {}; } } catch (e) {}
-    return {};
-  });
-  useEffect(() => { try { localStorage.setItem("ca_caisse_ticket", JSON.stringify(ticket)); } catch (e) {} }, [ticket]);
+  const [ticket, setTicket] = useState({});
+  const ticketFirstSave = useRef(true);
+  useEffect(() => {
+    try { const raw = localStorage.getItem("ca_caisse_ticket"); if (raw) setTicket(JSON.parse(raw) || {}); } catch (e) {}
+  }, []);
+  useEffect(() => {
+    if (ticketFirstSave.current) { ticketFirstSave.current = false; return; }
+    try { localStorage.setItem("ca_caisse_ticket", JSON.stringify(ticket)); } catch (e) {}
+  }, [ticket]);
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
-  const [retro, setRetro] = useState(() => { try { return typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").retro || false; } catch (e) { return false; } });
-  const [saleDate, setSaleDate] = useState(() => { try { return (typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").saleDate) || ""; } catch (e) { return ""; } });
-  const [saleTime, setSaleTime] = useState(() => { try { return (typeof window !== "undefined" && JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}").saleTime) || "10:00"; } catch (e) { return "10:00"; } });
-  useEffect(() => { try { localStorage.setItem("ca_caisse_retro", JSON.stringify({ retro, saleDate, saleTime })); } catch (e) {} }, [retro, saleDate, saleTime]);
+  const [retro, setRetro] = useState(false);
+  const [saleDate, setSaleDate] = useState("");
+  const [saleTime, setSaleTime] = useState("10:00");
+  const retroFirstSave = useRef(true);
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}"); if (v.retro) setRetro(true); if (v.saleDate) setSaleDate(v.saleDate); if (v.saleTime) setSaleTime(v.saleTime); } catch (e) {}
+  }, []);
+  useEffect(() => {
+    if (retroFirstSave.current) { retroFirstSave.current = false; return; }
+    try { localStorage.setItem("ca_caisse_retro", JSON.stringify({ retro, saleDate, saleTime })); } catch (e) {}
+  }, [retro, saleDate, saleTime]);
   const tsFor = () => {
     if (!retro || !saleDate) return Date.now();
     const d = new Date(saleDate + "T" + (saleTime || "10:00") + ":00");
