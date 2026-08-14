@@ -960,7 +960,7 @@ const FAM_DEFAULTS = {
       { label: "Sucre", qty: "", unit: "g", price: "" },
       { label: "Citron", qty: "", unit: "g", price: "" },
     ],
-    pots: [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
+    pots: [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0, px_etiquette: 0, nb: "", px_vente: "" }],
   },
   caramel_pot: {
     extra: [
@@ -971,7 +971,7 @@ const FAM_DEFAULTS = {
       { label: "Vanille", qty: 5, unit: "g", price: 10.96 },
       { label: "Fleur de sel", qty: "", unit: "g", price: "" },
     ],
-    pots: [{ format_g: 106, px_bocal: "", px_capuchon: 0.20, px_etiquette: "", nb: "", px_vente: "" }],
+    pots: [{ format_g: 106, px_bocal: "", px_capuchon: 0.20, px_etiquette: "", nb: "", px_vente: 4.24 }],
     poids_fini_kg: 0.866,
   },
   caramel_bonbon: {
@@ -1316,6 +1316,11 @@ function ProProduction({ pass }) {
             <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. 3AD Kitchen, Carros" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
           </div>
           <div style={{ ...h2 }}>{FAM.ingLabel}</div>
+          {FAM.key === "confiture" && (
+            <div style={{ background: "#fff7e0", border: `1px solid ${PF.yellow}66`, borderRadius: 10, padding: "9px 12px", marginBottom: 12, fontSize: 12, color: C.ink, lineHeight: 1.5 }}>
+              <b>Principe :</b> 1 kg de fruit · 500 g de sucre · 1 citron (sauf agrumes : oranges amères/douces) · un peu de vanille selon le fruit.
+            </div>
+          )}
           {isPissa && PF_ING.map((ing) => (
             <div key={ing.key} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
               <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
