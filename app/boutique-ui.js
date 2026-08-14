@@ -2104,6 +2104,7 @@ function ProClients({ clients, orders, pass }) {
     const k = sort.k;
     let va = a[k], vb = b[k];
     if (k === "spent" || k === "orders") { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * sort.dir; }
+    if (k === "created_at") { va = va ? new Date(va).getTime() : 0; vb = vb ? new Date(vb).getTime() : 0; return (va - vb) * sort.dir; }
     va = String(va || "").toLowerCase(); vb = String(vb || "").toLowerCase();
     return va.localeCompare(vb) * sort.dir;
   });
@@ -2115,8 +2116,8 @@ function ProClients({ clients, orders, pass }) {
     </th>
   );
   const exportCsv = () => downloadCSV(`clients-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Commandes", "Total dépensé"],
-    rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.orders || 0, (c.spent || 0) + " €"]));
+    ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Inscrit le", "Commandes", "Total dépensé"],
+    rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "", c.orders || 0, (c.spent || 0) + " €"]));
   const save = async () => {
     if (!edit || !edit.email || !supabase || !pass) return;
     setBusy(true);
@@ -2137,10 +2138,10 @@ function ProClients({ clients, orders, pass }) {
         <div style={{ overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
             <thead><tr>
-              {th("prenom", "Prénom")}{th("nom", "Nom")}{th("tel", "Téléphone")}{th("email", "Email")}{th("ville", "Ville")}{th("orders", "Cmd")}{th("spent", "Total")}
+              {th("prenom", "Prénom")}{th("nom", "Nom")}{th("tel", "Téléphone")}{th("email", "Email")}{th("ville", "Ville")}{th("created_at", "Inscrit le")}{th("orders", "Cmd")}{th("spent", "Total")}
             </tr></thead>
             <tbody>
-              {rows.length === 0 ? <tr><td colSpan={7} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
+              {rows.length === 0 ? <tr><td colSpan={8} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
                 : rows.map((c, i) => (
                   <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{c.prenom || "—"}</td>
@@ -2148,6 +2149,7 @@ function ProClients({ clients, orders, pass }) {
                     <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap" }}>{c.tel || "—"}</td>
                     <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</td>
                     <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{c.ville || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
                     <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600 }}>{c.orders || 0}</td>
                     <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: C.jam, whiteSpace: "nowrap" }}>{eur(c.spent || 0)}</td>
                   </tr>
@@ -2171,7 +2173,7 @@ function ProClients({ clients, orders, pass }) {
                 <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 18, flexShrink: 0, paddingTop: 3 }}>{(selClient.prenom || "")[0]}{(selClient.nom || "")[0]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, lineHeight: 1.15 }}>{selClient.prenom} {selClient.nom}</div>
-                  <div style={{ fontSize: 12, color: C.soft }}>Client depuis {os.length ? new Date(Math.min(...os.map((o) => o.ts))).toLocaleDateString("fr-FR") : "—"}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>Inscrit le {selClient.created_at ? new Date(selClient.created_at).toLocaleDateString("fr-FR") : "—"}{os.length > 0 && <> · 1ère commande le {new Date(Math.min(...os.map((o) => o.ts))).toLocaleDateString("fr-FR")}</>}</div>
                 </div>
                 <button onClick={() => setSel(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
               </div>
@@ -3105,7 +3107,7 @@ export function EspacePro() {
         supabase.rpc("admin_visits", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
-      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "" })));
+      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
       if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
