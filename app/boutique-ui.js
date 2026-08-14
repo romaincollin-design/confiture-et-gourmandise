@@ -1016,15 +1016,15 @@ const pfBlank = (famille = "pissaladiere") => {
   const d = FAM_DEFAULTS[famille] || FAM_DEFAULTS.pissaladiere;
   const isPissa = famille === "pissaladiere";
   return {
-    id: null, date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", famille,
+    id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", famille,
     oignon_kg: "", temps_h: isPissa ? 2 : "", temps_min: isPissa ? 10 : "",
     personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0,
-    huile_cl: 50, sel_g: 50, poivre_g: 30, anchois_g: 150, thym_g: 3, ail_g: 50,
+    huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 50 : 0, poivre_g: isPissa ? 30 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
     px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55,
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
     extra: d.extra ? JSON.parse(JSON.stringify(d.extra)) : [],
     frais_extra: [],
-    pissa_poids_plaque: "", pissa_nb_plaques: "",
+    pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1068,7 +1068,16 @@ function pfCalc(f, rendementEstime) {
   const margeMoyenne = nbPotsPrix ? margeTotale / nbPotsPrix : null;
   const coefMoyen = coutProduitAvecPrix ? revenuTotal / coutProduitAvecPrix : null;
   const prixVenteMoyen = nbPotsPrix ? revenuTotal / nbPotsPrix : null;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen };
+  // vente des plaques (pissaladière uniquement) — déclinaison séparée des pots
+  const nbPlaques = pfNum(f.pissa_nb_plaques);
+  const coutPlaque = (coutKg != null && pfNum(f.pissa_poids_plaque)) ? coutKg * pfNum(f.pissa_poids_plaque) : null;
+  const pxVentePlaque = (f.pissa_px_vente === "" || f.pissa_px_vente == null) ? null : pfNum(f.pissa_px_vente);
+  const margePlaqueUnit = (pxVentePlaque != null && coutPlaque != null) ? pxVentePlaque - coutPlaque : null;
+  const revenuPlaques = pxVentePlaque != null ? pxVentePlaque * nbPlaques : 0;
+  const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
+  const revenuTotalGlobal = revenuTotal + revenuPlaques;
+  const margeTotaleGlobal = margeTotale + margePlaquesTotal;
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1181,7 +1190,7 @@ function ProProduction({ pass }) {
   if (view === "list") {
     const isPissa = famille === "pissaladiere";
     const famBatches = batches.filter((b) => (b.famille || "pissaladiere") === famille);
-    const cols = isPissa ? ["Date", "Lieu", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Lieu", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
+    const cols = isPissa ? ["Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
     return (
       <div className="ca-anim">
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
@@ -1219,7 +1228,7 @@ function ProProduction({ pass }) {
                   {famBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); return (
                     <tr key={f.id} onClick={() => openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: i % 2 ? "#ffffff66" : "transparent", borderBottom: `1px solid ${C.line}` }}>
                       <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
-                      <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.lieu || "—"}</td>
+                      <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{pfNum(f.oignon_kg) || "—"}{pfNum(f.oignon_kg) ? " kg" : ""}</td>}
                       <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: PF.navy }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
@@ -1284,7 +1293,7 @@ function ProProduction({ pass }) {
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
-        <div style={{ flex: 1, minWidth: 0 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam }}>Fournée · {FAM.label}</h2><div style={{ fontSize: 12, color: saved ? PF.good : C.soft }}>{saved ? "✓ enregistré" : "enregistrement automatique"}</div></div>
+        <div style={{ flex: 1, minWidth: 0 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2><div style={{ fontSize: 12, color: saved ? PF.good : C.soft }}>{f.titre ? FAM.label + " · " : ""}{saved ? "✓ enregistré" : "enregistrement automatique"}</div></div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
 
@@ -1298,6 +1307,10 @@ function ProProduction({ pass }) {
 
       {etab === "mat" && (
         <div style={card()}>
+          <div style={{ marginBottom: 10 }}>
+            <Lbl>Titre de la fournée</Lbl>
+            <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. 3AD Kitchen, Carros" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
@@ -1387,11 +1400,12 @@ function ProProduction({ pass }) {
 
           {isPissa && (
             <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 13, marginBottom: 14 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Production pissaladière (hors pots)</div>
-              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 9, lineHeight: 1.4 }}>Oignons destinés aux plaques de pissaladière — ce poids est déduit du total avant le calcul des pots.</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Pissaladière — vendue en plaque (hors pots)</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 9, lineHeight: 1.4 }}>Ce poids est déduit du total avant le calcul des pots. Renseigne aussi le prix de vente pour suivre la marge des plaques séparément des pots.</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {NF("Poids par plaque", "pissa_poids_plaque", "kg", "0", f, (k, v) => change({ [k]: v }))}
                 {NF("Nombre de plaques", "pissa_nb_plaques", "", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Prix de vente / plaque", "pissa_px_vente", "€", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               {R.poidsPissa > 0 && (
                 <div style={{ marginTop: 9, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
@@ -1401,6 +1415,18 @@ function ProProduction({ pass }) {
               {R.poidsDispoPots != null && (
                 <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
                   <span style={{ color: C.soft }}>Poids disponible pour les pots</span><b style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</b>
+                </div>
+              )}
+              {R.coutPlaque != null && (
+                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
+                  <span style={{ color: C.soft }}>Coût / plaque</span><b style={{ color: PF.navy }}>{eur3(R.coutPlaque)}</b>
+                </div>
+              )}
+              {R.pxVentePlaque != null && (
+                <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PF.navy}22`, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12.5, color: C.soft, alignItems: "center" }}>
+                  <span>Marge/plaque <b style={{ color: R.margePlaqueUnit >= 0 ? PF.good : PF.warn }}>{eur3(R.margePlaqueUnit)}</b></span>
+                  <span>Total ventes plaques <b style={{ color: PF.navy }}>{eur2(R.revenuPlaques)}</b></span>
+                  <span>Marge totale plaques <b style={{ color: R.margePlaquesTotal >= 0 ? PF.good : PF.warn }}>{eur2(R.margePlaquesTotal)}</b></span>
                 </div>
               )}
             </div>
@@ -1451,14 +1477,14 @@ function ProProduction({ pass }) {
           ); })}
           <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
 
-          {(R.revenuTotal > 0 || R.nbPotsTotal > 0) && (
+          {(R.revenuTotalGlobal > 0 || R.nbPotsTotal > 0) && (
             <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "15px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Total ventes ({R.nbPotsTotal} pots)</span>
-                <b style={{ fontSize: 26, fontWeight: 800 }}>{eur2(R.revenuTotal)}</b>
+                <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Total ventes ({R.nbPotsTotal} {FAM.unitWord}(s){isPissa && R.nbPlaques > 0 ? ` + ${R.nbPlaques} plaque(s)` : ""})</span>
+                <b style={{ fontSize: 26, fontWeight: 800 }}>{eur2(R.revenuTotalGlobal)}</b>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 12.5, opacity: .85 }}>
-                <span>Marge totale</span><b>{eur2(R.margeTotale)}</b>
+                <span>Marge totale</span><b>{eur2(R.margeTotaleGlobal)}</b>
               </div>
             </div>
           )}
