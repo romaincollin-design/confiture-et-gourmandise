@@ -1156,11 +1156,31 @@ function ProProduction({ pass }) {
 
   const heroCards = (r, fam) => (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
-      {fam.key === "pissaladiere" && (
+      {fam.key === "pissaladiere" ? (
         <div style={{ ...card(), background: "#fff", margin: 0 }}>
           <div style={{ ...h2, marginBottom: 8 }}>Transformation</div>
           <Gauge pct={r.rendement ? r.rendement * 100 : 0} tag={r.rendement ? (r.isEstimated ? "Estimé" : "Mesuré") : null} big />
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.poidsFini ? `${r.poidsFini.toFixed(2)} kg cuits` : "poids à peser"}</div>
+        </div>
+      ) : (
+        <div style={{ ...card(), background: "#fff", margin: 0 }}>
+          <div style={{ ...h2, marginBottom: 8 }}>Rentabilité</div>
+          {(() => {
+            const pct = (r.prixVenteMoyen && r.margeMoyenne != null) ? (r.margeMoyenne / r.prixVenteMoyen) * 100 : null;
+            const neg = pct != null && pct < 0;
+            return (
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 30, fontWeight: 800, color: neg ? PF.warn : PF.navy }}>{pct != null ? pct.toFixed(0) : "—"}<span style={{ fontSize: 14 }}>%</span></span>
+                  {neg && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: PF.warn, borderRadius: 5, padding: "2px 7px" }}>Perte</span>}
+                </div>
+                <div style={{ height: 9, background: "#ebdcb8", borderRadius: 5, overflow: "hidden", marginTop: 6 }}>
+                  <div style={{ width: Math.max(0, Math.min(100, pct || 0)) + "%", height: "100%", background: neg ? PF.warn : `linear-gradient(90deg, ${PF.ochre}, ${PF.yellow})`, borderRadius: 5, transition: "width .3s" }} />
+                </div>
+              </div>
+            );
+          })()}
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.prixVenteMoyen ? `sur prix de vente ${eur2(r.prixVenteMoyen)}` : "prix de vente à renseigner"}</div>
         </div>
       )}
       <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
@@ -1392,10 +1412,24 @@ function ProProduction({ pass }) {
             </div>
           ))}
           <button onClick={() => change({ frais_extra: [...(f.frais_extra || []), { label: "", montant: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un frais</button>
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
-            {[["Matières", R.totalMatieres], ["Main d'œuvre", R.coutMO], ["Local", R.coutLocal], ["Transport", R.coutTransport], ["Autres frais", R.coutFraisExtra]].filter(([, v]) => v > 0 || true).map(([l, v]) => <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>{l}</span><span style={{ color: C.ink }}>{eur2(v)}</span></div>)}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
-          </div>
+          {(() => {
+            const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
+            const tempsAffiche = R.tempsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+            const tempsManquant = R.tempsTotal === 0 && (tauxSum > 0 || pfNum(f.taux_local) > 0);
+            return (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Matières</span><span style={{ color: C.ink }}>{eur2(R.totalMatieres)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Main d'œuvre <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h)</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutMO)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Local <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h)</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutLocal)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
+                {tempsManquant && (
+                  <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}>⚠ Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1478,6 +1512,12 @@ function ProProduction({ pass }) {
                 {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span style={{ color: C.soft }}>Total ventes <b style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</b></span>}
                 {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span style={{ color: C.soft }}>Marge totale <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</b></span>}
               </div>
+              {cTot !== null && (
+                <div style={{ fontSize: 10.5, color: C.soft, marginTop: 6, fontStyle: "italic", lineHeight: 1.5 }}>
+                  détail : {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = {eur3(cTot)}
+                  {pl.margeUnitaire != null && <> · marge = {eur2(pfNum(p.px_vente))} (vente) − {eur3(cTot)} (coût) = {eur3(pl.margeUnitaire)}</>}
+                </div>
+              )}
             </div>
           ); })}
           <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
