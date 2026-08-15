@@ -1045,6 +1045,10 @@ function pfCalc(f, rendementEstime) {
   if (!poidsFini && pfNum(f.oignon_kg) && rendementEstime) { poidsFini = pfNum(f.oignon_kg) * (rendementEstime / 100); isEstimated = true; }
   const rendement = (poidsFini && pfNum(f.oignon_kg)) ? poidsFini / pfNum(f.oignon_kg) : null;
   const coutKg = poidsFini ? revientHE / poidsFini : null;
+  // rendement générique (hors pissaladière) : poids brut = somme des ingrédients pesables (g/kg/ml/cl/L), les ingrédients "à la pièce" (œufs, citrons…) sont exclus faute de poids connu
+  let poidsBrut = 0;
+  (f.extra || []).forEach((e) => { if (e.unit !== "piece") { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; poidsBrut += pfNum(e.qty) / div; } });
+  const rendementGeneric = (poidsFini && poidsBrut) ? poidsFini / poidsBrut : null;
   const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
   const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
   const pots = f.pots || [];
@@ -1077,7 +1081,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1164,23 +1168,22 @@ function ProProduction({ pass }) {
         </div>
       ) : (
         <div style={{ ...card(), background: "#fff", margin: 0 }}>
-          <div style={{ ...h2, marginBottom: 8 }}>Rentabilité</div>
+          <div style={{ ...h2, marginBottom: 8 }}>Transformation</div>
           {(() => {
-            const pct = (r.prixVenteMoyen && r.margeMoyenne != null) ? (r.margeMoyenne / r.prixVenteMoyen) * 100 : null;
-            const neg = pct != null && pct < 0;
+            const pct = r.rendementGeneric != null ? r.rendementGeneric * 100 : null;
             return (
               <div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span style={{ fontSize: 30, fontWeight: 800, color: neg ? PF.warn : PF.navy }}>{pct != null ? pct.toFixed(0) : "—"}<span style={{ fontSize: 14 }}>%</span></span>
-                  {neg && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: PF.warn, borderRadius: 5, padding: "2px 7px" }}>Perte</span>}
+                  <span style={{ fontSize: 30, fontWeight: 800, color: PF.navy }}>{pct != null ? pct.toFixed(0) : "—"}<span style={{ fontSize: 14 }}>%</span></span>
+                  {pct != null && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 7px" }}>Mesuré</span>}
                 </div>
                 <div style={{ height: 9, background: "#ebdcb8", borderRadius: 5, overflow: "hidden", marginTop: 6 }}>
-                  <div style={{ width: Math.max(0, Math.min(100, pct || 0)) + "%", height: "100%", background: neg ? PF.warn : `linear-gradient(90deg, ${PF.ochre}, ${PF.yellow})`, borderRadius: 5, transition: "width .3s" }} />
+                  <div style={{ width: Math.max(0, Math.min(100, pct || 0)) + "%", height: "100%", background: `linear-gradient(90deg, ${PF.ochre}, ${PF.yellow})`, borderRadius: 5, transition: "width .3s" }} />
                 </div>
               </div>
             );
           })()}
-          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{r.prixVenteMoyen ? `sur prix de vente ${eur2(r.prixVenteMoyen)}` : "prix de vente à renseigner"}</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{(r.poidsFini && r.poidsBrut) ? `${r.poidsFini.toFixed(2)} kg cuit / ${r.poidsBrut.toFixed(2)} kg cru` : "poids cru (ingrédients) et cuit à renseigner"}</div>
         </div>
       )}
       <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
@@ -1297,7 +1300,7 @@ function ProProduction({ pass }) {
           <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronLeft size={18} /></button>
           <div><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam }}>Analyse — {famOf(famille).label}</h2><div style={{ fontSize: 12.5, color: C.soft }}>{rows.length} fournée(s) exploitable(s)</div></div>
         </div>
-        {isPissa && bar("Rendement par fournée (%)", (x) => x.r.rendement ? x.r.rendement * 100 : null, (v) => v.toFixed(0) + "%", PF.navy)}
+        {bar("Transformation par fournée — cru → cuit (%)", (x) => isPissa ? (x.r.rendement ? x.r.rendement * 100 : null) : (x.r.rendementGeneric != null ? x.r.rendementGeneric * 100 : null), (v) => v.toFixed(0) + "%", PF.navy)}
         {bar("Coût de revient / kg", (x) => x.r.coutKg, (v) => eur2(v), PF.ochre)}
         {bar("Coefficient multiplicateur moyen", (x) => x.r.coefMoyen, (v) => "×" + v.toFixed(2), PF.good)}
         {bar(`Coût des contenants / ${famOf(famille).unitWord}`, (x) => x.r.nbPotsTotal ? x.r.coutEmballageTotal / x.r.nbPotsTotal : null, (v) => eur3(v), PF.yellow)}
