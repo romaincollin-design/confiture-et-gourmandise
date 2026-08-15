@@ -961,6 +961,7 @@ const FAM_DEFAULTS = {
       { label: "Citron", qty: "", unit: "g", price: "" },
     ],
     pots: [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0, px_etiquette: 0, nb: "", px_vente: "" }],
+    px_vente_kg: 23.50,
   },
   caramel_pot: {
     extra: [
@@ -973,6 +974,7 @@ const FAM_DEFAULTS = {
     ],
     pots: [{ format_g: 106, px_bocal: "", px_capuchon: 0.20, px_etiquette: "", nb: "", px_vente: 4.24 }],
     poids_fini_kg: 0.866,
+    px_vente_kg: 40,
   },
   caramel_bonbon: {
     extra: [
@@ -985,6 +987,7 @@ const FAM_DEFAULTS = {
     ],
     pots: [{ format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }],
     poids_fini_kg: 0.866,
+    px_vente_kg: 40,
   },
   biscuit: {
     extra: [
@@ -1009,6 +1012,7 @@ const FAM_DEFAULTS = {
     ],
     pots: [{ format_g: 270, px_bocal: 0.33, px_capuchon: "", px_etiquette: 0.03, nb: 4, px_vente: 9.45 }],
     poids_fini_kg: 1.08,
+    px_vente_kg: 35,
   },
 };
 
@@ -1024,7 +1028,7 @@ const pfBlank = (famille = "pissaladiere") => {
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
     extra: d.extra ? JSON.parse(JSON.stringify(d.extra)) : [],
     frais_extra: [],
-    pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "",
+    pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "", px_vente_kg: d.px_vente_kg != null ? d.px_vente_kg : "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1440,6 +1444,14 @@ function ProProduction({ pass }) {
         <div style={card()}>
           <div style={{ ...h2 }}>Contenants & vente</div>
 
+          <div style={{ background: "#f6efdd", border: `1px solid ${PF.yellow}55`, borderRadius: 12, padding: 12, marginBottom: 14, display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+              <Lbl>Prix de vente au kg (repère)</Lbl>
+              <input inputMode="decimal" value={f.px_vente_kg == null ? "" : String(f.px_vente_kg).replace(".", ",")} placeholder="ex. 35" onChange={(e) => change({ px_vente_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+            </div>
+            <div style={{ fontSize: 11.5, color: C.soft, flex: "2 1 220px" }}>Renseigne un prix au kg : chaque format ci-dessous te proposera son prix de vente calculé automatiquement (modifiable ensuite).</div>
+          </div>
+
           {isPissa && (
             <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 13, marginBottom: 14 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Pissaladière — vendue en plaque (hors pots)</div>
@@ -1504,6 +1516,19 @@ function ProProduction({ pass }) {
                       <Package size={13} color={PF.navy} />
                       <span>≈ <b style={{ color: PF.navy }}>{nbAuto} {FAM.unitWord}(s)</b> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
+                    </span>
+                  );
+                })()}
+                {(() => {
+                  const pxKg = pfNum(f.px_vente_kg);
+                  if (!pxKg || !pfNum(p.format_g)) return null;
+                  const suggestion = Math.round(pxKg * pfNum(p.format_g) / 1000 * 100) / 100;
+                  const dejaBon = pfNum(p.px_vente) === suggestion;
+                  return (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#eef3f6", borderRadius: 8, padding: "4px 9px" }}>
+                      <Wallet size={13} color={PF.navy} />
+                      <span>≈ <b style={{ color: PF.navy }}>{eur2(suggestion)}</b> suggéré ({pxKg.toLocaleString("fr-FR")} €/kg × {pfNum(p.format_g)} g)</span>
+                      {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: suggestion }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
                 })()}
