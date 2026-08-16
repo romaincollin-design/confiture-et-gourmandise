@@ -947,6 +947,7 @@ const FAMILLES = [
   { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet" },
   { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
   { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
+  { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 // unités disponibles pour les ingrédients libres : g/kg/ml/cl/L convertis automatiquement vers un prix au kg ou au litre, "pièce" = prix direct
@@ -1025,6 +1026,17 @@ const FAM_DEFAULTS = {
     // astuce : format = poids fini (300 g) pour que le coût "produit" du kit = exactement la somme des ingrédients ci-dessus (le kit n'est pas une pâte divisée en pots, mais un assemblage à l'unité)
     pots: [{ format_g: 300, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: 29 }],
     poids_fini_kg: 0.3,
+  },
+  kit_farine: {
+    extra: [
+      { label: "Farine bio", qty: 200, unit: "g", price: 1.99 },
+      { label: "Huile", qty: 1, unit: "piece", price: 3 },
+      { label: "Anchois", qty: 1, unit: "piece", price: 5 },
+      { label: "Olives", qty: 1, unit: "piece", price: 2.5 },
+    ],
+    // même astuce que Kit Pissaladière : format = poids fini (200 g) pour que le coût "produit" = exactement la somme des ingrédients
+    pots: [{ format_g: 200, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }],
+    poids_fini_kg: 0.2,
   },
 };
 
