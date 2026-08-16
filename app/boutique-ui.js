@@ -1018,12 +1018,12 @@ const FAM_DEFAULTS = {
   kit_pissaladiere: {
     extra: [
       { label: "Pissaladière (pot 300 g) — d'après ta fournée du 09/08", qty: 300, unit: "g", price: 21.09 },
-      { label: "Huile", qty: 1, unit: "piece", price: 5 },
-      { label: "Anchois", qty: 1, unit: "piece", price: 0.5 },
+      { label: "Huile", qty: 1, unit: "piece", price: 3 },
+      { label: "Anchois", qty: 1, unit: "piece", price: 5 },
       { label: "Olives", qty: 1, unit: "piece", price: 2.5 },
     ],
     // astuce : format = poids fini (300 g) pour que le coût "produit" du kit = exactement la somme des ingrédients ci-dessus (le kit n'est pas une pâte divisée en pots, mais un assemblage à l'unité)
-    pots: [{ format_g: 300, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }],
+    pots: [{ format_g: 300, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: 29 }],
     poids_fini_kg: 0.3,
   },
 };
