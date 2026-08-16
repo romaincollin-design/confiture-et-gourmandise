@@ -946,6 +946,7 @@ const FAMILLES = [
   { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet" },
   { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet" },
   { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
+  { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 // unités disponibles pour les ingrédients libres : g/kg/ml/cl/L convertis automatiquement vers un prix au kg ou au litre, "pièce" = prix direct
@@ -1013,6 +1014,17 @@ const FAM_DEFAULTS = {
     pots: [{ format_g: 270, px_bocal: 0.33, px_capuchon: "", px_etiquette: 0.03, nb: 4, px_vente: 9.45 }],
     poids_fini_kg: 1.08,
     px_vente_kg: 35,
+  },
+  kit_pissaladiere: {
+    extra: [
+      { label: "Pissaladière (pot 300 g) — d'après ta fournée du 09/08", qty: 300, unit: "g", price: 21.09 },
+      { label: "Huile", qty: 1, unit: "piece", price: 5 },
+      { label: "Anchois", qty: 1, unit: "piece", price: 0.5 },
+      { label: "Olives", qty: 1, unit: "piece", price: 2.5 },
+    ],
+    // astuce : format = poids fini (300 g) pour que le coût "produit" du kit = exactement la somme des ingrédients ci-dessus (le kit n'est pas une pâte divisée en pots, mais un assemblage à l'unité)
+    pots: [{ format_g: 300, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }],
+    poids_fini_kg: 0.3,
   },
 };
 
