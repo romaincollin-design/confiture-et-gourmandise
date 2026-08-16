@@ -941,6 +941,7 @@ const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace("
 // packLabels = intitulés des 3 champs de contenant/emballage (null = champ masqué pour cette famille)
 const FAMILLES = [
   { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
+  { key: "pissaladiere_volume", label: "Pissaladière (grand volume)", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
   { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
   { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot" },
   { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet" },
@@ -948,7 +949,6 @@ const FAMILLES = [
   { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
   { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
   { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
-  { key: "pissaladiere_volume", label: "Pissaladière (grand volume)", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 // "pissaladiere_volume" réutilise la même recette figée (7 ingrédients) que "pissaladiere", juste avec un process de fabrication en plus
