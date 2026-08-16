@@ -1502,7 +1502,7 @@ function ProProduction({ pass }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 9, alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 120px", minWidth: 110 }}>
                   <Lbl>Coefficient de vente</Lbl>
-                  <input inputMode="decimal" value={p.px_vente && cTot ? String(Math.round((pfNum(p.px_vente) / cTot) * 100) / 100).replace(".", ",") : ""} placeholder="ex. 3" onChange={(e) => { const raw = e.target.value; const pots = [...f.pots]; if (raw.trim() === "") { pots[i] = { ...pots[i], px_vente: "" }; } else { const coef = pfNum(raw); pots[i] = { ...pots[i], px_vente: cTot ? Math.round(cTot * coef * 100) / 100 : "" }; } change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+                  <input inputMode="decimal" value={p.coef_vente == null ? "" : String(p.coef_vente).replace(".", ",")} placeholder="ex. 3" onChange={(e) => { const pots = [...f.pots]; pots[i] = { ...pots[i], coef_vente: e.target.value.replace(",", ".") }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
                 </div>
                 {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
@@ -1516,6 +1516,19 @@ function ProProduction({ pass }) {
                       <Package size={13} color={PF.navy} />
                       <span>≈ <b style={{ color: PF.navy }}>{nbAuto} {FAM.unitWord}(s)</b> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
+                    </span>
+                  );
+                })()}
+                {(() => {
+                  const coef = pfNum(p.coef_vente);
+                  if (!coef || !cTot) return null;
+                  const suggestion = Math.round(cTot * coef * 100) / 100;
+                  const dejaBon = pfNum(p.px_vente) === suggestion;
+                  return (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f3ece0", borderRadius: 8, padding: "4px 9px" }}>
+                      <Percent size={13} color={PF.navy} />
+                      <span>≈ <b style={{ color: PF.navy }}>{eur2(suggestion)}</b> suggéré (coût {eur3(cTot)} × {coef.toLocaleString("fr-FR")}) → marge <b style={{ color: PF.good }}>{eur3(suggestion - cTot)}</b></span>
+                      {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: suggestion }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
                 })()}
