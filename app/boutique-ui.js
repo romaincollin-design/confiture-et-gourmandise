@@ -948,8 +948,11 @@ const FAMILLES = [
   { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
   { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
   { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
+  { key: "pissaladiere_volume", label: "Pissaladière (grand volume)", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
+// "pissaladiere_volume" réutilise la même recette figée (7 ingrédients) que "pissaladiere", juste avec un process de fabrication en plus
+const isPissaFam = (famille) => famille === "pissaladiere" || famille === "pissaladiere_volume";
 // unités disponibles pour les ingrédients libres : g/kg/ml/cl/L convertis automatiquement vers un prix au kg ou au litre, "pièce" = prix direct
 const EXTRA_UNITS = { g: { div: 1000, pu: "€/kg" }, kg: { div: 1, pu: "€/kg" }, ml: { div: 1000, pu: "€/L" }, cl: { div: 100, pu: "€/L" }, L: { div: 1, pu: "€/L" }, piece: { div: 1, pu: "€/unité" } };
 
@@ -1038,21 +1041,27 @@ const FAM_DEFAULTS = {
     pots: [{ format_g: 200, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }],
     poids_fini_kg: 0.2,
   },
+  pissaladiere_volume: {
+    extra: [],
+    pots: [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
+    poids_fini_kg: "",
+  },
 };
 
 const pfBlank = (famille = "pissaladiere") => {
   const d = FAM_DEFAULTS[famille] || FAM_DEFAULTS.pissaladiere;
-  const isPissa = famille === "pissaladiere";
+  const isPissa = isPissaFam(famille);
   return {
     id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", famille,
     oignon_kg: "", temps_h: isPissa ? 2 : "", temps_min: isPissa ? 10 : "",
     personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0,
     huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 50 : 0, poivre_g: isPissa ? 30 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
-    px_oignon: 1.5, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 55,
+    px_oignon: 1.39, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 12,
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
     extra: d.extra ? JSON.parse(JSON.stringify(d.extra)) : [],
     frais_extra: [],
     pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "", px_vente_kg: d.px_vente_kg != null ? d.px_vente_kg : "",
+    nb_feux: "", kg_par_feu: "", temps_cycle_min: "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1077,6 +1086,13 @@ function pfCalc(f, rendementEstime) {
   let poidsBrut = 0;
   (f.extra || []).forEach((e) => { if (e.unit !== "piece") { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; poidsBrut += pfNum(e.qty) / div; } });
   const rendementGeneric = (poidsFini && poidsBrut) ? poidsFini / poidsBrut : null;
+  // process de fabrication (production grand volume) : nb de feux x kg par feu x cycles de cuisson sur la durée de prod
+  const nbFeux = pfNum(f.nb_feux);
+  const tempsCycleMin = pfNum(f.temps_cycle_min);
+  const kgParFeu = pfNum(f.kg_par_feu);
+  const cyclesParFeu = tempsCycleMin > 0 ? Math.floor((tempsTotal * 60) / tempsCycleMin) : 0;
+  const cyclesTotal = cyclesParFeu * nbFeux;
+  const quantiteBruteProcess = cyclesTotal * kgParFeu;
   const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
   const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
   const pots = f.pots || [];
@@ -1109,7 +1125,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, quantiteBruteProcess };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1239,7 +1255,7 @@ function ProProduction({ pass }) {
 
   // ================= VUE LISTE =================
   if (view === "list") {
-    const isPissa = famille === "pissaladiere";
+    const isPissa = isPissaFam(famille);
     const famBatches = batches.filter((b) => (b.famille || "pissaladiere") === famille);
     const cols = isPissa ? ["Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
     return (
@@ -1300,7 +1316,7 @@ function ProProduction({ pass }) {
 
   // ================= VUE ANALYSE (dashboard) =================
   if (view === "dash") {
-    const isPissa = famille === "pissaladiere";
+    const isPissa = isPissaFam(famille);
     const rows = batches.filter((b) => (b.famille || "pissaladiere") === famille).map((f) => ({ f, r: pfCalc(f, rendementEstime) })).filter((x) => x.r.coutKg != null).reverse();
     const bar = (title, get, fmt, col) => {
       const vals = rows.map((x) => get(x)).filter((v) => v != null && !isNaN(v));
@@ -1339,7 +1355,7 @@ function ProProduction({ pass }) {
   // ================= VUE ÉDITEUR =================
   const f = cur;
   const FAM = famOf(f.famille || "pissaladiere");
-  const isPissa = FAM.key === "pissaladiere";
+  const isPissa = isPissaFam(FAM.key);
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -1411,6 +1427,40 @@ function ProProduction({ pass }) {
             {isPissa && NF("Oignon cru", "oignon_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
+
+          {FAM.key === "pissaladiere_volume" && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ ...h2 }}>Process de fabrication</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Renseigne aussi le temps de production dans l'onglet « Main d'œuvre & frais » — c'est lui qui détermine combien de cycles de cuisson rentrent dans la journée.</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+              </div>
+              {R.cyclesTotal > 0 && (
+                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                  <div>{R.tempsTotal.toLocaleString("fr-FR")} h de prod ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b> × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b></div>
+                  <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
+                    <button onClick={() => {
+                      const q = R.quantiteBruteProcess;
+                      const k = q / 7.7; // ratio vs la recette de référence (fournée du 09/08 : 7,7 kg d'oignons)
+                      change({
+                        oignon_kg: q,
+                        huile_cl: Math.round(50 * k * 10) / 10,
+                        sel_g: Math.round(50 * k * 10) / 10,
+                        poivre_g: Math.round(30 * k * 10) / 10,
+                        anchois_g: Math.round(150 * k * 10) / 10,
+                        thym_g: Math.round(3 * k * 100) / 100,
+                        ail_g: Math.round(50 * k * 10) / 10,
+                        poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
+                      });
+                    }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
