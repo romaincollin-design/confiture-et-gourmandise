@@ -1611,7 +1611,10 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const bounds = (o) => {
     const now = new Date();
     let start, end, label;
-    if (gran === "jour") {
+    if (gran === "total") {
+      start = new Date(2020, 0, 1); end = new Date(now); end.setDate(end.getDate() + 1); end.setHours(0, 0, 0, 0);
+      label = "depuis le début";
+    } else if (gran === "jour") {
       const d = new Date(now); d.setDate(now.getDate() + o); d.setHours(0,0,0,0);
       start = d; end = new Date(d); end.setDate(d.getDate() + 1);
       label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
@@ -1657,8 +1660,9 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
   const B = agg(prv.start, prv.end, enCours ? ecoule : null);
   const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
-  const GRANS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["annee","Année"]];
-  const PREV = { jour: "la veille", semaine: "la semaine précédente", mois: "le mois précédent", annee: "l'an dernier" };
+  const GRANS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["annee","Année"],["total","Total"]];
+  const PREV = { jour: "la veille", semaine: "la semaine précédente", mois: "le mois précédent", annee: "l'an dernier", total: "" };
+  const hasCoutData = (products || []).some((p) => Number(p.cost) > 0);
 
   // ---- produits de la période ----
   const prods = Object.entries(A.prods).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
@@ -1731,22 +1735,22 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <button onClick={() => setOff(off - 1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={17} /></button>
+        {gran !== "total" && <button onClick={() => setOff(off - 1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={17} /></button>}
         <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cur.label}</div>
-          {enCours && <div style={{ fontSize: 10.5, color: C.caramel, fontWeight: 700 }}>en cours</div>}
+          {enCours && gran !== "total" && <div style={{ fontSize: 10.5, color: C.caramel, fontWeight: 700 }}>en cours</div>}
         </div>
-        <button onClick={() => setOff(Math.min(0, off + 1))} disabled={off >= 0} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: off >= 0 ? "default" : "pointer", display: "grid", placeItems: "center", color: off >= 0 ? "#C9C0AE" : C.jam, flexShrink: 0 }}><ChevronRight size={17} /></button>
+        {gran !== "total" && <button onClick={() => setOff(Math.min(0, off + 1))} disabled={off >= 0} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: off >= 0 ? "default" : "pointer", display: "grid", placeItems: "center", color: off >= 0 ? "#C9C0AE" : C.jam, flexShrink: 0 }}><ChevronRight size={17} /></button>}
         {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, height: 34, padding: "0 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", color: C.jam, flexShrink: 0 }}>{loading ? "…" : "↻"}</button>}
       </div>
 
       <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
-        {kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
-        {kpi("Marge", eur(A.marge), A.ca ? `${Math.round((A.marge / A.ca) * 100)} % du CA` : "—")}
+        {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
+        {kpi("Marge", hasCoutData ? eur(A.marge) : "—", hasCoutData ? (A.ca ? `${Math.round((A.marge / A.ca) * 100)} % du CA` : "—") : "prix d'achat non renseignés")}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
       </div>
 
-      {enCours && (
+      {enCours && gran !== "total" && (
         <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
           Comparaison honnête : {PREV[gran]} est mesuré <b>sur la même durée écoulée</b> ({eur(B.ca)}), pas sur la période complète.
         </div>
@@ -3459,14 +3463,17 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const lines = Object.entries(ticket);
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
+  const closingRef = useRef(false);
   const closeOrder = async () => {
-    if (tCount === 0) return;
+    if (tCount === 0 || closingRef.current) return;
+    closingRef.current = true;
     const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
     const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
     const ts = tsFor();
     setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
     if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
+    closingRef.current = false;
   };
   const cancelOrder = (id) => { setSales((o) => o.filter((x) => x.id !== id)); if (supabase && pass) { try { supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} } };
   const [edit, setEdit] = useState(null);
