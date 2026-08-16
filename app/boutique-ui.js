@@ -1502,7 +1502,7 @@ function ProProduction({ pass }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 9, alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 120px", minWidth: 110 }}>
                   <Lbl>Coefficient de vente</Lbl>
-                  <input inputMode="decimal" value={p.px_vente && cTot ? String(Math.round((pfNum(p.px_vente) / cTot) * 100) / 100).replace(".", ",") : ""} placeholder="ex. 3" onChange={(e) => { const coef = pfNum(e.target.value); const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: cTot ? Math.round(cTot * coef * 100) / 100 : "" }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+                  <input inputMode="decimal" value={p.px_vente && cTot ? String(Math.round((pfNum(p.px_vente) / cTot) * 100) / 100).replace(".", ",") : ""} placeholder="ex. 3" onChange={(e) => { const raw = e.target.value; const pots = [...f.pots]; if (raw.trim() === "") { pots[i] = { ...pots[i], px_vente: "" }; } else { const coef = pfNum(raw); pots[i] = { ...pots[i], px_vente: cTot ? Math.round(cTot * coef * 100) / 100 : "" }; } change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
                 </div>
                 {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
