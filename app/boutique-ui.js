@@ -940,19 +940,14 @@ const PF_UNIT_OPTS = { weight: { g: 1000, kg: 1 }, volume: { ml: 1000, cl: 100, 
 // quantités de référence (fournée du 09/08, 7,7 kg d'oignons), exprimées en unité de base (kg ou L)
 const PF_REF_BASE = { oignon: 7.7, huile: 0.5, sel: 0.05, poivre: 0.03, anchois: 0.15, thym: 0.003, ail: 0.05 };
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
-// unité actuellement choisie pour un ingrédient fixe (repli sur son unité historique)
-const pfUnitOf = (f, ing) => f[ing.key + "_unit"] || ing.unit;
-// convertit une quantité en unité de base (kg/L) vers l'unité actuellement choisie
-const pfFromBase = (baseQty, ing, unit) => baseQty * PF_UNIT_OPTS[ing.family][unit];
-// convertit la quantité actuellement saisie (dans son unité choisie) vers l'unité de base (kg/L)
-const pfToBase = (f, ing) => pfNum(f[ing.qf]) / PF_UNIT_OPTS[ing.family][pfUnitOf(f, ing)];
-// calcule les 6 ingrédients (hors oignon) proportionnellement à un ratio k, chacun dans son unité actuellement choisie
+// convertit une quantité en unité de base (kg/L) vers l'unité fixe historique de l'ingrédient
+const pfFromBase = (baseQty, ing) => baseQty * PF_UNIT_OPTS[ing.family][ing.unit];
+// calcule les 6 ingrédients (hors oignon) proportionnellement à un ratio k, dans leur unité fixe historique
 const pfSuggestRecipe = (f, k) => {
   const patch = {};
   PF_ING.forEach((ing) => {
     if (ing.key === "oignon") return;
-    const unit = pfUnitOf(f, ing);
-    patch[ing.qf] = Math.round(pfFromBase(PF_REF_BASE[ing.key] * k, ing, unit) * 1000) / 1000;
+    patch[ing.qf] = Math.round(pfFromBase(PF_REF_BASE[ing.key] * k, ing) * 1000) / 1000;
   });
   return patch;
 };
@@ -1075,7 +1070,7 @@ const pfBlank = (famille = "pissaladiere") => {
 function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
   let totalMatieres = 0;
-  PF_ING.forEach((ing) => { const div = PF_UNIT_OPTS[ing.family][pfUnitOf(f, ing)] || ing.div; totalMatieres += (pfNum(f[ing.qf]) / div) * pfNum(f[ing.pf]); });
+  PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
   (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price); });
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
   const coutMO = tempsTotal * tauxSum;
@@ -1413,36 +1408,23 @@ function ProProduction({ pass }) {
               <b>Principe :</b> 1 kg de fruit · 500 g de sucre · 1 citron (sauf agrumes : oranges amères/douces) · un peu de vanille selon le fruit.
             </div>
           )}
-          {isPissa && PF_ING.map((ing) => {
-            const unit = pfUnitOf(f, ing);
-            const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
-            return (
-              <div key={ing.key} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-                <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
-                <div style={{ flex: "1 1 90px", minWidth: 80 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={f[ing.qf] == null ? "" : String(f[ing.qf]).replace(".", ",")} placeholder="0" onChange={(e) => {
+          {isPissa && PF_ING.map((ing) => (
+            <div key={ing.key} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
+              <div style={{ flex: "1 1 100px", minWidth: 90 }}>
+                <Lbl>Quantité ({ing.unit})</Lbl>
+                <input inputMode="decimal" value={f[ing.qf] == null ? "" : String(f[ing.qf]).replace(".", ",")} placeholder="0" onChange={(e) => {
                   const raw = e.target.value.replace(",", ".");
                   if (ing.key === "oignon") {
-                    const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[unit];
-                    change({ [ing.qf]: raw, ...pfSuggestRecipe(f, baseKg / 7.7) });
+                    change({ [ing.qf]: raw, ...pfSuggestRecipe(f, pfNum(raw) / 7.7) });
                   } else {
                     change({ [ing.qf]: raw });
                   }
-                }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-                <div style={{ flex: "0 1 68px", minWidth: 62 }}>
-                  <Lbl>Unité</Lbl>
-                  <select value={unit} onChange={(e) => {
-                    // convertit la quantité déjà saisie vers la nouvelle unité pour garder la même quantité physique
-                    const baseQty = pfToBase(f, ing);
-                    const newQty = Math.round(pfFromBase(baseQty, ing, e.target.value) * 1000) / 1000;
-                    change({ [ing.key + "_unit"]: e.target.value, [ing.qf]: newQty });
-                  }} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px" }}>
-                    {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
+                }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
               </div>
-            );
-          })}
+              {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
+            </div>
+          ))}
           {(f.extra || []).map((e, i) => (
             <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
               <div style={{ flex: "2 1 130px", minWidth: 110 }}>
@@ -1493,11 +1475,10 @@ function ProProduction({ pass }) {
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
                     <button onClick={() => {
-                      const q = R.quantiteBruteProcess; // kg, unité de base
+                      const q = R.quantiteBruteProcess; // kg
                       const k = q / 7.7;
-                      const oignonUnit = pfUnitOf(f, PF_ING[0]);
                       change({
-                        oignon_kg: Math.round(pfFromBase(q, PF_ING[0], oignonUnit) * 1000) / 1000,
+                        oignon_kg: Math.round(q * 1000) / 1000,
                         ...pfSuggestRecipe(f, k),
                         poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
                       });
@@ -1685,9 +1666,8 @@ function ProProduction({ pass }) {
                     const poidsCuitNecessaire = pfNum(p.nb) * (pfNum(p.format_g) / 1000);
                     const q = poidsCuitNecessaire / 0.9; // poids cru nécessaire (rendement 90%), kg
                     const k = q / 7.7;
-                    const oignonUnit = pfUnitOf(f, PF_ING[0]);
                     change({
-                      oignon_kg: Math.round(pfFromBase(q, PF_ING[0], oignonUnit) * 1000) / 1000,
+                      oignon_kg: Math.round(q * 1000) / 1000,
                       ...pfSuggestRecipe(f, k),
                       poids_fini_kg: Math.round(poidsCuitNecessaire * 100) / 100,
                     });
