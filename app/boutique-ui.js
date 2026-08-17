@@ -3573,11 +3573,16 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const catItems = sellable.filter((p) => p.cat === activeCat);
 
   const add = (p, offert) => {
-    setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, offert: offert != null ? offert : (t[p.id]?.offert || false), qty: (t[p.id]?.qty || 0) + 1 } }));
+    setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, offert: offert != null ? offert : (t[p.id]?.offert || false), custom: t[p.id]?.custom || p.custom || false, qty: (t[p.id]?.qty || 0) + 1 } }));
     setFlash(p.id); setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 500);
   };
   const dec = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; const q = cur.qty - 1; const n = { ...t }; if (q <= 0) delete n[pid]; else n[pid] = { ...cur, qty: q }; return n; });
   const removeLine = (pid) => setTicket((t) => { const n = { ...t }; delete n[pid]; return n; });
+  const addCustomLine = () => {
+    const id = "custom-" + Date.now();
+    setTicket((t) => ({ ...t, [id]: { name: "Article libre", unit: "pièce", price: 0, qty: 1, custom: true } }));
+  };
+  const setLineName = (pid, name) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; return { ...t, [pid]: { ...cur, name } }; });
   const setLinePrice = (pid, price) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; return { ...t, [pid]: { ...cur, price } }; });
   const toggleOffert = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; return { ...t, [pid]: { ...cur, offert: !cur.offert } }; });
   const lines = Object.entries(ticket);
@@ -3736,6 +3741,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
               );
             })}
           </div>
+          <button onClick={addCustomLine} className="ca-tap" style={{ width: "100%", marginBottom: 10, background: "#fff", border: `1.5px dashed ${C.jam}`, color: C.jam, borderRadius: 14, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Plus size={16} /> Article libre (nom + prix + quantité)</button>
           <div className="caisse-grid" style={{ marginBottom: 6 }}>
             {catItems.map((p) => (
               <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
@@ -3758,7 +3764,11 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
               {lines.map(([pid, l]) => (
                 <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name}{l.offert && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", verticalAlign: "middle" }}>OFFERT</span>}</span>
+                    {l.custom ? (
+                      <input value={l.name || ""} onChange={(e) => setLineName(pid, e.target.value)} placeholder="Nom de l'article" style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 7px", background: "#fff" }} />
+                    ) : (
+                      <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name}{l.offert && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", verticalAlign: "middle" }}>OFFERT</span>}</span>
+                    )}
                     <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
                     <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
                     <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price }, l.offert)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
