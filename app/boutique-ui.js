@@ -947,7 +947,7 @@ const FAMILLES = [
   { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet" },
   { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet" },
   { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
-  { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
+  { key: "kit_pissaladiere", label: "Kit Pissaladière", ingLabel: "Composition du kit", packLabels: ["Pot (pissaladière)", "Sac (kit)", null], unitWord: "kit" },
   { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
@@ -1026,7 +1026,7 @@ const FAM_DEFAULTS = {
       { label: "Olives", qty: 1, unit: "piece", price: 2.5 },
     ],
     // astuce : format = poids fini (300 g) pour que le coût "produit" du kit = exactement la somme des ingrédients ci-dessus (le kit n'est pas une pâte divisée en pots, mais un assemblage à l'unité)
-    pots: [{ format_g: 300, px_bocal: 1.5, px_capuchon: "", px_etiquette: "", nb: "", px_vente: 29 }],
+    pots: [{ format_g: 300, px_bocal: "", px_capuchon: 1.5, px_etiquette: "", nb: "", px_vente: 29 }],
     poids_fini_kg: 0.3,
   },
   kit_farine: {
@@ -1461,39 +1461,6 @@ function ProProduction({ pass }) {
             </div>
           )}
 
-          {FAM.key === "kit_pissaladiere" && (() => {
-            const kOignon = R.quantiteBruteProcess / 7.7; // ratio vs la fournée de référence (09/08 : 7,7 kg d'oignons)
-            const matieresRecette = R.quantiteBruteProcess * 1.39 + (50 * kOignon / 100) * 8 + (50 * kOignon / 1000) * 1.5 + (30 * kOignon / 1000) * 55 + (150 * kOignon / 1000) * 22 + (3 * kOignon / 1000) * 65 + (50 * kOignon / 1000) * 12;
-            const cuit = R.quantiteBruteProcess * 0.9;
-            const coutTotalProd = matieresRecette + R.coutMO + R.coutLocal;
-            const coutKgProd = cuit > 0 ? coutTotalProd / cuit : 0;
-            return (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ ...h2 }}>Process de fabrication (production de la pissaladière du kit)</div>
-                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Calcule combien coûte réellement le kg de pissaladière produit (recette classique : oignon/huile/sel/poivre/anchois/thym/ail, proportionnelle à la fournée du 09/08) — au lieu d'un prix de référence fixe. Renseigne aussi le temps de prod dans « Main d'œuvre & frais ».</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
-                  {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
-                  {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
-                </div>
-                {R.cyclesTotal > 0 && (
-                  <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                    <div>{R.tempsTotal.toLocaleString("fr-FR")} h de prod ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b> × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b> → <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons crus</b>, ≈ <b style={{ color: PF.good }}>{cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%)</div>
-                    <div style={{ marginTop: 4 }}>Matières recette : {eur2(matieresRecette)} + main d'œuvre {eur2(R.coutMO)} + local {eur2(R.coutLocal)} = {eur2(coutTotalProd)} ÷ {cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg = <b style={{ color: PF.navy }}>{eur3(coutKgProd)}/kg</b></div>
-                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <button onClick={() => {
-                        const idx = (f.extra || []).findIndex((e) => (e.label || "").toLowerCase().startsWith("pissaladière"));
-                        const extra = [...(f.extra || [])];
-                        const nouveauLabel = `Pissaladière (pot 300 g) — calculé : ${R.cyclesTotal} cycles, ${eur3(coutKgProd)}/kg`;
-                        if (idx >= 0) extra[idx] = { ...extra[idx], label: nouveauLabel, price: Math.round(coutKgProd * 1000) / 1000 };
-                        change({ extra });
-                      }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer ce prix à l'ingrédient « Pissaladière »</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
         </div>
       )}
 
@@ -1558,6 +1525,40 @@ function ProProduction({ pass }) {
             </div>
             <div style={{ fontSize: 11.5, color: C.soft, flex: "2 1 220px" }}>Renseigne un prix au kg : chaque format ci-dessous te proposera son prix de vente calculé automatiquement (modifiable ensuite).</div>
           </div>
+
+          {FAM.key === "kit_pissaladiere" && (() => {
+            const kOignon = R.quantiteBruteProcess / 7.7; // ratio vs la fournée de référence (09/08 : 7,7 kg d'oignons)
+            const matieresRecette = R.quantiteBruteProcess * 1.39 + (50 * kOignon / 100) * 8 + (50 * kOignon / 1000) * 1.5 + (30 * kOignon / 1000) * 55 + (150 * kOignon / 1000) * 22 + (3 * kOignon / 1000) * 65 + (50 * kOignon / 1000) * 12;
+            const cuit = R.quantiteBruteProcess * 0.9;
+            const coutTotalProd = matieresRecette + R.coutMO + R.coutLocal;
+            const coutKgProd = cuit > 0 ? coutTotalProd / cuit : 0;
+            return (
+              <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 13, marginBottom: 14 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Process de fabrication (production de la pissaladière du kit)</div>
+                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Calcule combien coûte réellement le kg de pissaladière produit (recette classique, proportionnelle à la fournée du 09/08) — au lieu d'un prix de référence fixe. Renseigne aussi le temps de prod dans « Main d'œuvre & frais ».</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
+                  {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
+                  {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+                </div>
+                {R.cyclesTotal > 0 && (
+                  <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                    <div>{R.tempsTotal.toLocaleString("fr-FR")} h de prod ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b> × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b> → <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons crus</b>, ≈ <b style={{ color: PF.good }}>{cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%)</div>
+                    <div style={{ marginTop: 4 }}>Matières recette : {eur2(matieresRecette)} + main d'œuvre {eur2(R.coutMO)} + local {eur2(R.coutLocal)} = {eur2(coutTotalProd)} ÷ {cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg = <b style={{ color: PF.navy }}>{eur3(coutKgProd)}/kg</b></div>
+                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <button onClick={() => {
+                        const idx = (f.extra || []).findIndex((e) => (e.label || "").toLowerCase().startsWith("pissaladière"));
+                        const extra = [...(f.extra || [])];
+                        const nouveauLabel = `Pissaladière (pot 300 g) — calculé : ${R.cyclesTotal} cycles, ${eur3(coutKgProd)}/kg`;
+                        if (idx >= 0) extra[idx] = { ...extra[idx], label: nouveauLabel, price: Math.round(coutKgProd * 1000) / 1000 };
+                        change({ extra });
+                      }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer ce prix à l'ingrédient « Pissaladière »</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {isPissa && (
             <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 13, marginBottom: 14 }}>
