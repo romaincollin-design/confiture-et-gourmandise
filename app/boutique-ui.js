@@ -1744,8 +1744,10 @@ function ProProduction({ pass }) {
               </div>
               {cTot !== null && (
                 <div style={{ fontSize: 10.5, color: C.soft, marginTop: 6, fontStyle: "italic", lineHeight: 1.5 }}>
-                  détail : coût de revient {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = {eur3(cTot)} (coût total du {unitWord})
-                  {pl.margeUnitaire != null && <> · marge = {eur2(pfNum(p.px_vente))} (prix de vente) − {eur3(cTot)} (coût) = {eur3(pl.margeUnitaire)}</>}
+                  détail matière : coût de revient {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = <b>{eur3(pl.coutUnitaireProduit)}</b> (produit)
+                  <br />détail emballage : {[labels[0], labels[1], labels[2]].map((l, li) => l && `${eur3([p.px_bocal, p.px_capuchon, p.px_etiquette][li])} (${l})`).filter(Boolean).join(" + ")} = <b>{eur3(pl.coutUnitaireEmballage)}</b>
+                  <br />coût total : {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = <b>{eur3(cTot)}</b> (coût du {unitWord})
+                  {pl.margeUnitaire != null && <><br />marge : {eur2(pfNum(p.px_vente))} (prix de vente) − {eur3(cTot)} (coût) = <b>{eur3(pl.margeUnitaire)}</b></>}
                 </div>
               )}
             </div>
