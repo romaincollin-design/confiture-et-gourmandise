@@ -1432,6 +1432,21 @@ function ProProduction({ pass }) {
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
 
+          {isPissa && pfNum(f.oignon_kg) > 0 && (() => {
+            const k = pfNum(f.oignon_kg) / 7.7; // ratio vs la fournée de référence (09/08 : 7,7 kg d'oignons)
+            const sugg = { huile_cl: Math.round(50 * k * 10) / 10, sel_g: Math.round(50 * k * 10) / 10, poivre_g: Math.round(30 * k * 10) / 10, anchois_g: Math.round(150 * k * 10) / 10, thym_g: Math.round(3 * k * 100) / 100, ail_g: Math.round(50 * k * 10) / 10 };
+            const dejaBon = pfNum(f.huile_cl) === sugg.huile_cl && pfNum(f.sel_g) === sugg.sel_g && pfNum(f.poivre_g) === sugg.poivre_g && pfNum(f.anchois_g) === sugg.anchois_g && pfNum(f.ail_g) === sugg.ail_g;
+            const suggMat = pfNum(f.oignon_kg) * pfNum(f.px_oignon) + (sugg.huile_cl / 100) * pfNum(f.px_huile) + (sugg.sel_g / 1000) * pfNum(f.px_sel) + (sugg.poivre_g / 1000) * pfNum(f.px_poivre) + (sugg.anchois_g / 1000) * pfNum(f.px_anchois) + (sugg.thym_g / 1000) * pfNum(f.px_thym) + (sugg.ail_g / 1000) * pfNum(f.px_ail);
+            return (
+              <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                <div>Pour {pfNum(f.oignon_kg)} kg d'oignons (proportions de ta fournée du 09/08) : huile {sugg.huile_cl} cl · sel {sugg.sel_g} g · poivre {sugg.poivre_g} g · anchois {sugg.anchois_g} g · thym {sugg.thym_g} g · ail {sugg.ail_g} g — total matières estimé <b style={{ color: PF.navy }}>{eur2(suggMat)}</b></div>
+                {!dejaBon && (
+                  <button onClick={() => change(sugg)} className="ca-tap" style={{ marginTop: 6, background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer ces quantités</button>
+                )}
+              </div>
+            );
+          })()}
+
           {isPissa && (
             <div style={{ marginTop: 18 }}>
               <div style={{ ...h2 }}>Process de fabrication (optionnel — pour estimer une grande quantité)</div>
