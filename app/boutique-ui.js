@@ -3545,7 +3545,18 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const [saleTime, setSaleTime] = useState("10:00");
   const retroFirstSave = useRef(true);
   useEffect(() => {
-    try { const v = JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}"); if (v.retro) setRetro(true); if (v.saleDate) setSaleDate(v.saleDate); if (v.saleTime) setSaleTime(v.saleTime); } catch (e) {}
+    try {
+      const v = JSON.parse(localStorage.getItem("ca_caisse_retro") || "{}");
+      const today = new Date().toISOString().slice(0, 10);
+      if (v.saleDate && v.saleDate !== today) {
+        // date périmée (session d'un autre jour) : on repart sur aujourd'hui pour ne pas dater une vraie vente du jour sous la mauvaise date
+        localStorage.removeItem("ca_caisse_retro");
+      } else {
+        if (v.retro) setRetro(true);
+        if (v.saleDate) setSaleDate(v.saleDate);
+        if (v.saleTime) setSaleTime(v.saleTime);
+      }
+    } catch (e) {}
   }, []);
   useEffect(() => {
     if (retroFirstSave.current) { retroFirstSave.current = false; return; }
@@ -3561,20 +3572,22 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const activeCat = cat && cats.includes(cat) ? cat : cats[0];
   const catItems = sellable.filter((p) => p.cat === activeCat);
 
-  const add = (p) => {
-    setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, qty: (t[p.id]?.qty || 0) + 1 } }));
+  const add = (p, offert) => {
+    setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, offert: offert != null ? offert : (t[p.id]?.offert || false), qty: (t[p.id]?.qty || 0) + 1 } }));
     setFlash(p.id); setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 500);
   };
   const dec = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; const q = cur.qty - 1; const n = { ...t }; if (q <= 0) delete n[pid]; else n[pid] = { ...cur, qty: q }; return n; });
   const removeLine = (pid) => setTicket((t) => { const n = { ...t }; delete n[pid]; return n; });
+  const setLinePrice = (pid, price) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; return { ...t, [pid]: { ...cur, price } }; });
+  const toggleOffert = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; return { ...t, [pid]: { ...cur, offert: !cur.offert } }; });
   const lines = Object.entries(ticket);
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
-  const tTotal = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
+  const tTotal = lines.reduce((a, [, l]) => a + (l.offert ? 0 : l.qty * pfNum(l.price)), 0);
   const closingRef = useRef(false);
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
     closingRef.current = true;
-    const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: l.price, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
+    const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
     const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
     const ts = tsFor();
     setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
@@ -3743,12 +3756,20 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
             <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
               <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Commande en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
               {lines.map(([pid, l]) => (
-                <div key={pid} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-                  <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name} <span style={{ color: C.soft }}>· {eur(l.price)}</span></span>
-                  <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
-                  <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
-                  <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price })} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
-                  <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
+                <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{l.name}{l.offert && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", verticalAlign: "middle" }}>OFFERT</span>}</span>
+                    <button onClick={() => dec(pid)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
+                    <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14 }}>{l.qty}</span>
+                    <button onClick={() => add({ id: pid, name: l.name, unit: l.unit, price: l.price }, l.offert)} className="ca-tap" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
+                    <button onClick={() => removeLine(pid)} className="ca-tap" style={{ marginLeft: 4, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><X size={12} /></button>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>Prix unitaire</span>
+                    <input inputMode="decimal" disabled={l.offert} value={l.price == null ? "" : String(l.price).replace(".", ",")} onChange={(e) => setLinePrice(pid, e.target.value.replace(",", "."))} style={{ width: 72, border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 7px", fontSize: 13, fontWeight: 700, color: l.offert ? C.soft : C.ink, background: l.offert ? "#f3ede0" : "#fff", textDecoration: l.offert ? "line-through" : "none" }} />
+                    <span style={{ fontSize: 11.5, color: C.soft }}>€</span>
+                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{l.offert ? "✓ Offert" : "Offrir"}</button>
+                  </div>
                 </div>
               ))}
               <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
