@@ -1098,6 +1098,7 @@ function pfCalc(f, rendementEstime) {
   const kgParFeu = pfNum(f.kg_par_feu);
   const cyclesParFeu = tempsCycleMin > 0 ? Math.floor((tempsTotal * 60) / tempsCycleMin) : 0;
   const cyclesTotal = cyclesParFeu * nbFeux;
+  const tempsCuissonUtiliseMin = cyclesParFeu * tempsCycleMin; // par feu (les feux tournent en parallèle)
   const quantiteBruteProcess = cyclesTotal * kgParFeu;
   // temps d'épluchage : réparti sur le nombre de personnes déclarées en Main d'œuvre
   const epluchageKgParMin = pfNum(f.epluchage_kg_par_min);
@@ -1136,7 +1137,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1484,8 +1485,11 @@ function ProProduction({ pass }) {
                 {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               {R.cyclesTotal > 0 && (
-                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                  <div>{R.tempsTotal.toLocaleString("fr-FR")} h de prod ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b> × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b></div>
+                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+                  <div>Temps de prod disponible : <b>{R.tempsTotal.toLocaleString("fr-FR")} h</b></div>
+                  <div>Tournées (cycles) par feu : {R.tempsTotal.toLocaleString("fr-FR")} h ÷ {pfNum(f.temps_cycle_min)} min/cycle = <b>{R.cyclesParFeu} cycles/feu</b></div>
+                  <div>Temps de cuisson total utilisé : {R.cyclesParFeu} cycles × {pfNum(f.temps_cycle_min)} min = <b>{Math.round(R.tempsCuissonUtiliseMin)} min</b> ({(R.tempsCuissonUtiliseMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) par feu</div>
+                  <div>Tournées totales (tous feux) : {R.cyclesParFeu} cycles/feu × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b></div>
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
                     <button onClick={() => {
@@ -1599,8 +1603,10 @@ function ProProduction({ pass }) {
                   {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
                 </div>
                 {R.cyclesTotal > 0 && (
-                  <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                    <div>{R.tempsTotal.toLocaleString("fr-FR")} h de prod ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b> × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b> → <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons crus</b>, ≈ <b style={{ color: PF.good }}>{cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%)</div>
+                  <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+                    <div>Temps de prod disponible : <b>{R.tempsTotal.toLocaleString("fr-FR")} h</b> · Tournées par feu : {R.tempsTotal.toLocaleString("fr-FR")} h ÷ {pfNum(f.temps_cycle_min)} min = <b>{R.cyclesParFeu} cycles/feu</b></div>
+                    <div>Temps de cuisson total utilisé (par feu) : {R.cyclesParFeu} × {pfNum(f.temps_cycle_min)} min = <b>{Math.round(R.tempsCuissonUtiliseMin)} min</b> ({(R.tempsCuissonUtiliseMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h)</div>
+                    <div>Tournées totales (tous feux) : {R.cyclesParFeu} × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b> → <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons crus</b>, ≈ <b style={{ color: PF.good }}>{cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%)</div>
                     <div style={{ marginTop: 4 }}>Matières recette : {eur2(matieresRecette)} + main d'œuvre {eur2(R.coutMO)} + local {eur2(R.coutLocal)} = {eur2(coutTotalProd)} ÷ {cuit.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg = <b style={{ color: PF.navy }}>{eur3(coutKgProd)}/kg</b></div>
                     <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <button onClick={() => {
