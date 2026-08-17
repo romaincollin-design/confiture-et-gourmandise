@@ -941,6 +941,7 @@ const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace("
 // packLabels = intitulés des 3 champs de contenant/emballage (null = champ masqué pour cette famille)
 const FAMILLES = [
   { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
+  { key: "grande_fournee", label: "Grande fournée", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
   { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
   { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot" },
   { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet" },
@@ -949,7 +950,7 @@ const FAMILLES = [
   { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
-const isPissaFam = (famille) => famille === "pissaladiere";
+const isPissaFam = (famille) => famille === "pissaladiere" || famille === "grande_fournee";
 // pour une fournée Pissaladière, chaque format de contenant peut être un "pot" classique ou un "kit" (pot + sac + accompagnements groupés)
 const POT_TYPE_LABELS = { pot: ["Bocal", "Capuchon", "Étiquette"], kit: ["Pot", "Sac", "Accompagnements (huile+anchois+olive)"] };
 // unités disponibles pour les ingrédients libres : g/kg/ml/cl/L convertis automatiquement vers un prix au kg ou au litre, "pièce" = prix direct
@@ -958,6 +959,7 @@ const EXTRA_UNITS = { g: { div: 1000, pu: "€/kg" }, kg: { div: 1, pu: "€/kg"
 // valeurs de départ par famille (chiffres transmis par Romain le 14/08/2026 — certaines lignes restent à confirmer)
 const FAM_DEFAULTS = {
   pissaladiere: { extra: [], pots: [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }] },
+  grande_fournee: { extra: [], pots: [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }], kg_par_feu: 3, temps_cycle_min: 40, epluchage_min_par_kg: 2 },
   confiture: {
     extra: [
       { label: "Fruit (à préciser)", qty: "", unit: "g", price: "" },
@@ -1044,7 +1046,8 @@ const pfBlank = (famille = "pissaladiere") => {
     extra: d.extra ? JSON.parse(JSON.stringify(d.extra)) : [],
     frais_extra: [],
     pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "", px_vente_kg: d.px_vente_kg != null ? d.px_vente_kg : "",
-    nb_feux: "", kg_par_feu: "", temps_cycle_min: "",
+    nb_feux: "", kg_par_feu: d.kg_par_feu != null ? d.kg_par_feu : "", temps_cycle_min: d.temps_cycle_min != null ? d.temps_cycle_min : "",
+    epluchage_min_par_kg: d.epluchage_min_par_kg != null ? d.epluchage_min_par_kg : "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1076,6 +1079,11 @@ function pfCalc(f, rendementEstime) {
   const cyclesParFeu = tempsCycleMin > 0 ? Math.floor((tempsTotal * 60) / tempsCycleMin) : 0;
   const cyclesTotal = cyclesParFeu * nbFeux;
   const quantiteBruteProcess = cyclesTotal * kgParFeu;
+  // temps d'épluchage : réparti sur le nombre de personnes déclarées en Main d'œuvre
+  const epluchageMinParKg = pfNum(f.epluchage_min_par_kg);
+  const nbPersonnelEpluchage = Math.max(1, (f.personnel || []).filter((p) => pfNum(p.taux) > 0 || (p.nom || "").trim() !== "").length || (f.personnel || []).length);
+  const tempsEpluchageTotalMin = epluchageMinParKg > 0 ? quantiteBruteProcess * epluchageMinParKg : 0;
+  const tempsEpluchageParPersonneMin = nbPersonnelEpluchage > 0 ? tempsEpluchageTotalMin / nbPersonnelEpluchage : tempsEpluchageTotalMin;
   const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
   const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
   const pots = f.pots || [];
@@ -1108,7 +1116,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, quantiteBruteProcess };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1455,6 +1463,20 @@ function ProProduction({ pass }) {
                   </div>
                 </div>
               )}
+              {FAM.key === "grande_fournee" && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ ...h2 }}>Temps d'épluchage</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+                    {NF("Minutes / kg / personne", "epluchage_min_par_kg", "min", "2", f, (k, v) => change({ [k]: v }))}
+                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 2 min/kg</div>
+                  </div>
+                  {R.tempsEpluchageTotalMin > 0 && (
+                    <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg × {pfNum(f.epluchage_min_par_kg)} min/kg = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1613,6 +1635,25 @@ function ProProduction({ pass }) {
                 {labels[2] && NF(labels[2], "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF(`Nb de ${unitWord}s`, "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
+              {FAM.key === "grande_fournee" && pfNum(p.nb) > 0 && pfNum(p.format_g) > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <button onClick={() => {
+                    const poidsCuitNecessaire = pfNum(p.nb) * (pfNum(p.format_g) / 1000);
+                    const q = poidsCuitNecessaire / 0.9; // poids cru nécessaire (rendement 90%)
+                    const k = q / 7.7;
+                    change({
+                      oignon_kg: Math.round(q * 100) / 100,
+                      huile_cl: Math.round(50 * k * 10) / 10,
+                      sel_g: Math.round(50 * k * 10) / 10,
+                      poivre_g: Math.round(30 * k * 10) / 10,
+                      anchois_g: Math.round(150 * k * 10) / 10,
+                      thym_g: Math.round(3 * k * 100) / 100,
+                      ail_g: Math.round(50 * k * 10) / 10,
+                      poids_fini_kg: Math.round(poidsCuitNecessaire * 100) / 100,
+                    });
+                  }} className="ca-tap" style={{ background: "#fff", border: `1.5px dashed ${PF.navy}`, color: PF.navy, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Calculer les achats nécessaires pour {p.nb} {unitWord}(s)</button>
+                </div>
+              )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 9, alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 120px", minWidth: 110 }}>
                   <Lbl>Coefficient de vente</Lbl>
