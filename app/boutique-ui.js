@@ -927,15 +927,35 @@ function ProFournisseurs({ pass }) {
 // ============ MODULE PILOTAGE DE PRODUCTION (fournées) ============
 const PF = { navy: "#123A52", ochre: "#C65A35", yellow: "#F4B32C", good: "#4b7a57", warn: "#a6482a" };
 const PF_ING = [
-  { key: "oignon", label: "Oignon", unit: "kg", qf: "oignon_kg", pf: "px_oignon", pu: "€/kg", div: 1, color: "#123A52" },
-  { key: "huile", label: "Huile d'olive", unit: "cl", qf: "huile_cl", pf: "px_huile", pu: "€/L", div: 100, color: "#C65A35" },
-  { key: "sel", label: "Sel", unit: "g", qf: "sel_g", pf: "px_sel", pu: "€/kg", div: 1000, color: "#F4B32C" },
-  { key: "poivre", label: "Poivre", unit: "g", qf: "poivre_g", pf: "px_poivre", pu: "€/kg", div: 1000, color: "#4b7a57" },
-  { key: "anchois", label: "Anchois", unit: "g", qf: "anchois_g", pf: "px_anchois", pu: "€/kg", div: 1000, color: "#8B3A3A" },
-  { key: "thym", label: "Thym", unit: "g", qf: "thym_g", pf: "px_thym", pu: "€/kg", div: 1000, color: "#6b4d8f" },
-  { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f" },
+  { key: "oignon", label: "Oignon", unit: "kg", qf: "oignon_kg", pf: "px_oignon", pu: "€/kg", div: 1, color: "#123A52", family: "weight" },
+  { key: "huile", label: "Huile d'olive", unit: "cl", qf: "huile_cl", pf: "px_huile", pu: "€/L", div: 100, color: "#C65A35", family: "volume" },
+  { key: "sel", label: "Sel", unit: "g", qf: "sel_g", pf: "px_sel", pu: "€/kg", div: 1000, color: "#F4B32C", family: "weight" },
+  { key: "poivre", label: "Poivre", unit: "g", qf: "poivre_g", pf: "px_poivre", pu: "€/kg", div: 1000, color: "#4b7a57", family: "weight" },
+  { key: "anchois", label: "Anchois", unit: "g", qf: "anchois_g", pf: "px_anchois", pu: "€/kg", div: 1000, color: "#8B3A3A", family: "weight" },
+  { key: "thym", label: "Thym", unit: "g", qf: "thym_g", pf: "px_thym", pu: "€/kg", div: 1000, color: "#6b4d8f", family: "weight" },
+  { key: "ail", label: "Ail", unit: "g", qf: "ail_g", pf: "px_ail", pu: "€/kg", div: 1000, color: "#8a6d3f", family: "weight" },
 ];
+// options d'unité disponibles par famille, et facteur de conversion vers l'unité de base (kg pour le poids, L pour le volume)
+const PF_UNIT_OPTS = { weight: { g: 1000, kg: 1 }, volume: { ml: 1000, cl: 100, L: 1 } };
+// quantités de référence (fournée du 09/08, 7,7 kg d'oignons), exprimées en unité de base (kg ou L)
+const PF_REF_BASE = { oignon: 7.7, huile: 0.5, sel: 0.05, poivre: 0.03, anchois: 0.15, thym: 0.003, ail: 0.05 };
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
+// unité actuellement choisie pour un ingrédient fixe (repli sur son unité historique)
+const pfUnitOf = (f, ing) => f[ing.key + "_unit"] || ing.unit;
+// convertit une quantité en unité de base (kg/L) vers l'unité actuellement choisie
+const pfFromBase = (baseQty, ing, unit) => baseQty * PF_UNIT_OPTS[ing.family][unit];
+// convertit la quantité actuellement saisie (dans son unité choisie) vers l'unité de base (kg/L)
+const pfToBase = (f, ing) => pfNum(f[ing.qf]) / PF_UNIT_OPTS[ing.family][pfUnitOf(f, ing)];
+// calcule les 6 ingrédients (hors oignon) proportionnellement à un ratio k, chacun dans son unité actuellement choisie
+const pfSuggestRecipe = (f, k) => {
+  const patch = {};
+  PF_ING.forEach((ing) => {
+    if (ing.key === "oignon") return;
+    const unit = pfUnitOf(f, ing);
+    patch[ing.qf] = Math.round(pfFromBase(PF_REF_BASE[ing.key] * k, ing, unit) * 1000) / 1000;
+  });
+  return patch;
+};
 
 // ---- familles de produits (onglets du Contrôle de gestion) ----
 // packLabels = intitulés des 3 champs de contenant/emballage (null = champ masqué pour cette famille)
@@ -959,7 +979,7 @@ const EXTRA_UNITS = { g: { div: 1000, pu: "€/kg" }, kg: { div: 1, pu: "€/kg"
 // valeurs de départ par famille (chiffres transmis par Romain le 14/08/2026 — certaines lignes restent à confirmer)
 const FAM_DEFAULTS = {
   pissaladiere: { extra: [], pots: [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }] },
-  grande_fournee: { extra: [], pots: [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }], kg_par_feu: 3, temps_cycle_min: 40, epluchage_min_par_kg: 2 },
+  grande_fournee: { extra: [], pots: [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }], kg_par_feu: 3, temps_cycle_min: 40, epluchage_kg_par_min: 0.5 },
   confiture: {
     extra: [
       { label: "Fruit (à préciser)", qty: "", unit: "g", price: "" },
@@ -1047,7 +1067,7 @@ const pfBlank = (famille = "pissaladiere") => {
     frais_extra: [],
     pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "", px_vente_kg: d.px_vente_kg != null ? d.px_vente_kg : "",
     nb_feux: "", kg_par_feu: d.kg_par_feu != null ? d.kg_par_feu : "", temps_cycle_min: d.temps_cycle_min != null ? d.temps_cycle_min : "",
-    epluchage_min_par_kg: d.epluchage_min_par_kg != null ? d.epluchage_min_par_kg : "",
+    epluchage_kg_par_min: d.epluchage_kg_par_min != null ? d.epluchage_kg_par_min : "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1055,7 +1075,7 @@ const pfBlank = (famille = "pissaladiere") => {
 function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
   let totalMatieres = 0;
-  PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
+  PF_ING.forEach((ing) => { const div = PF_UNIT_OPTS[ing.family][pfUnitOf(f, ing)] || ing.div; totalMatieres += (pfNum(f[ing.qf]) / div) * pfNum(f[ing.pf]); });
   (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price); });
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
   const coutMO = tempsTotal * tauxSum;
@@ -1080,9 +1100,9 @@ function pfCalc(f, rendementEstime) {
   const cyclesTotal = cyclesParFeu * nbFeux;
   const quantiteBruteProcess = cyclesTotal * kgParFeu;
   // temps d'épluchage : réparti sur le nombre de personnes déclarées en Main d'œuvre
-  const epluchageMinParKg = pfNum(f.epluchage_min_par_kg);
+  const epluchageKgParMin = pfNum(f.epluchage_kg_par_min);
   const nbPersonnelEpluchage = Math.max(1, (f.personnel || []).filter((p) => pfNum(p.taux) > 0 || (p.nom || "").trim() !== "").length || (f.personnel || []).length);
-  const tempsEpluchageTotalMin = epluchageMinParKg > 0 ? quantiteBruteProcess * epluchageMinParKg : 0;
+  const tempsEpluchageTotalMin = epluchageKgParMin > 0 ? quantiteBruteProcess / epluchageKgParMin : 0;
   const tempsEpluchageParPersonneMin = nbPersonnelEpluchage > 0 ? tempsEpluchageTotalMin / nbPersonnelEpluchage : tempsEpluchageTotalMin;
   const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
   const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
@@ -1392,13 +1412,36 @@ function ProProduction({ pass }) {
               <b>Principe :</b> 1 kg de fruit · 500 g de sucre · 1 citron (sauf agrumes : oranges amères/douces) · un peu de vanille selon le fruit.
             </div>
           )}
-          {isPissa && PF_ING.map((ing) => (
-            <div key={ing.key} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
-              {NF("Quantité", ing.qf, ing.unit, "0", f, (k, v) => change({ [k]: v }))}
-              {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
-            </div>
-          ))}
+          {isPissa && PF_ING.map((ing) => {
+            const unit = pfUnitOf(f, ing);
+            const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
+            return (
+              <div key={ing.key} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+                <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
+                <div style={{ flex: "1 1 90px", minWidth: 80 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={f[ing.qf] == null ? "" : String(f[ing.qf]).replace(".", ",")} placeholder="0" onChange={(e) => {
+                  const raw = e.target.value.replace(",", ".");
+                  if (ing.key === "oignon") {
+                    const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[unit];
+                    change({ [ing.qf]: raw, ...pfSuggestRecipe(f, baseKg / 7.7) });
+                  } else {
+                    change({ [ing.qf]: raw });
+                  }
+                }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+                <div style={{ flex: "0 1 68px", minWidth: 62 }}>
+                  <Lbl>Unité</Lbl>
+                  <select value={unit} onChange={(e) => {
+                    // convertit la quantité déjà saisie vers la nouvelle unité pour garder la même quantité physique
+                    const baseQty = pfToBase(f, ing);
+                    const newQty = Math.round(pfFromBase(baseQty, ing, e.target.value) * 1000) / 1000;
+                    change({ [ing.key + "_unit"]: e.target.value, [ing.qf]: newQty });
+                  }} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px" }}>
+                    {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
+              </div>
+            );
+          })}
           {(f.extra || []).map((e, i) => (
             <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
               <div style={{ flex: "2 1 130px", minWidth: 110 }}>
@@ -1428,24 +1471,8 @@ function ProProduction({ pass }) {
           </div>
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {isPissa && NF("Oignon cru", "oignon_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
-
-          {isPissa && pfNum(f.oignon_kg) > 0 && (() => {
-            const k = pfNum(f.oignon_kg) / 7.7; // ratio vs la fournée de référence (09/08 : 7,7 kg d'oignons)
-            const sugg = { huile_cl: Math.round(50 * k * 10) / 10, sel_g: Math.round(50 * k * 10) / 10, poivre_g: Math.round(30 * k * 10) / 10, anchois_g: Math.round(150 * k * 10) / 10, thym_g: Math.round(3 * k * 100) / 100, ail_g: Math.round(50 * k * 10) / 10 };
-            const dejaBon = pfNum(f.huile_cl) === sugg.huile_cl && pfNum(f.sel_g) === sugg.sel_g && pfNum(f.poivre_g) === sugg.poivre_g && pfNum(f.anchois_g) === sugg.anchois_g && pfNum(f.ail_g) === sugg.ail_g;
-            const suggMat = pfNum(f.oignon_kg) * pfNum(f.px_oignon) + (sugg.huile_cl / 100) * pfNum(f.px_huile) + (sugg.sel_g / 1000) * pfNum(f.px_sel) + (sugg.poivre_g / 1000) * pfNum(f.px_poivre) + (sugg.anchois_g / 1000) * pfNum(f.px_anchois) + (sugg.thym_g / 1000) * pfNum(f.px_thym) + (sugg.ail_g / 1000) * pfNum(f.px_ail);
-            return (
-              <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                <div>Pour {pfNum(f.oignon_kg)} kg d'oignons (proportions de ta fournée du 09/08) : huile {sugg.huile_cl} cl · sel {sugg.sel_g} g · poivre {sugg.poivre_g} g · anchois {sugg.anchois_g} g · thym {sugg.thym_g} g · ail {sugg.ail_g} g — total matières estimé <b style={{ color: PF.navy }}>{eur2(suggMat)}</b></div>
-                {!dejaBon && (
-                  <button onClick={() => change(sugg)} className="ca-tap" style={{ marginTop: 6, background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer ces quantités</button>
-                )}
-              </div>
-            );
-          })()}
 
           {isPissa && (
             <div style={{ marginTop: 18 }}>
@@ -1462,16 +1489,12 @@ function ProProduction({ pass }) {
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
                     <button onClick={() => {
-                      const q = R.quantiteBruteProcess;
-                      const k = q / 7.7; // ratio vs la recette de référence (fournée du 09/08 : 7,7 kg d'oignons)
+                      const q = R.quantiteBruteProcess; // kg, unité de base
+                      const k = q / 7.7;
+                      const oignonUnit = pfUnitOf(f, PF_ING[0]);
                       change({
-                        oignon_kg: q,
-                        huile_cl: Math.round(50 * k * 10) / 10,
-                        sel_g: Math.round(50 * k * 10) / 10,
-                        poivre_g: Math.round(30 * k * 10) / 10,
-                        anchois_g: Math.round(150 * k * 10) / 10,
-                        thym_g: Math.round(3 * k * 100) / 100,
-                        ail_g: Math.round(50 * k * 10) / 10,
+                        oignon_kg: Math.round(pfFromBase(q, PF_ING[0], oignonUnit) * 1000) / 1000,
+                        ...pfSuggestRecipe(f, k),
                         poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
                       });
                     }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
@@ -1482,12 +1505,12 @@ function ProProduction({ pass }) {
                 <div style={{ marginTop: 14 }}>
                   <div style={{ ...h2 }}>Temps d'épluchage</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-                    {NF("Minutes / kg / personne", "epluchage_min_par_kg", "min", "2", f, (k, v) => change({ [k]: v }))}
-                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 2 min/kg</div>
+                    {NF("Kg épluchés / min / personne", "epluchage_kg_par_min", "kg", "0,5", f, (k, v) => change({ [k]: v }))}
+                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 0,5 kg/min</div>
                   </div>
                   {R.tempsEpluchageTotalMin > 0 && (
                     <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg × {pfNum(f.epluchage_min_par_kg)} min/kg = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
+                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg ÷ {pfNum(f.epluchage_kg_par_min)} kg/min = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
                     </div>
                   )}
                 </div>
@@ -1654,16 +1677,12 @@ function ProProduction({ pass }) {
                 <div style={{ marginTop: 8 }}>
                   <button onClick={() => {
                     const poidsCuitNecessaire = pfNum(p.nb) * (pfNum(p.format_g) / 1000);
-                    const q = poidsCuitNecessaire / 0.9; // poids cru nécessaire (rendement 90%)
+                    const q = poidsCuitNecessaire / 0.9; // poids cru nécessaire (rendement 90%), kg
                     const k = q / 7.7;
+                    const oignonUnit = pfUnitOf(f, PF_ING[0]);
                     change({
-                      oignon_kg: Math.round(q * 100) / 100,
-                      huile_cl: Math.round(50 * k * 10) / 10,
-                      sel_g: Math.round(50 * k * 10) / 10,
-                      poivre_g: Math.round(30 * k * 10) / 10,
-                      anchois_g: Math.round(150 * k * 10) / 10,
-                      thym_g: Math.round(3 * k * 100) / 100,
-                      ail_g: Math.round(50 * k * 10) / 10,
+                      oignon_kg: Math.round(pfFromBase(q, PF_ING[0], oignonUnit) * 1000) / 1000,
+                      ...pfSuggestRecipe(f, k),
                       poids_fini_kg: Math.round(poidsCuitNecessaire * 100) / 100,
                     });
                   }} className="ca-tap" style={{ background: "#fff", border: `1.5px dashed ${PF.navy}`, color: PF.navy, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Calculer les achats nécessaires pour {p.nb} {unitWord}(s)</button>
