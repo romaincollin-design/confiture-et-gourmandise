@@ -952,7 +952,18 @@ const pfSuggestRecipe = (f, k) => {
   return patch;
 };
 
-// ---- familles de produits (onglets du Contrôle de gestion) ----
+// affichage : convertit la valeur stockée (toujours dans ing.unit) vers l'unité actuellement choisie pour l'AFFICHAGE uniquement
+const pfDisplayUnit = (f, ing) => f[ing.key + "_unit"] || ing.unit;
+const pfDisplayVal = (f, ing) => {
+  const chosen = pfDisplayUnit(f, ing);
+  const baseQty = pfNum(f[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit]; // vers kg/L
+  return baseQty * PF_UNIT_OPTS[ing.family][chosen];
+};
+// convertit une saisie faite dans l'unité choisie vers l'unité de STOCKAGE fixe (ing.unit) — le champ stocké ne change jamais de signification
+const pfParseToStorage = (typedVal, ing, chosenUnit) => {
+  const baseQty = pfNum(typedVal) / PF_UNIT_OPTS[ing.family][chosenUnit];
+  return baseQty * PF_UNIT_OPTS[ing.family][ing.unit];
+};
 // packLabels = intitulés des 3 champs de contenant/emballage (null = champ masqué pour cette famille)
 const FAMILLES = [
   { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
@@ -1094,6 +1105,11 @@ function pfCalc(f, rendementEstime) {
   const cyclesParFeu = tempsCycleMin > 0 ? Math.floor((tempsTotal * 60) / tempsCycleMin) : 0;
   const cyclesTotal = cyclesParFeu * nbFeux;
   const tempsCuissonUtiliseMin = cyclesParFeu * tempsCycleMin; // par feu (les feux tournent en parallèle)
+  // combien de tournées faut-il pour traiter la quantité d'oignons DEJA SAISIE dans la fournée (sens inverse du calcul ci-dessus)
+  const capaciteParTournee = nbFeux * kgParFeu; // kg traités par tournée, tous feux confondus
+  const oignonSaisi = pfNum(f.oignon_kg);
+  const tourneesNecessaires = capaciteParTournee > 0 && oignonSaisi > 0 ? Math.ceil(oignonSaisi / capaciteParTournee) : 0;
+  const tempsNecessaireMin = tourneesNecessaires * tempsCycleMin;
   const quantiteBruteProcess = cyclesTotal * kgParFeu;
   // temps d'épluchage : réparti sur le nombre de personnes déclarées en Main d'œuvre
   const epluchageKgParMin = pfNum(f.epluchage_kg_par_min);
@@ -1107,7 +1123,10 @@ function pfCalc(f, rendementEstime) {
   const potLines = pots.map((p) => {
     const nb = pfNum(p.nb);
     const formatKg = pfNum(p.format_g) / 1000;
-    const cEmb = pfNum(p.px_bocal) + pfNum(p.px_capuchon) + pfNum(p.px_etiquette);
+    const coutAccomp = p.type === "kit"
+      ? (p.accompagnements || []).reduce((s, a) => { const div = (EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).div; return s + (pfNum(a.qty) / div) * pfNum(a.price); }, 0)
+      : pfNum(p.px_etiquette);
+    const cEmb = pfNum(p.px_bocal) + pfNum(p.px_capuchon) + coutAccomp;
     const cProd = coutKg !== null ? coutKg * formatKg : null;
     const cTot = cProd !== null ? cProd + cEmb : null;
     const pxv = (p.px_vente === "" || p.px_vente == null) ? null : pfNum(p.px_vente);
@@ -1132,7 +1151,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1408,23 +1427,37 @@ function ProProduction({ pass }) {
               <b>Principe :</b> 1 kg de fruit · 500 g de sucre · 1 citron (sauf agrumes : oranges amères/douces) · un peu de vanille selon le fruit.
             </div>
           )}
-          {isPissa && PF_ING.map((ing) => (
-            <div key={ing.key} style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
-              <div style={{ flex: "1 1 100px", minWidth: 90 }}>
-                <Lbl>Quantité ({ing.unit})</Lbl>
-                <input inputMode="decimal" value={f[ing.qf] == null ? "" : String(f[ing.qf]).replace(".", ",")} placeholder="0" onChange={(e) => {
-                  const raw = e.target.value.replace(",", ".");
-                  if (ing.key === "oignon") {
-                    change({ [ing.qf]: raw, ...pfSuggestRecipe(f, pfNum(raw) / 7.7) });
-                  } else {
-                    change({ [ing.qf]: raw });
-                  }
-                }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+          {isPissa && PF_ING.map((ing) => {
+            const chosenUnit = pfDisplayUnit(f, ing);
+            const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
+            const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
+            const displayVal = isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000;
+            return (
+              <div key={ing.key} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+                <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
+                <div style={{ flex: "1 1 90px", minWidth: 80 }}>
+                  <Lbl>Quantité</Lbl>
+                  <input inputMode="decimal" value={displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
+                    const raw = e.target.value.replace(",", ".");
+                    const stored = raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000;
+                    if (ing.key === "oignon") {
+                      const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
+                      change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg / 7.7) });
+                    } else {
+                      change({ [ing.qf]: stored });
+                    }
+                  }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+                </div>
+                <div style={{ flex: "0 1 64px", minWidth: 58 }}>
+                  <Lbl>Unité</Lbl>
+                  <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px" }}>
+                    {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
               </div>
-              {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
-            </div>
-          ))}
+            );
+          })}
           {(f.extra || []).map((e, i) => (
             <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
               <div style={{ flex: "2 1 130px", minWidth: 110 }}>
@@ -1484,6 +1517,15 @@ function ProProduction({ pass }) {
                       });
                     }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
                   </div>
+                </div>
+              )}
+              {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
+                <div style={{ marginTop: 10, background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+                  <div style={{ fontWeight: 700, color: PF.navy, marginBottom: 4 }}>Pour traiter les {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg d'oignons déjà saisis :</div>
+                  <div>Capacité par tournée : {pfNum(f.nb_feux)} feux × {pfNum(f.kg_par_feu)} kg = <b>{R.capaciteParTournee} kg/tournée</b></div>
+                  <div>Tournées (fournées) nécessaires : {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg ÷ {R.capaciteParTournee} kg = <b>{R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}</b></div>
+                  <div>Temps total nécessaire : {R.tourneesNecessaires} × {pfNum(f.temps_cycle_min)} min = <b>{Math.round(R.tempsNecessaireMin)} min</b> ({(R.tempsNecessaireMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h)</div>
+                  <div>Temps de prod indiqué (Main d'œuvre) : <b>{R.tempsTotal.toLocaleString("fr-FR")} h</b> — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <b style={{ color: PF.good }}>✓ ça rentre dans le temps prévu</b> : <b style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</b>}</div>
                 </div>
               )}
               {FAM.key === "grande_fournee" && (
@@ -1657,9 +1699,37 @@ function ProProduction({ pass }) {
                 {NF("Format", "format_g", "g", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {labels[0] && NF(labels[0], "px_bocal", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {labels[1] && NF(labels[1], "px_capuchon", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
-                {labels[2] && NF(labels[2], "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {p.type !== "kit" && labels[2] && NF(labels[2], "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {NF(`Nb de ${unitWord}s`, "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
               </div>
+              {p.type === "kit" && (
+                <div style={{ marginTop: 10 }}>
+                  <Lbl>Accompagnements (huile, anchois, olive…)</Lbl>
+                  {(p.accompagnements || []).map((a, ai) => (
+                    <div key={ai} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+                      <div style={{ flex: "2 1 120px", minWidth: 100 }}>
+                        <Lbl>Ingrédient</Lbl>
+                        <input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
+                      </div>
+                      <div style={{ flex: "1 1 64px", minWidth: 58 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <div style={{ flex: "0 1 62px", minWidth: 58 }}>
+                        <Lbl>Unité</Lbl>
+                        <select value={a.unit || "piece"} onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], unit: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 12.5, padding: "9px 5px" }}>
+                          <option value="g">g</option>
+                          <option value="kg">kg</option>
+                          <option value="ml">ml</option>
+                          <option value="cl">cl</option>
+                          <option value="L">L</option>
+                          <option value="piece">pièce</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: "1 1 80px", minWidth: 72 }}><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: (pots[i].accompagnements || []).filter((_, j) => j !== ai) }; change({ pots }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 36, height: 36, cursor: "pointer", flexShrink: 0 }}><Trash2 size={14} /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: [...(pots[i].accompagnements || []), { label: "", qty: "", price: "", unit: "piece" }] }; change({ pots }); }} className="ca-tap" style={{ marginTop: 8, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 8, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Plus size={12} /> Ajouter un accompagnement</button>
+                </div>
+              )}
               {FAM.key === "grande_fournee" && pfNum(p.nb) > 0 && pfNum(p.format_g) > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <button onClick={() => {
@@ -1731,7 +1801,10 @@ function ProProduction({ pass }) {
               {cTot !== null && (
                 <div style={{ fontSize: 10.5, color: C.soft, marginTop: 6, fontStyle: "italic", lineHeight: 1.5 }}>
                   détail matière : coût de revient {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = <b>{eur3(pl.coutUnitaireProduit)}</b> (produit)
-                  <br />détail emballage : {[labels[0], labels[1], labels[2]].map((l, li) => l && `${eur3([p.px_bocal, p.px_capuchon, p.px_etiquette][li])} (${l})`).filter(Boolean).join(" + ")} = <b>{eur3(pl.coutUnitaireEmballage)}</b>
+                  <br />détail emballage : {p.type === "kit"
+                    ? [labels[0] && `${eur3(p.px_bocal)} (${labels[0]})`, labels[1] && `${eur3(p.px_capuchon)} (${labels[1]})`, ...(p.accompagnements || []).map((a) => a.label && `${eur3((pfNum(a.qty) / (EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).div) * pfNum(a.price))} (${a.label})`)].filter(Boolean).join(" + ")
+                    : [labels[0], labels[1], labels[2]].map((l, li) => l && `${eur3([p.px_bocal, p.px_capuchon, p.px_etiquette][li])} (${l})`).filter(Boolean).join(" + ")
+                  } = <b>{eur3(pl.coutUnitaireEmballage)}</b>
                   <br />coût total : {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = <b>{eur3(cTot)}</b> (coût du {unitWord})
                   {pl.margeUnitaire != null && <><br />marge : {eur2(pfNum(p.px_vente))} (prix de vente) − {eur3(cTot)} (coût) = <b>{eur3(pl.margeUnitaire)}</b></>}
                 </div>
