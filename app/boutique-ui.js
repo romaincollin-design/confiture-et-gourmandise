@@ -938,7 +938,7 @@ const PF_ING = [
 // options d'unité disponibles par famille, et facteur de conversion vers l'unité de base (kg pour le poids, L pour le volume)
 const PF_UNIT_OPTS = { weight: { g: 1000, kg: 1 }, volume: { ml: 1000, cl: 100, L: 1 } };
 // quantités de référence (fournée du 09/08, 7,7 kg d'oignons), exprimées en unité de base (kg ou L)
-const PF_REF_BASE = { oignon: 7.7, huile: 0.5, sel: 0.05, poivre: 0.03, anchois: 0.15, thym: 0.003, ail: 0.05 };
+const PF_REF_BASE = { oignon: 7.7, huile: 0.5, sel: 0.005, poivre: 0.003, anchois: 0.15, thym: 0.003, ail: 0.05 };
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
 // convertit une quantité en unité de base (kg/L) vers l'unité fixe historique de l'ingrédient
 const pfFromBase = (baseQty, ing) => baseQty * PF_UNIT_OPTS[ing.family][ing.unit];
@@ -1066,7 +1066,7 @@ const pfBlank = (famille = "pissaladiere") => {
     id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", famille, estimation: false,
     oignon_kg: "", temps_h: isPissa ? 2 : "", temps_min: isPissa ? 10 : "",
     personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0,
-    huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 50 : 0, poivre_g: isPissa ? 30 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
+    huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 5 : 0, poivre_g: isPissa ? 3 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
     px_oignon: 1.39, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 12,
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
     extra: d.extra ? JSON.parse(JSON.stringify(d.extra)) : [],
