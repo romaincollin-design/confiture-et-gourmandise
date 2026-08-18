@@ -1454,6 +1454,12 @@ function ProProduction({ pass }) {
                     {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
+                <div style={{ flex: "1 1 90px", minWidth: 82 }}>
+                  <Lbl>Réf. /kg oignon</Lbl>
+                  <div style={{ marginTop: 4, height: 40, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>
+                    {ing.key === "oignon" ? "base (7,7 kg)" : `${Math.round(pfFromBase(PF_REF_BASE[ing.key] / PF_REF_BASE.oignon, ing) * 1000) / 1000} ${ing.unit}/kg`}
+                  </div>
+                </div>
                 {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
               </div>
             );
