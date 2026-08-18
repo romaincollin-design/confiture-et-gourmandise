@@ -937,17 +937,23 @@ const PF_ING = [
 ];
 // options d'unité disponibles par famille, et facteur de conversion vers l'unité de base (kg pour le poids, L pour le volume)
 const PF_UNIT_OPTS = { weight: { g: 1000, kg: 1 }, volume: { ml: 1000, cl: 100, L: 1 } };
-// quantités de référence (fournée du 09/08, 7,7 kg d'oignons), exprimées en unité de base (kg ou L)
+// quantités de référence par défaut (fournée du 09/08, 7,7 kg d'oignons), exprimées en unité de base (kg ou L)
 const PF_REF_BASE = { oignon: 7.7, huile: 0.5, sel: 0.005, poivre: 0.003, anchois: 0.15, thym: 0.003, ail: 0.05 };
 const pfNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
 // convertit une quantité en unité de base (kg/L) vers l'unité fixe historique de l'ingrédient
 const pfFromBase = (baseQty, ing) => baseQty * PF_UNIT_OPTS[ing.family][ing.unit];
-// calcule les 6 ingrédients (hors oignon) proportionnellement à un ratio k, dans leur unité fixe historique
-const pfSuggestRecipe = (f, k) => {
+// proportion de référence pour 1 kg d'oignon, dans l'unité native de l'ingrédient : valeur personnalisée de LA FOURNÉE si saisie, sinon le défaut du 09/08
+const pfRefRatio = (f, ing) => {
+  const custom = f[ing.key + "_ref"];
+  if (custom != null && custom !== "") return pfNum(custom);
+  return pfFromBase(PF_REF_BASE[ing.key] / PF_REF_BASE.oignon, ing);
+};
+// calcule les 6 ingrédients (hors oignon) proportionnellement à une quantité d'oignon (en kg), selon la référence (personnalisée ou par défaut) de CETTE fournée
+const pfSuggestRecipe = (f, oignonBaseKg) => {
   const patch = {};
   PF_ING.forEach((ing) => {
     if (ing.key === "oignon") return;
-    patch[ing.qf] = Math.round(pfFromBase(PF_REF_BASE[ing.key] * k, ing) * 1000) / 1000;
+    patch[ing.qf] = Math.round(pfRefRatio(f, ing) * oignonBaseKg * 1000) / 1000;
   });
   return patch;
 };
@@ -1442,7 +1448,7 @@ function ProProduction({ pass }) {
                     const stored = raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000;
                     if (ing.key === "oignon") {
                       const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
-                      change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg / 7.7) });
+                      change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
                     } else {
                       change({ [ing.qf]: stored });
                     }
@@ -1456,9 +1462,14 @@ function ProProduction({ pass }) {
                 </div>
                 <div style={{ flex: "1 1 90px", minWidth: 82 }}>
                   <Lbl>Réf. /kg oignon</Lbl>
-                  <div style={{ marginTop: 4, height: 40, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>
-                    {ing.key === "oignon" ? "base (7,7 kg)" : `${Math.round(pfFromBase(PF_REF_BASE[ing.key] / PF_REF_BASE.oignon, ing) * 1000) / 1000} ${ing.unit}/kg`}
-                  </div>
+                  {ing.key === "oignon" ? (
+                    <div style={{ marginTop: 4, height: 40, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>base</div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input inputMode="decimal" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px", color: PF.navy, fontWeight: 700, width: "100%" }} />
+                      <span style={{ fontSize: 10.5, color: C.soft, flexShrink: 0 }}>{ing.unit}/kg</span>
+                    </div>
+                  )}
                 </div>
                 {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
               </div>
@@ -1515,10 +1526,9 @@ function ProProduction({ pass }) {
                     <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
                     <button onClick={() => {
                       const q = R.quantiteBruteProcess; // kg
-                      const k = q / 7.7;
                       change({
                         oignon_kg: Math.round(q * 1000) / 1000,
-                        ...pfSuggestRecipe(f, k),
+                        ...pfSuggestRecipe(f, q),
                         poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
                       });
                     }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
@@ -1741,10 +1751,9 @@ function ProProduction({ pass }) {
                   <button onClick={() => {
                     const poidsCuitNecessaire = pfNum(p.nb) * (pfNum(p.format_g) / 1000);
                     const q = poidsCuitNecessaire / 0.9; // poids cru nécessaire (rendement 90%), kg
-                    const k = q / 7.7;
                     change({
                       oignon_kg: Math.round(q * 1000) / 1000,
-                      ...pfSuggestRecipe(f, k),
+                      ...pfSuggestRecipe(f, q),
                       poids_fini_kg: Math.round(poidsCuitNecessaire * 100) / 100,
                     });
                   }} className="ca-tap" style={{ background: "#fff", border: `1.5px dashed ${PF.navy}`, color: PF.navy, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Calculer les achats nécessaires pour {p.nb} {unitWord}(s)</button>
