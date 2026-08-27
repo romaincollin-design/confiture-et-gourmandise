@@ -1154,13 +1154,15 @@ function pfCalc(f, rendementEstime) {
     const cEmb = pfNum(p.px_bocal) + pfNum(p.px_capuchon) + coutAccomp;
     const cProd = coutKg !== null ? coutKg * formatKg : null;
     const cTot = cProd !== null ? cProd + cEmb : null;
-    const pxv = (p.px_vente === "" || p.px_vente == null) ? null : pfNum(p.px_vente);
+    const pxKgRef = pfNum(f.px_vente_kg);
+    const pxVenteSuggere = (pxKgRef && formatKg) ? Math.round(pxKgRef * formatKg * 100) / 100 : null;
+    const pxv = (p.px_vente === "" || p.px_vente == null) ? pxVenteSuggere : pfNum(p.px_vente);
     const mU = (pxv != null && cTot !== null) ? pxv - cTot : null;
     const coefU = (pxv != null && cTot) ? pxv / cTot : null;
     poidsAlloue += formatKg * nb; coutEmballageTotal += cEmb * nb; nbPotsTotal += nb;
     if (cTot !== null) coutProduitTotal += cTot * nb;
     if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
-    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU };
+    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere };
   });
   const ecartPoids = poidsDispoPots !== null ? poidsDispoPots - poidsAlloue : null;
   const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
@@ -1769,17 +1771,9 @@ function ProProduction({ pass }) {
           <div style={{ background: "#f6efdd", border: `1px solid ${PF.yellow}55`, borderRadius: 12, padding: 12, marginBottom: 14, display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 160px", minWidth: 140 }}>
               <Lbl>Prix de vente au kg (repère)</Lbl>
-              <input inputMode="decimal" value={f.px_vente_kg == null ? "" : String(f.px_vente_kg).replace(".", ",")} placeholder="ex. 35" onChange={(e) => {
-                const raw = e.target.value.replace(",", ".");
-                const pxKg = pfNum(raw);
-                const pots = (f.pots || []).map((p) => {
-                  if (pfNum(p.px_vente) || !pfNum(p.format_g) || !pxKg) return p;
-                  return { ...p, px_vente: Math.round(pxKg * pfNum(p.format_g) / 1000 * 100) / 100 };
-                });
-                change({ px_vente_kg: raw, pots });
-              }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+              <input inputMode="decimal" value={f.px_vente_kg == null ? "" : String(f.px_vente_kg).replace(".", ",")} placeholder="ex. 35" onChange={(e) => change({ px_vente_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
             </div>
-            <div style={{ fontSize: 11.5, color: C.soft, flex: "2 1 220px" }}>Renseigne un prix au kg : chaque format ci-dessous te proposera son prix de vente calculé automatiquement (modifiable ensuite).</div>
+            <div style={{ fontSize: 11.5, color: C.soft, flex: "2 1 220px" }}>Renseigne un prix au kg : chaque format ci-dessous affiche et calcule automatiquement son prix de vente suggéré (tape un chiffre pour le remplacer).</div>
           </div>
 
           {FAM.key === "kit_pissaladiere" && (() => {
@@ -1920,7 +1914,16 @@ function ProProduction({ pass }) {
                   <Lbl>Coefficient de vente</Lbl>
                   <input inputMode="decimal" value={p.coef_vente == null ? "" : String(p.coef_vente).replace(".", ",")} placeholder="ex. 3" onChange={(e) => { const pots = [...f.pots]; pots[i] = { ...pots[i], coef_vente: e.target.value.replace(",", ".") }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
                 </div>
-                {NF("Prix de vente", "px_vente", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                {(() => {
+                  const isEmpty = p.px_vente === "" || p.px_vente == null;
+                  const dv = isEmpty ? pl.pxVenteSuggere : p.px_vente;
+                  return (
+                    <div style={{ flex: "1 1 120px", minWidth: 110 }}>
+                      <Lbl>Prix de vente <span style={{ color: C.soft, fontWeight: 400 }}> (€)</span></Lbl>
+                      <input inputMode="decimal" value={dv == null || dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => { const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: e.target.value.replace(",", ".") }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, color: isEmpty && dv != null ? PF.navy : C.ink }} />
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft, alignItems: "center" }}>
                 {(() => {
