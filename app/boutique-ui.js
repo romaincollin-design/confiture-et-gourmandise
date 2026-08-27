@@ -1146,6 +1146,7 @@ function pfCalc(f, rendementEstime) {
   const pots = f.pots || [];
   let poidsAlloue = 0, coutEmballageTotal = 0, nbPotsTotal = 0, coutProduitTotal = 0, margeTotale = 0, revenuTotal = 0, nbPotsPrix = 0, coutProduitAvecPrix = 0;
   let poidsCumulAvant = 0; // poids déjà alloué aux formats précédents (cumul séquentiel)
+  let coefSum = 0, coefCount = 0, margeSumParUnite = 0, prixSumParUnite = 0; // moyenne non pondérée (par ligne), utilisée si aucune quantité n'est encore saisie
   const potLines = pots.map((p) => {
     const nb = pfNum(p.nb);
     const formatKg = pfNum(p.format_g) / 1000;
@@ -1166,13 +1167,15 @@ function pfCalc(f, rendementEstime) {
     poidsAlloue += formatKg * nb; coutEmballageTotal += cEmb * nb; nbPotsTotal += nb;
     if (cTot !== null) coutProduitTotal += cTot * nb;
     if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
+    if (coefU != null) { coefSum += coefU; coefCount++; margeSumParUnite += mU || 0; prixSumParUnite += pxv; }
     return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere, poidsRestantAvant, poidsRestantApres };
   });
   const ecartPoids = poidsDispoPots !== null ? poidsDispoPots - poidsAlloue : null;
   const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
-  const margeMoyenne = nbPotsPrix ? margeTotale / nbPotsPrix : null;
-  const coefMoyen = coutProduitAvecPrix ? revenuTotal / coutProduitAvecPrix : null;
-  const prixVenteMoyen = nbPotsPrix ? revenuTotal / nbPotsPrix : null;
+  // priorité au calcul pondéré par quantité (nb) s'il existe (reflète le vrai mix de ventes prévu) ; sinon, moyenne simple par format (utile même sans quantité renseignée)
+  const margeMoyenne = nbPotsPrix ? margeTotale / nbPotsPrix : (coefCount ? margeSumParUnite / coefCount : null);
+  const coefMoyen = coutProduitAvecPrix ? revenuTotal / coutProduitAvecPrix : (coefCount ? coefSum / coefCount : null);
+  const prixVenteMoyen = nbPotsPrix ? revenuTotal / nbPotsPrix : (coefCount ? prixSumParUnite / coefCount : null);
   // vente des plaques (pissaladière uniquement) — déclinaison séparée des pots
   const nbPlaques = pfNum(f.pissa_nb_plaques);
   const coutPlaque = (coutKg != null && pfNum(f.pissa_poids_plaque)) ? coutKg * pfNum(f.pissa_poids_plaque) : null;
@@ -1199,6 +1202,7 @@ function ProProduction({ pass }) {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [cumulFormat, setCumulFormat] = useState("");
+  const [selectionManuelle, setSelectionManuelle] = useState(null); // null = pas de selection manuelle (utilise les dates) ; Set d'ids sinon
   const timer = useRef(null);
 
   const load = async () => {
@@ -1317,9 +1321,10 @@ function ProProduction({ pass }) {
   if (view === "list") {
     const isPissa = isPissaFam(famille);
     const famBatches = batches.filter((b) => (b.famille || "pissaladiere") === famille);
-    const cols = isPissa ? ["Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
-    // cumul sur la plage de dates sélectionnée (plusieurs fiches différentes de la liste)
+    const cols = isPissa ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
+    // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
     const batchesPeriode = isPissa ? famBatches.filter((b) => {
+      if (selectionManuelle) return selectionManuelle.has(b.id);
       if (!b.date) return false;
       if (dateDebut && b.date < dateDebut) return false;
       if (dateFin && b.date > dateFin) return false;
@@ -1335,6 +1340,7 @@ function ProProduction({ pass }) {
     });
     const cumulCoutKg = cumulCuit > 0 ? cumulRevient / cumulCuit : null;
     const cumulNbFormat = (cumulCuit > 0 && pfNum(cumulFormat) > 0) ? Math.floor((cumulCuit * 1000) / pfNum(cumulFormat)) : null;
+    const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
     return (
       <div className="ca-anim">
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
@@ -1363,22 +1369,33 @@ function ProProduction({ pass }) {
 
         {isPissa && famBatches.length > 0 && (
           <div style={{ ...card(), marginBottom: 14 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumul sur une période (plusieurs fournées de la liste)</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 140px", minWidth: 130 }}>
-                <Lbl>Du</Lbl>
-                <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
-              </div>
-              <div style={{ flex: "1 1 140px", minWidth: 130 }}>
-                <Lbl>Au</Lbl>
-                <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
-              </div>
-              {(dateDebut || dateFin) && <button onClick={() => { setDateDebut(""); setDateFin(""); }} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Réinitialiser</button>}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumul de plusieurs fournées</div>
+              {selectionManuelle ? (
+                <button onClick={() => setSelectionManuelle(null)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Revenir aux dates</button>
+              ) : (
+                <button onClick={() => setSelectionManuelle(new Set())} className="ca-tap" style={{ background: "#fff", border: `1px solid ${PF.navy}`, color: PF.navy, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>☑ Sélectionner des fournées à la main</button>
+              )}
             </div>
+            {selectionManuelle ? (
+              <div style={{ fontSize: 12.5, color: C.soft }}>Coche les fournées voulues dans le tableau ci-dessous (colonne de gauche) — {selectionManuelle.size} sélectionnée{selectionManuelle.size > 1 ? "s" : ""}.</div>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+                <div style={{ flex: "1 1 140px", minWidth: 130 }}>
+                  <Lbl>Du</Lbl>
+                  <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+                </div>
+                <div style={{ flex: "1 1 140px", minWidth: 130 }}>
+                  <Lbl>Au</Lbl>
+                  <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+                </div>
+                {(dateDebut || dateFin) && <button onClick={() => { setDateDebut(""); setDateFin(""); }} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Réinitialiser</button>}
+              </div>
+            )}
             {batchesPeriode.length > 0 ? (
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.7 }}>
-                  <b>{batchesPeriode.length} fournée{batchesPeriode.length > 1 ? "s" : ""}</b>{(dateDebut || dateFin) ? ` (${dateDebut ? new Date(dateDebut).toLocaleDateString("fr-FR") : "…"} → ${dateFin ? new Date(dateFin).toLocaleDateString("fr-FR") : "…"})` : " (toutes)"} :
+                  <b>{batchesPeriode.length} fournée{batchesPeriode.length > 1 ? "s" : ""}</b>{selectionManuelle ? " sélectionnée(s)" : ((dateDebut || dateFin) ? ` (${dateDebut ? new Date(dateDebut).toLocaleDateString("fr-FR") : "…"} → ${dateFin ? new Date(dateFin).toLocaleDateString("fr-FR") : "…"})` : " (toutes)")} :
                   <b style={{ color: PF.navy, marginLeft: 6 }}>{cumulOignon.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>{cumulCuit.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b>{cumulEstime ? "*" : ""}
                   {cumulCoutKg != null && <> · coût de revient <b style={{ color: PF.navy }}>{eur2(cumulCoutKg)}/kg</b> (total {eur2(cumulRevient)})</>}
                 </div>
@@ -1394,7 +1411,7 @@ function ProProduction({ pass }) {
                 {cumulEstime && <div style={{ fontSize: 11, color: C.soft, marginTop: 6, fontStyle: "italic" }}>* au moins une fournée de la période a un poids cuit estimé (non pesé)</div>}
               </div>
             ) : (
-              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 10 }}>Aucune fournée dans cette période.</div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 10 }}>Aucune fournée {selectionManuelle ? "sélectionnée" : "dans cette période"}.</div>
             )}
           </div>
         )}
@@ -1407,8 +1424,9 @@ function ProProduction({ pass }) {
                   {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: i > 1 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
                 </tr></thead>
                 <tbody>
-                  {famBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); return (
-                    <tr key={f.id} onClick={() => openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                  {famBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
+                    <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
+                      {isPissa && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
                       <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
                       <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}{f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
