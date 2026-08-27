@@ -1446,18 +1446,20 @@ function ProProduction({ pass }) {
           {isPissa && PF_ING.map((ing) => {
             const chosenUnit = pfDisplayUnit(f, ing);
             const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
+            const sameUnit = chosenUnit === ing.unit;
             const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
-            const displayVal = isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000;
+            // si l'unité affichée est l'unité native (cas normal), on affiche/stocke le texte brut tel quel (pas de recalcul à chaque frappe, la virgule ne saute plus)
+            const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
             return (
               <div key={ing.key} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
                   <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
                   <div style={{ flex: "1 1 90px", minWidth: 80 }}>
                     <Lbl>Quantité</Lbl>
-                    <input inputMode="decimal" value={displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
+                    <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
                       const raw = e.target.value.replace(",", ".");
-                      const stored = raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000;
-                      if (ing.key === "oignon") {
+                      const stored = sameUnit ? raw : (raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000);
+                      if (ing.key === "oignon" && raw !== "" && !isNaN(parseFloat(raw))) {
                         const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
                         change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
                       } else {
@@ -1518,16 +1520,16 @@ function ProProduction({ pass }) {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {PF_ING.map((ing) => {
                         const chosenUnit = pfDisplayUnit(f, ing);
+                        const sameUnit = chosenUnit === ing.unit;
                         const isEmpty = r[ing.qf] == null || r[ing.qf] === "";
-                        const baseQty = isEmpty ? 0 : pfNum(r[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit];
-                        const dv = isEmpty ? "" : Math.round(baseQty * PF_UNIT_OPTS[ing.family][chosenUnit] * 1000) / 1000;
+                        const dv = sameUnit ? r[ing.qf] : (isEmpty ? "" : Math.round((pfNum(r[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit]) * PF_UNIT_OPTS[ing.family][chosenUnit] * 1000) / 1000);
                         return (
                           <div key={ing.key} style={{ flex: "1 1 80px", minWidth: 72 }}>
                             <Lbl>{ing.label} ({chosenUnit})</Lbl>
-                            <input inputMode="decimal" value={dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
+                            <input inputMode="decimal" value={dv == null || dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
                               const raw = e.target.value.replace(",", ".");
-                              const stored = raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000;
-                              if (ing.key === "oignon" && raw !== "") {
+                              const stored = sameUnit ? raw : (raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000);
+                              if (ing.key === "oignon" && raw !== "" && !isNaN(parseFloat(raw))) {
                                 const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
                                 updateRonde(idx, { [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
                               } else {
