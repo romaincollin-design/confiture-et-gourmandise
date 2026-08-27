@@ -1093,10 +1093,14 @@ function pfCalc(f, rendementEstime) {
   // fournées supplémentaires du même jour (mêmes prix/unités que la fournée principale, quantités propres à chacune)
   const rondesExtra = f.rounds_extra || [];
   let oignonTotalRondes = pfNum(f.oignon_kg);
+  const poidsCuitDe = (oignonCru, poidsFini) => (poidsFini !== "" && poidsFini != null) ? pfNum(poidsFini) : pfNum(oignonCru) * 0.9; // estimé à 90% si non pesé
+  let poidsCuitTotalRondes = poidsCuitDe(f.oignon_kg, f.poids_fini_kg);
   rondesExtra.forEach((r) => {
     PF_ING.forEach((ing) => { totalMatieres += (pfNum(r[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
     oignonTotalRondes += pfNum(r.oignon_kg);
+    poidsCuitTotalRondes += poidsCuitDe(r.oignon_kg, r.poids_fini_kg);
   });
+  const ratioMoyenJour = oignonTotalRondes > 0 ? poidsCuitTotalRondes / oignonTotalRondes : 0;
   const nbRondesTotal = 1 + rondesExtra.length;
   const tempsCuissonRondesMin = nbRondesTotal * pfNum(f.temps_par_ronde_min);
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
@@ -1167,7 +1171,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes, poidsCuitTotalRondes, ratioMoyenJour };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1533,7 +1537,7 @@ function ProProduction({ pass }) {
                         const dv = sameUnit ? r[ing.qf] : (isEmpty ? "" : Math.round((pfNum(r[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit]) * PF_UNIT_OPTS[ing.family][chosenUnit] * 1000) / 1000);
                         return (
                           <div key={ing.key} style={{ flex: "1 1 80px", minWidth: 72 }}>
-                            <Lbl>{ing.label} ({chosenUnit})</Lbl>
+                            <Lbl>{ing.label} cru ({chosenUnit})</Lbl>
                             <input inputMode="decimal" value={dv == null || dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
                               const raw = e.target.value.replace(",", ".");
                               const stored = sameUnit ? raw : (raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000);
@@ -1547,6 +1551,15 @@ function ProProduction({ pass }) {
                           </div>
                         );
                       })}
+                      <div style={{ flex: "1 1 80px", minWidth: 72 }}>
+                        <Lbl>Oignons cuits (kg)</Lbl>
+                        <input inputMode="decimal" value={r.poids_fini_kg == null || r.poids_fini_kg === "" ? "" : String(r.poids_fini_kg).replace(".", ",")} placeholder={rOignon > 0 ? String(Math.round(rOignon * 0.9 * 100) / 100).replace(".", ",") : "0"} onChange={(e) => updateRonde(idx, { poids_fini_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
+                      </div>
+                      {rOignon > 0 && (
+                        <div style={{ flex: "1 1 100px", minWidth: 90, display: "flex", flexDirection: "column", justifyContent: "flex-end", fontSize: 11, color: C.soft, fontStyle: "italic" }}>
+                          ratio {Math.round(((r.poids_fini_kg !== "" && r.poids_fini_kg != null ? pfNum(r.poids_fini_kg) : rOignon * 0.9) / rOignon) * 1000) / 10}%{r.poids_fini_kg === "" || r.poids_fini_kg == null ? " (estimé)" : ""}
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, background: "#f7f4ec", borderRadius: 8, padding: 8 }}>
                       <div style={{ flex: "1 1 80px", minWidth: 72 }}>
@@ -1590,7 +1603,7 @@ function ProProduction({ pass }) {
                 {R.nbRondesTotal > 1 && (
                   <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
                     <div>{R.nbRondesTotal} fournées × {pfNum(f.temps_par_ronde_min)} min = <b style={{ color: PF.navy }}>{Math.round(R.tempsCuissonRondesMin)} min</b> de cuisson au total ({(R.tempsCuissonRondesMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) — le reste du temps de prod ({R.tempsTotal.toLocaleString("fr-FR")} h indiquées en Main d'œuvre) peut servir à éplucher/préparer la suite.</div>
-                    <div style={{ marginTop: 4 }}>Total oignons (toutes fournées) : <b style={{ color: PF.navy }}>{R.oignonTotalRondes.toLocaleString("fr-FR")} kg</b></div>
+                    <div style={{ marginTop: 4 }}>Cumul du jour : <b style={{ color: PF.navy }}>{R.oignonTotalRondes.toLocaleString("fr-FR")} kg cru</b> → <b style={{ color: PF.good }}>{R.poidsCuitTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b> — ratio moyen du jour : <b style={{ color: PF.navy }}>{Math.round(R.ratioMoyenJour * 1000) / 10}%</b></div>
                   </div>
                 )}
               </div>
