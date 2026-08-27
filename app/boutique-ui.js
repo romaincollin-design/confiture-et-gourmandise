@@ -1080,6 +1080,7 @@ const pfBlank = (famille = "pissaladiere") => {
     pissa_poids_plaque: "", pissa_nb_plaques: "", pissa_px_vente: "", px_vente_kg: d.px_vente_kg != null ? d.px_vente_kg : "",
     nb_feux: "", kg_par_feu: d.kg_par_feu != null ? d.kg_par_feu : "", temps_cycle_min: d.temps_cycle_min != null ? d.temps_cycle_min : "",
     epluchage_kg_par_min: d.epluchage_kg_par_min != null ? d.epluchage_kg_par_min : "",
+    rounds_extra: [], temps_par_ronde_min: isPissa ? 40 : "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1089,6 +1090,15 @@ function pfCalc(f, rendementEstime) {
   let totalMatieres = 0;
   PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
   (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price); });
+  // fournées supplémentaires du même jour (mêmes prix/unités que la fournée principale, quantités propres à chacune)
+  const rondesExtra = f.rounds_extra || [];
+  let oignonTotalRondes = pfNum(f.oignon_kg);
+  rondesExtra.forEach((r) => {
+    PF_ING.forEach((ing) => { totalMatieres += (pfNum(r[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
+    oignonTotalRondes += pfNum(r.oignon_kg);
+  });
+  const nbRondesTotal = 1 + rondesExtra.length;
+  const tempsCuissonRondesMin = nbRondesTotal * pfNum(f.temps_par_ronde_min);
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
   const coutMO = tempsTotal * tauxSum;
   const coutLocal = tempsTotal * pfNum(f.taux_local);
@@ -1157,7 +1167,7 @@ function pfCalc(f, rendementEstime) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes };
 }
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
@@ -1479,6 +1489,70 @@ function ProProduction({ pass }) {
               </div>
             );
           })}
+
+          {isPissa && (() => {
+            const rondes = f.rounds_extra || [];
+            const updateRonde = (idx, patch) => { const arr = [...rondes]; arr[idx] = { ...arr[idx], ...patch }; change({ rounds_extra: arr }); };
+            const cloneFrom = (source) => {
+              const clone = {};
+              PF_ING.forEach((ing) => { clone[ing.qf] = source[ing.qf]; });
+              change({ rounds_extra: [...rondes, clone] });
+            };
+            const removeRonde = (idx) => change({ rounds_extra: rondes.filter((_, j) => j !== idx) });
+            return (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ ...h2 }}>Fournées supplémentaires (même jour)</div>
+                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Pour saisir plusieurs cuissons distinctes faites le même jour, avec des quantités différentes à chaque fois. « Dupliquer » recopie les unités déjà choisies — modifie juste les chiffres.</div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                  <button onClick={() => cloneFrom(f)} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 8, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>+ Dupliquer la fournée ci-dessus</button>
+                </div>
+                {rondes.map((r, idx) => (
+                  <div key={idx} style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: 10, marginBottom: 8, background: "#fff" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <b style={{ fontSize: 12.5, color: PF.navy }}>Fournée {idx + 2}</b>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => cloneFrom(r)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 6, padding: "4px 9px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}>Dupliquer</button>
+                        <button onClick={() => removeRonde(idx)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {PF_ING.map((ing) => {
+                        const chosenUnit = pfDisplayUnit(f, ing);
+                        const isEmpty = r[ing.qf] == null || r[ing.qf] === "";
+                        const baseQty = isEmpty ? 0 : pfNum(r[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit];
+                        const dv = isEmpty ? "" : Math.round(baseQty * PF_UNIT_OPTS[ing.family][chosenUnit] * 1000) / 1000;
+                        return (
+                          <div key={ing.key} style={{ flex: "1 1 80px", minWidth: 72 }}>
+                            <Lbl>{ing.label} ({chosenUnit})</Lbl>
+                            <input inputMode="decimal" value={dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
+                              const raw = e.target.value.replace(",", ".");
+                              const stored = raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000;
+                              if (ing.key === "oignon" && raw !== "") {
+                                const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
+                                updateRonde(idx, { [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
+                              } else {
+                                updateRonde(idx, { [ing.qf]: stored });
+                              }
+                            }} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginTop: 4 }}>
+                  {NF("Temps par fournée", "temps_par_ronde_min", "min", "40", f, (k, v) => change({ [k]: v }))}
+                </div>
+                {R.nbRondesTotal > 1 && (
+                  <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                    <div>{R.nbRondesTotal} fournées × {pfNum(f.temps_par_ronde_min)} min = <b style={{ color: PF.navy }}>{Math.round(R.tempsCuissonRondesMin)} min</b> de cuisson au total ({(R.tempsCuissonRondesMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) — le reste du temps de prod ({R.tempsTotal.toLocaleString("fr-FR")} h indiquées en Main d'œuvre) peut servir à éplucher/préparer la suite.</div>
+                    <div style={{ marginTop: 4 }}>Total oignons (toutes fournées) : <b style={{ color: PF.navy }}>{R.oignonTotalRondes.toLocaleString("fr-FR")} kg</b></div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {(f.extra || []).map((e, i) => (
             <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
               <div style={{ flex: "2 1 130px", minWidth: 110 }}>
