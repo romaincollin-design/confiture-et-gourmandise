@@ -2116,6 +2116,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
     return out;
   }, [sales, orders]);
   const costOf = (n) => { const p = (products || []).find((x) => x.name === n); return p ? Number(p.cost) || 0 : 0; };
+  const hasCost = (n) => { const p = (products || []).find((x) => x.name === n); return !!(p && Number(p.cost) > 0); };
 
   // ---- bornes de la période sélectionnée (et de la précédente) ----
   const bounds = (o) => {
@@ -2151,17 +2152,18 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const ecoule = Math.min(now - cur.start, cur.end - cur.start); // temps écoulé dans la période
 
   const agg = (a, b, cap) => {
-    const r = { ca: 0, nb: 0, qty: 0, marge: 0, prods: {} };
+    const r = { ca: 0, nb: 0, qty: 0, marge: 0, caAvecCout: 0, prods: {} };
     flux.forEach((f) => {
       const t = new Date(f.ts);
       if (t < a || t >= b) return;
       if (cap && (t - a) > cap) return;                  // comparaison à durée égale
       r.ca += f.total; r.nb += 1;
       f.items.forEach((i) => {
-        r.qty += i.qty; r.marge += (i.price - costOf(i.name)) * i.qty;
-        if (!r.prods[i.name]) r.prods[i.name] = { qty: 0, ca: 0, marge: 0 };
+        r.qty += i.qty;
+        if (hasCost(i.name)) { r.marge += (i.price - costOf(i.name)) * i.qty; r.caAvecCout += i.qty * i.price; }
+        if (!r.prods[i.name]) r.prods[i.name] = { qty: 0, ca: 0, marge: 0, coutConnu: false };
         r.prods[i.name].qty += i.qty; r.prods[i.name].ca += i.qty * i.price;
-        r.prods[i.name].marge += (i.price - costOf(i.name)) * i.qty;
+        if (hasCost(i.name)) { r.prods[i.name].marge += (i.price - costOf(i.name)) * i.qty; r.prods[i.name].coutConnu = true; }
       });
     });
     return r;
@@ -2172,7 +2174,6 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
   const GRANS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["annee","Année"],["total","Total"]];
   const PREV = { jour: "la veille", semaine: "la semaine précédente", mois: "le mois précédent", annee: "l'an dernier", total: "" };
-  const hasCoutData = (products || []).some((p) => Number(p.cost) > 0);
 
   // ---- produits de la période ----
   const prods = Object.entries(A.prods).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
@@ -2256,7 +2257,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
 
       <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
         {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
-        {kpi("Marge", hasCoutData ? eur(A.marge) : "—", hasCoutData ? (A.ca ? `${Math.round((A.marge / A.ca) * 100)} % du CA` : "—") : "prix d'achat non renseignés")}
+        {kpi("Marge", A.caAvecCout > 0 ? eur(A.marge) : "—", A.caAvecCout > 0 ? `${Math.round((A.marge / A.caAvecCout) * 100)}% · calculée sur ${Math.round((A.caAvecCout / A.ca) * 100)}% du CA (coût connu)` : "prix d'achat non renseignés")}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
       </div>
 
@@ -2314,7 +2315,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Chiffre d'affaires</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.ca)}</div></div>
-                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Marge</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.marge)}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Marge</div><div style={{ fontSize: 22, fontWeight: 700 }}>{D.caAvecCout > 0 ? eur(D.marge) : "—"}</div>{D.ca > 0 && <div style={{ fontSize: 9.5, opacity: .65, marginTop: 2 }}>{D.caAvecCout > 0 ? `sur ${Math.round((D.caAvecCout / D.ca) * 100)}% du CA` : "coûts non renseignés"}</div>}</div>
               </div>
               <div style={{ ...h2 }}>Produits vendus</div>
               {dp.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun détail.</div> : dp.map((p, i) => (
@@ -2379,7 +2380,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
             </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11, color: C.soft }}>
               <span><b style={{ color: C.ink }}>{p.qty}</b> vendus</span>
-              <span>marge <b style={{ color: p.marge > 0 ? C.ok : C.soft }}>{eur(p.marge)}</b></span>
+              <span>marge <b style={{ color: p.coutConnu ? (p.marge > 0 ? C.ok : C.soft) : C.soft }}>{p.coutConnu ? eur(p.marge) : "coût inconnu"}</b></span>
               <span><b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA</span>
             </div>
           </div>
