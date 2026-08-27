@@ -1145,6 +1145,7 @@ function pfCalc(f, rendementEstime) {
   const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
   const pots = f.pots || [];
   let poidsAlloue = 0, coutEmballageTotal = 0, nbPotsTotal = 0, coutProduitTotal = 0, margeTotale = 0, revenuTotal = 0, nbPotsPrix = 0, coutProduitAvecPrix = 0;
+  let poidsCumulAvant = 0; // poids déjà alloué aux formats précédents (cumul séquentiel)
   const potLines = pots.map((p) => {
     const nb = pfNum(p.nb);
     const formatKg = pfNum(p.format_g) / 1000;
@@ -1159,10 +1160,13 @@ function pfCalc(f, rendementEstime) {
     const pxv = (p.px_vente === "" || p.px_vente == null) ? pxVenteSuggere : pfNum(p.px_vente);
     const mU = (pxv != null && cTot !== null) ? pxv - cTot : null;
     const coefU = (pxv != null && cTot) ? pxv / cTot : null;
+    const poidsRestantAvant = poidsDispoPots != null ? poidsDispoPots - poidsCumulAvant : null;
+    poidsCumulAvant += formatKg * nb;
+    const poidsRestantApres = poidsDispoPots != null ? poidsDispoPots - poidsCumulAvant : null;
     poidsAlloue += formatKg * nb; coutEmballageTotal += cEmb * nb; nbPotsTotal += nb;
     if (cTot !== null) coutProduitTotal += cTot * nb;
     if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
-    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere };
+    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere, poidsRestantAvant, poidsRestantApres };
   });
   const ecartPoids = poidsDispoPots !== null ? poidsDispoPots - poidsAlloue : null;
   const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
@@ -1861,6 +1865,12 @@ function ProProduction({ pass }) {
                   {f.pots.length > 1 && <button onClick={() => change({ pots: f.pots.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><Trash2 size={15} /></button>}
                 </div>
               </div>
+              {R.poidsDispoPots != null && (
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 9, background: "#f6efdd", borderRadius: 8, padding: "7px 10px", fontSize: 12 }}>
+                  <span style={{ color: C.soft }}>Poids disponible avant ce format : <b style={{ color: PF.navy }}>{pl.poidsRestantAvant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</b></span>
+                  <span style={{ color: C.soft }}>Restant après ce format : <b style={{ color: pl.poidsRestantApres > 0 ? PF.good : (pl.poidsRestantApres < 0 ? PF.warn : C.soft) }}>{pl.poidsRestantApres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</b></span>
+                </div>
+              )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
                 {NF("Format", "format_g", "g", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {labels[0] && NF(labels[0], "px_bocal", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
@@ -1980,7 +1990,7 @@ function ProProduction({ pass }) {
                     : [labels[0], labels[1], labels[2]].map((l, li) => l && `${eur3([p.px_bocal, p.px_capuchon, p.px_etiquette][li])} (${l})`).filter(Boolean).join(" + ")
                   } = <b>{eur3(pl.coutUnitaireEmballage)}</b>
                   <br />coût total : {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = <b>{eur3(cTot)}</b> (coût du {unitWord})
-                  {pl.margeUnitaire != null && <><br />marge : {eur2(pfNum(p.px_vente))} (prix de vente) − {eur3(cTot)} (coût) = <b>{eur3(pl.margeUnitaire)}</b></>}
+                  {pl.margeUnitaire != null && <><br />marge : {eur2(pl.pxVenteEffectif)} (prix de vente) − {eur3(cTot)} (coût) = <b>{eur3(pl.margeUnitaire)}</b></>}
                 </div>
               )}
             </div>
