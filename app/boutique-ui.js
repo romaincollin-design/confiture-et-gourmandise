@@ -1089,7 +1089,6 @@ function pfCalc(f, rendementEstime) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
   let totalMatieres = 0;
   PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
-  (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price); });
   // fournées supplémentaires du même jour (mêmes prix/unités que la fournée principale, quantités propres à chacune)
   const rondesExtra = f.rounds_extra || [];
   let oignonTotalRondes = pfNum(f.oignon_kg);
@@ -1104,6 +1103,8 @@ function pfCalc(f, rendementEstime) {
   });
   const ratioMoyenJour = oignonTotalRondes > 0 ? poidsCuitTotalRondes / oignonTotalRondes : 0;
   const nbRondesTotal = 1 + rondesExtra.length;
+  // ingrédients libres (ex. vin blanc) : utilisés à chaque fournée/tournée du jour, donc comptés une fois par fournée
+  (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price) * nbRondesTotal; });
   const tempsCuissonRondesMin = nbRondesTotal * pfNum(f.temps_par_ronde_min);
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
   const coutMO = tempsTotal * tauxSum;
@@ -1559,11 +1560,19 @@ function ProProduction({ pass }) {
                         <Lbl>Oignons cuits (kg)</Lbl>
                         <input inputMode="decimal" value={r.poids_fini_kg == null || r.poids_fini_kg === "" ? "" : String(r.poids_fini_kg).replace(".", ",")} placeholder={rOignon > 0 ? String(Math.round(rOignon * 0.9 * 100) / 100).replace(".", ",") : "0"} onChange={(e) => updateRonde(idx, { poids_fini_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
                       </div>
-                      {rOignon > 0 && (
-                        <div style={{ flex: "1 1 100px", minWidth: 90, display: "flex", flexDirection: "column", justifyContent: "flex-end", fontSize: 11, color: C.soft, fontStyle: "italic" }}>
-                          ratio {Math.round(((r.poids_fini_kg !== "" && r.poids_fini_kg != null ? pfNum(r.poids_fini_kg) : rOignon * 0.9) / rOignon) * 1000) / 10}%{r.poids_fini_kg === "" || r.poids_fini_kg == null ? " (estimé)" : ""}
-                        </div>
-                      )}
+                      {rOignon > 0 && (() => {
+                        const rEstime = r.poids_fini_kg === "" || r.poids_fini_kg == null;
+                        const rRatio = Math.round((((rEstime ? rOignon * 0.9 : pfNum(r.poids_fini_kg))) / rOignon) * 1000) / 10;
+                        return (
+                          <div style={{ flex: "0 1 110px", minWidth: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                            <Lbl>Ratio</Lbl>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
+                              <span style={{ fontSize: 22, fontWeight: 800, color: PF.navy }}>{rRatio}<span style={{ fontSize: 12 }}>%</span></span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: rEstime ? PF.ochre : PF.good, borderRadius: 5, padding: "2px 6px" }}>{rEstime ? "Estimé" : "Mesuré"}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, background: "#f7f4ec", borderRadius: 8, padding: 8 }}>
                       <div style={{ flex: "1 1 80px", minWidth: 72 }}>
