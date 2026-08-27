@@ -1196,6 +1196,9 @@ function ProProduction({ pass }) {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [etab, setEtab] = useState("mat");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+  const [cumulFormat, setCumulFormat] = useState("");
   const timer = useRef(null);
 
   const load = async () => {
@@ -1315,6 +1318,23 @@ function ProProduction({ pass }) {
     const isPissa = isPissaFam(famille);
     const famBatches = batches.filter((b) => (b.famille || "pissaladiere") === famille);
     const cols = isPissa ? ["Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
+    // cumul sur la plage de dates sélectionnée (plusieurs fiches différentes de la liste)
+    const batchesPeriode = isPissa ? famBatches.filter((b) => {
+      if (!b.date) return false;
+      if (dateDebut && b.date < dateDebut) return false;
+      if (dateFin && b.date > dateFin) return false;
+      return true;
+    }) : [];
+    let cumulOignon = 0, cumulCuit = 0, cumulRevient = 0, cumulEstime = false;
+    batchesPeriode.forEach((b) => {
+      const rb = pfCalc(b, rendementEstime);
+      cumulOignon += rb.oignonTotalRondes || 0;
+      cumulCuit += rb.poidsFini || 0;
+      cumulRevient += rb.revientHE || 0;
+      if (rb.isEstimated) cumulEstime = true;
+    });
+    const cumulCoutKg = cumulCuit > 0 ? cumulRevient / cumulCuit : null;
+    const cumulNbFormat = (cumulCuit > 0 && pfNum(cumulFormat) > 0) ? Math.floor((cumulCuit * 1000) / pfNum(cumulFormat)) : null;
     return (
       <div className="ca-anim">
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
@@ -1338,6 +1358,44 @@ function ProProduction({ pass }) {
               <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 80, textAlign: "center" }} />
               <span style={{ fontWeight: 700, color: PF.navy }}>%</span>
             </div>
+          </div>
+        )}
+
+        {isPissa && famBatches.length > 0 && (
+          <div style={{ ...card(), marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumul sur une période (plusieurs fournées de la liste)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 140px", minWidth: 130 }}>
+                <Lbl>Du</Lbl>
+                <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+              </div>
+              <div style={{ flex: "1 1 140px", minWidth: 130 }}>
+                <Lbl>Au</Lbl>
+                <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={{ ...inp(), marginTop: 4 }} />
+              </div>
+              {(dateDebut || dateFin) && <button onClick={() => { setDateDebut(""); setDateFin(""); }} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Réinitialiser</button>}
+            </div>
+            {batchesPeriode.length > 0 ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.7 }}>
+                  <b>{batchesPeriode.length} fournée{batchesPeriode.length > 1 ? "s" : ""}</b>{(dateDebut || dateFin) ? ` (${dateDebut ? new Date(dateDebut).toLocaleDateString("fr-FR") : "…"} → ${dateFin ? new Date(dateFin).toLocaleDateString("fr-FR") : "…"})` : " (toutes)"} :
+                  <b style={{ color: PF.navy, marginLeft: 6 }}>{cumulOignon.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>{cumulCuit.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b>{cumulEstime ? "*" : ""}
+                  {cumulCoutKg != null && <> · coût de revient <b style={{ color: PF.navy }}>{eur2(cumulCoutKg)}/kg</b> (total {eur2(cumulRevient)})</>}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end", marginTop: 10 }}>
+                  <div style={{ flex: "1 1 140px", minWidth: 130 }}>
+                    <Lbl>Format à tester (g)</Lbl>
+                    <input inputMode="decimal" value={cumulFormat} placeholder="ex. 250" onChange={(e) => setCumulFormat(e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 4 }} />
+                  </div>
+                  {cumulNbFormat != null && (
+                    <div style={{ fontSize: 13, color: C.ink, paddingBottom: 10 }}>→ <b style={{ color: PF.navy }}>{cumulNbFormat} pot(s)/kit(s)</b> possibles de {pfNum(cumulFormat)} g avec ce cumul</div>
+                  )}
+                </div>
+                {cumulEstime && <div style={{ fontSize: 11, color: C.soft, marginTop: 6, fontStyle: "italic" }}>* au moins une fournée de la période a un poids cuit estimé (non pesé)</div>}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 10 }}>Aucune fournée dans cette période.</div>
+            )}
           </div>
         )}
 
