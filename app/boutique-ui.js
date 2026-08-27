@@ -1498,6 +1498,8 @@ function ProProduction({ pass }) {
             const cloneFrom = (source) => {
               const clone = {};
               PF_ING.forEach((ing) => { clone[ing.qf] = source[ing.qf]; });
+              clone.nb_feux = source.nb_feux != null ? source.nb_feux : f.nb_feux;
+              clone.temps_cuisson_min = source.temps_cuisson_min != null ? source.temps_cuisson_min : f.temps_cycle_min;
               change({ rounds_extra: [...rondes, clone] });
             };
             const removeRonde = (idx) => change({ rounds_extra: rondes.filter((_, j) => j !== idx) });
@@ -1508,7 +1510,13 @@ function ProProduction({ pass }) {
                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                   <button onClick={() => cloneFrom(f)} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 8, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>+ Dupliquer la fournée ci-dessus</button>
                 </div>
-                {rondes.map((r, idx) => (
+                {rondes.map((r, idx) => {
+                  const rNbFeux = pfNum(r.nb_feux);
+                  const rKgParFeu = pfNum(f.kg_par_feu);
+                  const rOignon = pfNum(r.oignon_kg);
+                  const rTournees = rNbFeux > 0 && rKgParFeu > 0 && rOignon > 0 ? Math.ceil(rOignon / (rNbFeux * rKgParFeu)) : 0;
+                  const rTempsTotal = rTournees * pfNum(r.temps_cuisson_min);
+                  return (
                   <div key={idx} style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: 10, marginBottom: 8, background: "#fff" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <b style={{ fontSize: 12.5, color: PF.navy }}>Fournée {idx + 2}</b>
@@ -1518,7 +1526,7 @@ function ProProduction({ pass }) {
                       </div>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {PF_ING.map((ing) => {
+                      {PF_ING.filter((ing) => ing.key === "oignon").map((ing) => {
                         const chosenUnit = pfDisplayUnit(f, ing);
                         const sameUnit = chosenUnit === ing.unit;
                         const isEmpty = r[ing.qf] == null || r[ing.qf] === "";
@@ -1529,7 +1537,7 @@ function ProProduction({ pass }) {
                             <input inputMode="decimal" value={dv == null || dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
                               const raw = e.target.value.replace(",", ".");
                               const stored = sameUnit ? raw : (raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000);
-                              if (ing.key === "oignon" && raw !== "" && !isNaN(parseFloat(raw))) {
+                              if (raw !== "" && !isNaN(parseFloat(raw))) {
                                 const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
                                 updateRonde(idx, { [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
                               } else {
@@ -1540,8 +1548,42 @@ function ProProduction({ pass }) {
                         );
                       })}
                     </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, background: "#f7f4ec", borderRadius: 8, padding: 8 }}>
+                      <div style={{ flex: "1 1 80px", minWidth: 72 }}>
+                        <Lbl>Nombre de feux</Lbl>
+                        <input inputMode="decimal" value={r.nb_feux == null ? "" : String(r.nb_feux).replace(".", ",")} placeholder="0" onChange={(e) => updateRonde(idx, { nb_feux: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
+                      </div>
+                      <div style={{ flex: "1 1 80px", minWidth: 72 }}>
+                        <Lbl>Temps de cuisson (min)</Lbl>
+                        <input inputMode="decimal" value={r.temps_cuisson_min == null ? "" : String(r.temps_cuisson_min).replace(".", ",")} placeholder="40" onChange={(e) => updateRonde(idx, { temps_cuisson_min: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
+                      </div>
+                      {rTournees > 0 && (
+                        <div style={{ flex: "2 1 200px", minWidth: 180, display: "flex", alignItems: "center", fontSize: 11.5, color: C.ink }}>
+                          {rOignon} kg ÷ ({rNbFeux} feux × {rKgParFeu} kg/feu réf.) = <b style={{ margin: "0 4px", color: PF.navy }}>{rTournees} rotation{rTournees > 1 ? "s" : ""}</b> × {pfNum(r.temps_cuisson_min)} min = <b style={{ marginLeft: 4, color: PF.navy }}>{Math.round(rTempsTotal)} min</b>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {PF_ING.filter((ing) => ing.key !== "oignon").map((ing) => {
+                        const chosenUnit = pfDisplayUnit(f, ing);
+                        const sameUnit = chosenUnit === ing.unit;
+                        const isEmpty = r[ing.qf] == null || r[ing.qf] === "";
+                        const dv = sameUnit ? r[ing.qf] : (isEmpty ? "" : Math.round((pfNum(r[ing.qf]) / PF_UNIT_OPTS[ing.family][ing.unit]) * PF_UNIT_OPTS[ing.family][chosenUnit] * 1000) / 1000);
+                        return (
+                          <div key={ing.key} style={{ flex: "1 1 80px", minWidth: 72 }}>
+                            <Lbl>{ing.label} ({chosenUnit})</Lbl>
+                            <input inputMode="decimal" value={dv == null || dv === "" ? "" : String(dv).replace(".", ",")} placeholder="0" onChange={(e) => {
+                              const raw = e.target.value.replace(",", ".");
+                              const stored = sameUnit ? raw : (raw === "" ? "" : Math.round((pfNum(raw) / PF_UNIT_OPTS[ing.family][chosenUnit]) * PF_UNIT_OPTS[ing.family][ing.unit] * 1000) / 1000);
+                              updateRonde(idx, { [ing.qf]: stored });
+                            }} style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px" }} />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginTop: 4 }}>
                   {NF("Temps par fournée", "temps_par_ronde_min", "min", "40", f, (k, v) => change({ [k]: v }))}
                 </div>
