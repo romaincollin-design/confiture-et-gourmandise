@@ -1095,10 +1095,12 @@ function pfCalc(f, rendementEstime) {
   let oignonTotalRondes = pfNum(f.oignon_kg);
   const poidsCuitDe = (oignonCru, poidsFini) => (poidsFini !== "" && poidsFini != null) ? pfNum(poidsFini) : pfNum(oignonCru) * 0.9; // estimé à 90% si non pesé
   let poidsCuitTotalRondes = poidsCuitDe(f.oignon_kg, f.poids_fini_kg);
+  let uneEstimationRondes = f.poids_fini_kg === "" || f.poids_fini_kg == null;
   rondesExtra.forEach((r) => {
     PF_ING.forEach((ing) => { totalMatieres += (pfNum(r[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
     oignonTotalRondes += pfNum(r.oignon_kg);
     poidsCuitTotalRondes += poidsCuitDe(r.oignon_kg, r.poids_fini_kg);
+    if (r.poids_fini_kg === "" || r.poids_fini_kg == null) uneEstimationRondes = true;
   });
   const ratioMoyenJour = oignonTotalRondes > 0 ? poidsCuitTotalRondes / oignonTotalRondes : 0;
   const nbRondesTotal = 1 + rondesExtra.length;
@@ -1109,10 +1111,12 @@ function pfCalc(f, rendementEstime) {
   const coutTransport = pfNum(f.transport);
   const coutFraisExtra = (f.frais_extra || []).reduce((sum, x) => sum + pfNum(x.montant), 0);
   const revientHE = totalMatieres + coutMO + coutLocal + coutTransport + coutFraisExtra;
-  let poidsFini = f.poids_fini_kg !== "" && f.poids_fini_kg != null ? pfNum(f.poids_fini_kg) : null;
-  let isEstimated = false;
-  if (!poidsFini && pfNum(f.oignon_kg) && rendementEstime) { poidsFini = pfNum(f.oignon_kg) * (rendementEstime / 100); isEstimated = true; }
-  const rendement = (poidsFini && pfNum(f.oignon_kg)) ? poidsFini / pfNum(f.oignon_kg) : null;
+  const hasRondes = rondesExtra.length > 0;
+  let poidsFini = hasRondes ? poidsCuitTotalRondes : (f.poids_fini_kg !== "" && f.poids_fini_kg != null ? pfNum(f.poids_fini_kg) : null);
+  let isEstimated = hasRondes ? uneEstimationRondes : false;
+  if (!hasRondes && !poidsFini && pfNum(f.oignon_kg) && rendementEstime) { poidsFini = pfNum(f.oignon_kg) * (rendementEstime / 100); isEstimated = true; }
+  const oignonBaseRendement = hasRondes ? oignonTotalRondes : pfNum(f.oignon_kg);
+  const rendement = (poidsFini && oignonBaseRendement) ? poidsFini / oignonBaseRendement : null;
   const coutKg = poidsFini ? revientHE / poidsFini : null;
   // rendement générique (hors pissaladière) : poids brut = somme des ingrédients pesables (g/kg/ml/cl/L), les ingrédients "à la pièce" (œufs, citrons…) sont exclus faute de poids connu
   let poidsBrut = 0;
