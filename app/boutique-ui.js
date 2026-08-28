@@ -1431,9 +1431,9 @@ function ProProduction({ pass }) {
                       <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}{f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
                       <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
-                      {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: PF.navy }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
+                      {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
                       <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutKg)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.ochre }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap" }}>{eur3(r.margeMoyenne)}</td>
                     </tr>
                   ); })}
