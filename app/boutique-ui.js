@@ -2264,6 +2264,9 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
       {enCours && gran !== "total" && (
         <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
           Comparaison honnête : {PREV[gran]} est mesuré <b>sur la même durée écoulée</b> ({eur(B.ca)}), pas sur la période complète.
+          {ecoule > 0 && (cur.end - cur.start) > ecoule && (
+            <div style={{ marginTop: 4 }}>À ce rythme, projection en fin de {gran === "jour" ? "journée" : gran === "semaine" ? "semaine" : gran === "mois" ? "mois" : "année"} : <b>≈ {eur(A.ca * (cur.end - cur.start) / ecoule)}</b></div>
+          )}
         </div>
       )}
 
