@@ -1081,11 +1081,12 @@ const pfBlank = (famille = "pissaladiere") => {
     nb_feux: "", kg_par_feu: d.kg_par_feu != null ? d.kg_par_feu : "", temps_cycle_min: d.temps_cycle_min != null ? d.temps_cycle_min : "",
     epluchage_kg_par_min: d.epluchage_kg_par_min != null ? d.epluchage_kg_par_min : "",
     rounds_extra: [], temps_par_ronde_min: isPissa ? 40 : "",
+    autres_fournees_ids: d.autres_fournees_ids ? [...d.autres_fournees_ids] : [],
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
 
-function pfCalc(f, rendementEstime) {
+function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
   let totalMatieres = 0;
   PF_ING.forEach((ing) => { totalMatieres += (pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]); });
@@ -1142,7 +1143,8 @@ function pfCalc(f, rendementEstime) {
   const tempsEpluchageTotalMin = epluchageKgParMin > 0 ? quantiteBruteProcess / epluchageKgParMin : 0;
   const tempsEpluchageParPersonneMin = nbPersonnelEpluchage > 0 ? tempsEpluchageTotalMin / nbPersonnelEpluchage : tempsEpluchageTotalMin;
   const poidsPissa = pfNum(f.pissa_poids_plaque) * pfNum(f.pissa_nb_plaques);
-  const poidsDispoPots = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : null;
+  const poidsDispoBase = poidsFini != null ? Math.max(0, poidsFini - poidsPissa) : 0;
+  const poidsDispoPots = (poidsFini != null || poidsExtraDispo > 0) ? poidsDispoBase + poidsExtraDispo : null;
   const pots = f.pots || [];
   let poidsAlloue = 0, coutEmballageTotal = 0, nbPotsTotal = 0, coutProduitTotal = 0, margeTotale = 0, revenuTotal = 0, nbPotsPrix = 0, coutProduitAvecPrix = 0;
   let poidsCumulAvant = 0; // poids déjà alloué aux formats précédents (cumul séquentiel)
@@ -1240,7 +1242,9 @@ function ProProduction({ pass }) {
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
-  const R = cur ? pfCalc(cur, rendementEstime) : null;
+  const autresFourneesSelectionnees = cur ? batches.filter((b) => (cur.autres_fournees_ids || []).includes(b.id) && b.id !== cur.id) : [];
+  const poidsAutresFournees = autresFourneesSelectionnees.reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
+  const R = cur ? pfCalc(cur, rendementEstime, poidsAutresFournees) : null;
 
   // -------- champ numérique --------
   const NF = (l, key, unit, ph, obj, on) => (
