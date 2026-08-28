@@ -50,14 +50,13 @@ Dans la vue liste (`view === "list"`), bloc "Cumul de plusieurs fournées" :
 - Calcule le cumul oignon cru / poids cuit / coût de revient sur les fournées choisies
 - Mini-calculateur : format en grammes → nb de pots/kits possibles
 
-### ⚠️ EN COURS — PAS ENCORE FAIT (dernière demande de Romain, pas terminée)
-1. **Le vin blanc (et les "ingrédients libres"/`extra`) doit apparaître visuellement DANS chaque bloc "Fournée N"**, pas seulement être multiplié en arrière-plan dans le total. Actuellement `f.extra` est une liste unique, affichée une seule fois en bas de la liste d'ingrédients principale, et son coût est multiplié par `nbRondesTotal` dans `pfCalc` — MAIS Romain veut que ce soit VISIBLE et modifiable à l'intérieur de chaque carte de ronde (comme les 7 ingrédients de base), pas juste un multiplicateur caché. À concevoir : soit dupliquer `extra` par ronde (plus de liberté mais plus complexe), soit au minimum afficher un texte explicite du type "× 3 fournées = X €" à côté de chaque ligne d'ingrédient libre.
-2. **Cumul d'autres fournées (par date) directement dans l'onglet Contenants & vente d'UNE fournée** — en cours d'implémentation quand la session a été interrompue :
-   - `pfCalc(f, rendementEstime, poidsExtraDispo)` a été modifié pour accepter un 3e paramètre qui s'ajoute UNIQUEMENT à `poidsDispoPots` (pas à `poidsFini`/`coutKg`, pour ne pas fausser le coût de revient de CETTE fournée avec le poids d'une autre)
-   - `pfBlank` a un nouveau champ `autres_fournees_ids: []` (IDs des autres fournées à inclure)
-   - Le calcul `poidsAutresFournees` existe déjà en haut du composant (cherche `autresFourneesSelectionnees`)
-   - **IL RESTE À FAIRE** : l'UI pour sélectionner ces autres fournées (checkboxes par date, à placer juste au-dessus de "Prix de vente au kg (repère)" dans l'onglet Contenants & vente), et l'affichage de la quantité totale d'oignons cuits (cette fournée + les autres sélectionnées) bien visible à cet endroit
-   - **Vérifier que le build passe** avant de continuer — au moment de l'interruption, le code compilait mais l'UI de sélection n'était pas encore ajoutée
+### ✅ Terminé (audit du 28/08, suite de session)
+1. **Vin blanc / ingrédients libres visibles par fournée** : un bandeau au-dessus de la liste "Ingrédients libres" rappelle qu'ils sont comptés une fois par fournée, et chaque carte "Fournée N" affiche désormais un récapitulatif en bas (`+ ingrédients libres : Vin blanc 200ml (1,20€)...`) avec le coût exact appliqué à cette ronde. Les données restent partagées (mêmes qty/prix pour toutes les rondes, comme prévu dès le départ) — seul l'affichage était manquant.
+2. **Cumul d'autres fournées dans Contenants & vente** : UI ajoutée juste au-dessus de "Prix de vente au kg (repère)". Liste à cocher des autres fournées de la même famille (titre, date, poids fini), state géré via `autres_fournees_ids`, poids cumulé affiché en direct. Le calcul back-end (`poidsExtraDispo` dans `pfCalc`) était déjà prêt, seule l'interface manquait.
+3. **Nettoyage** : suppression d'un bloc de code mort ("Process de fabrication — kit") qui testait une ancienne clé de famille (`kit_pissaladiere`) n'existant plus depuis la séparation Pissaladière/Grande fournée — ne s'affichait jamais, doublon exact de fonctionnalités déjà dans l'onglet Grande fournée.
+
+### Point de vigilance restant (non bloquant)
+- 2 fournées orphelines en base (`pissaladiere_volume`, titre vide, créées le 18/08, oignon_kg 120 et 1) portent une famille qui n'existe plus dans la liste des onglets → tombent par défaut dans l'onglet "Pissaladière". Probablement du test. Pas supprimées (jamais sans confirmation explicite de Romain) — à nettoyer si Romain confirme.
 
 ## Bugs corrigés cette session (pour référence, ne pas les réintroduire)
 
