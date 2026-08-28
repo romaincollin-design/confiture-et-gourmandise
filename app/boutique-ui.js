@@ -4147,17 +4147,27 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
           </div>
           <button onClick={addCustomLine} className="ca-tap" style={{ width: "100%", marginBottom: 10, background: "#fff", border: `1.5px dashed ${C.jam}`, color: C.jam, borderRadius: 14, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Plus size={16} /> Article libre (nom + prix + quantité)</button>
           <div className="caisse-grid" style={{ marginBottom: 6 }}>
-            {catItems.map((p) => (
-              <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : C.line}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78 }}>
+            {catItems.map((p) => {
+              const stockVal = p.stock == null ? null : Number(p.stock);
+              const epuise = stockVal === 0;
+              const faible = stockVal != null && stockVal > 0 && stockVal <= 5;
+              return (
+              <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : (epuise ? C.jam : C.line)}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78, opacity: epuise ? 0.6 : 1 }}>
                 <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
                   {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
                 </span>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-                <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
+                  {stockVal != null && (
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: epuise ? "#fff" : (faible ? "#fff" : C.soft), background: epuise ? C.jam : (faible ? C.caramel : "#f0ece0"), borderRadius: 6, padding: "2px 6px", flexShrink: 0 }}>{epuise ? "épuisé" : `${stockVal}`}</span>
+                  )}
+                </span>
                 {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
