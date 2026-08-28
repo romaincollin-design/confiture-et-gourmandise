@@ -1693,6 +1693,15 @@ function ProProduction({ pass }) {
                         );
                       })}
                     </div>
+                    {(f.extra || []).length > 0 && (
+                      <div style={{ marginTop: 8, background: "#f7f4ec", borderRadius: 8, padding: "7px 10px", fontSize: 11, color: C.ink, lineHeight: 1.5 }}>
+                        <b style={{ color: PF.navy }}>+ ingrédients libres</b> (comme la fournée principale, comptés aussi ici) : {(f.extra || []).map((e, i) => {
+                          const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+                          const cost = (pfNum(e.qty) / div) * pfNum(e.price);
+                          return `${i > 0 ? ", " : ""}${e.label || "ingrédient"} ${e.qty || 0}${e.unit === "piece" ? "" : e.unit} (${eur2(cost)})`;
+                        }).join("")}
+                      </div>
+                    )}
                   </div>
                   );
                 })}
@@ -1709,6 +1718,12 @@ function ProProduction({ pass }) {
             );
           })()}
 
+          <div style={{ marginTop: 18, ...h2 }}>Ingrédients libres <span style={{ fontWeight: 400, fontSize: 11.5, color: C.soft }}>(ex. vin blanc)</span></div>
+          {isPissa && R.nbRondesTotal > 1 && (f.extra || []).length > 0 && (
+            <div style={{ fontSize: 11.5, color: PF.navy, marginBottom: 8, lineHeight: 1.4, background: "#f6efdd", borderRadius: 8, padding: "6px 10px" }}>
+              Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessus.
+            </div>
+          )}
           {(f.extra || []).map((e, i) => (
             <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
               <div style={{ flex: "2 1 130px", minWidth: 110 }}>
@@ -1851,6 +1866,40 @@ function ProProduction({ pass }) {
       {etab === "pot" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Contenants & vente</div>
+
+          {(() => {
+            const candidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+            if (candidats.length === 0) return null;
+            const ids = new Set(f.autres_fournees_ids || []);
+            return (
+              <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 6, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumuler d'autres fournées « {FAM.label} »</div>
+                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Ajoute le poids fini d'autres fournées déjà enregistrées, pour répartir tous les pots/kits ensemble (ex. plusieurs jours de cuisson mis en pot le même jour).</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+                  {candidats.map((b) => {
+                    const checked = ids.has(b.id);
+                    const rb = pfCalc(b, rendementEstime);
+                    return (
+                      <label key={b.id} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: `1px solid ${checked ? PF.navy : C.line}`, borderRadius: 8, background: checked ? "#fff" : "#f9f9f9", cursor: "pointer", fontSize: 12.5 }}>
+                        <input type="checkbox" checked={checked} onChange={() => {
+                          const next = new Set(ids);
+                          if (checked) next.delete(b.id); else next.add(b.id);
+                          change({ autres_fournees_ids: [...next] });
+                        }} />
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.titre || "(sans titre)"} — {b.date ? new Date(b.date).toLocaleDateString("fr-FR") : "?"}</span>
+                        <span style={{ color: C.soft, flexShrink: 0 }}>{rb.poidsFini ? rb.poidsFini.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {poidsAutresFournees > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12.5, color: PF.navy, fontWeight: 700 }}>
+                    + {poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cumulés depuis {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} fournée{autresFourneesSelectionnees.length > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{ background: "#f6efdd", border: `1px solid ${PF.yellow}55`, borderRadius: 12, padding: 12, marginBottom: 14, display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 160px", minWidth: 140 }}>
