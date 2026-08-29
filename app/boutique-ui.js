@@ -1248,9 +1248,9 @@ function ProProduction({ pass }) {
 
   // -------- champ numérique --------
   const NF = (l, key, unit, ph, obj, on) => (
-    <div style={{ flex: "1 1 120px", minWidth: 110 }}>
+    <div style={{ flex: "1 1 100px", minWidth: 90 }}>
       <Lbl>{l}{unit ? <span style={{ color: C.soft, fontWeight: 400 }}> ({unit})</span> : null}</Lbl>
-      <input inputMode="decimal" value={obj[key] == null ? "" : String(obj[key]).replace(".", ",")} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, color: C.ink }} />
+      <input inputMode="decimal" value={obj[key] == null ? "" : String(obj[key]).replace(".", ",")} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink }} />
     </div>
   );
 
@@ -1546,10 +1546,10 @@ function ProProduction({ pass }) {
             // si l'unité affichée est l'unité native (cas normal), on affiche/stocke le texte brut tel quel (pas de recalcul à chaque frappe, la virgule ne saute plus)
             const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
             return (
-              <div key={ing.key} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
-                  <div style={{ flex: "1 1 90px", minWidth: 80 }}>
+              <div key={ing.key} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <div style={{ width: 82, flexShrink: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}><span style={{ width: 9, height: 9, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
+                  <div style={{ flex: "1 1 76px", minWidth: 68 }}>
                     <Lbl>Quantité</Lbl>
                     <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
                       const raw = e.target.value.replace(",", ".");
@@ -1560,23 +1560,23 @@ function ProProduction({ pass }) {
                       } else {
                         change({ [ing.qf]: stored });
                       }
-                    }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} />
+                    }} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700 }} />
                   </div>
-                  <div style={{ flex: "0 1 64px", minWidth: 58 }}>
+                  <div style={{ flex: "0 1 56px", minWidth: 52 }}>
                     <Lbl>Unité</Lbl>
-                    <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px" }}>
+                    <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
                       {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", paddingLeft: 98 }}>
-                  <div style={{ flex: "1 1 100px", minWidth: 90 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap", paddingLeft: 88 }}>
+                  <div style={{ flex: "1 1 90px", minWidth: 80 }}>
                     <Lbl>Réf. /kg oignon</Lbl>
                     {ing.key === "oignon" ? (
-                      <div style={{ marginTop: 4, height: 40, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>base</div>
+                      <div style={{ marginTop: 3, height: 34, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>base</div>
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <input inputMode="decimal" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px", color: PF.navy, fontWeight: 700, width: "100%" }} />
+                        <input inputMode="decimal" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 6px", color: PF.navy, fontWeight: 700, width: "100%" }} />
                         <span style={{ fontSize: 10.5, color: C.soft, flexShrink: 0 }}>{ing.unit}/kg</span>
                       </div>
                     )}
@@ -1591,10 +1591,19 @@ function ProProduction({ pass }) {
             const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
             const cost = (pfNum(e.qty) / div) * pfNum(e.price);
             return (
-              <div key={"exf" + i} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
-                  <div style={{ fontSize: 13, color: C.ink }}>{e.qty || 0} {e.unit === "piece" ? "pièce(s)" : e.unit} <span style={{ color: C.soft }}>({eur2(cost)}{R.nbRondesTotal > 1 ? " / fournée" : ""})</span></div>
+              <div key={"exf" + i} style={{ display: "flex", gap: 6, alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+                <div style={{ width: 82, flexShrink: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
+                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
+                  <Lbl>Quantité</Lbl>
+                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div>
+                </div>
+                <div style={{ flex: "0 1 56px", minWidth: 52 }}>
+                  <Lbl>Unité</Lbl>
+                  <div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div>
+                </div>
+                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
+                  <Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl>
+                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div>
                 </div>
               </div>
             );
