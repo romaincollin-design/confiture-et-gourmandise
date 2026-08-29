@@ -1587,15 +1587,18 @@ function ProProduction({ pass }) {
             );
           })}
 
-          {isPissa && (f.extra || []).length > 0 && (
-            <div style={{ marginTop: 4, marginBottom: 10, background: "#f7f4ec", borderRadius: 8, padding: "7px 10px", fontSize: 11, color: C.ink, lineHeight: 1.5 }}>
-              <b style={{ color: PF.navy }}>+ ingrédients libres</b>{R.nbRondesTotal > 1 ? " (comptés aussi dans chaque fournée supplémentaire)" : ""} : {(f.extra || []).map((e, i) => {
-                const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
-                const cost = (pfNum(e.qty) / div) * pfNum(e.price);
-                return `${i > 0 ? ", " : ""}${e.label || "ingrédient"} ${e.qty || 0}${e.unit === "piece" ? "" : e.unit} (${eur2(cost)})`;
-              }).join("")}
-            </div>
-          )}
+          {isPissa && (f.extra || []).map((e, i) => {
+            const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+            const cost = (pfNum(e.qty) / div) * pfNum(e.price);
+            return (
+              <div key={"exf" + i} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: C.ink }}><span style={{ width: 10, height: 10, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
+                  <div style={{ fontSize: 13, color: C.ink }}>{e.qty || 0} {e.unit === "piece" ? "pièce(s)" : e.unit} <span style={{ color: C.soft }}>({eur2(cost)}{R.nbRondesTotal > 1 ? " / fournée" : ""})</span></div>
+                </div>
+              </div>
+            );
+          })}
 
           {isPissa && (() => {
             const rondes = f.rounds_extra || [];
@@ -1702,16 +1705,13 @@ function ProProduction({ pass }) {
                           </div>
                         );
                       })}
+                      {(f.extra || []).map((e, i) => (
+                        <div key={"exr" + i} style={{ flex: "1 1 80px", minWidth: 72 }}>
+                          <Lbl>{e.label || "Ingrédient libre"} ({e.unit === "piece" ? "u" : e.unit})</Lbl>
+                          <div style={{ ...inp(), marginTop: 4, fontSize: 14, fontWeight: 700, padding: "8px 8px", background: "#f3f0e8", color: C.ink }}>{e.qty || 0}</div>
+                        </div>
+                      ))}
                     </div>
-                    {(f.extra || []).length > 0 && (
-                      <div style={{ marginTop: 8, background: "#f7f4ec", borderRadius: 8, padding: "7px 10px", fontSize: 11, color: C.ink, lineHeight: 1.5 }}>
-                        <b style={{ color: PF.navy }}>+ ingrédients libres</b> (comme la fournée principale, comptés aussi ici) : {(f.extra || []).map((e, i) => {
-                          const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
-                          const cost = (pfNum(e.qty) / div) * pfNum(e.price);
-                          return `${i > 0 ? ", " : ""}${e.label || "ingrédient"} ${e.qty || 0}${e.unit === "piece" ? "" : e.unit} (${eur2(cost)})`;
-                        }).join("")}
-                      </div>
-                    )}
                   </div>
                   );
                 })}
@@ -1735,15 +1735,15 @@ function ProProduction({ pass }) {
             </div>
           )}
           {(f.extra || []).map((e, i) => (
-            <div key={"x" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-              <div style={{ flex: "2 1 130px", minWidth: 110 }}>
+            <div key={"x" + i} style={{ display: "flex", gap: 6, alignItems: "flex-end", padding: "5px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+              <div style={{ flex: "2 1 100px", minWidth: 90 }}>
                 <Lbl>Ingrédient</Lbl>
-                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
+                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} />
               </div>
-              <div style={{ flex: "1 1 70px", minWidth: 64 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-              <div style={{ flex: "0 1 68px", minWidth: 62 }}>
+              <div style={{ flex: "1 1 54px", minWidth: 50 }}><Lbl>Qté</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div style={{ flex: "0 1 54px", minWidth: 50 }}>
                 <Lbl>Unité</Lbl>
-                <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 13, padding: "9px 6px" }}>
+                <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
                   <option value="g">g</option>
                   <option value="kg">kg</option>
                   <option value="ml">ml</option>
@@ -1752,8 +1752,8 @@ function ProProduction({ pass }) {
                   <option value="piece">pièce</option>
                 </select>
               </div>
-              <div style={{ flex: "1 1 90px", minWidth: 80 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>
+              <div style={{ flex: "1 1 68px", minWidth: 62 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
             </div>
           ))}
           <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
