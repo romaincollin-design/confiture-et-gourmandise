@@ -1587,6 +1587,16 @@ function ProProduction({ pass }) {
             );
           })}
 
+          {isPissa && (f.extra || []).length > 0 && (
+            <div style={{ marginTop: 4, marginBottom: 10, background: "#f7f4ec", borderRadius: 8, padding: "7px 10px", fontSize: 11, color: C.ink, lineHeight: 1.5 }}>
+              <b style={{ color: PF.navy }}>+ ingrédients libres</b>{R.nbRondesTotal > 1 ? " (comptés aussi dans chaque fournée supplémentaire)" : ""} : {(f.extra || []).map((e, i) => {
+                const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+                const cost = (pfNum(e.qty) / div) * pfNum(e.price);
+                return `${i > 0 ? ", " : ""}${e.label || "ingrédient"} ${e.qty || 0}${e.unit === "piece" ? "" : e.unit} (${eur2(cost)})`;
+              }).join("")}
+            </div>
+          )}
+
           {isPissa && (() => {
             const rondes = f.rounds_extra || [];
             const updateRonde = (idx, patch) => { const arr = [...rondes]; arr[idx] = { ...arr[idx], ...patch }; change({ rounds_extra: arr }); };
