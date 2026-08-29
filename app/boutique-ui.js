@@ -1081,7 +1081,7 @@ const pfBlank = (famille = "pissaladiere") => {
     nb_feux: "", kg_par_feu: d.kg_par_feu != null ? d.kg_par_feu : "", temps_cycle_min: d.temps_cycle_min != null ? d.temps_cycle_min : "",
     epluchage_kg_par_min: d.epluchage_kg_par_min != null ? d.epluchage_kg_par_min : "",
     rounds_extra: [], temps_par_ronde_min: isPissa ? 40 : "",
-    autres_fournees_ids: d.autres_fournees_ids ? [...d.autres_fournees_ids] : [],
+    autres_du: "", autres_au: "",
     pots: d.pots ? JSON.parse(JSON.stringify(d.pots)) : [{ type: "pot", format_g: 250, px_bocal: 0.85, px_capuchon: 0.20, px_etiquette: 0.30, nb: "", px_vente: "" }],
   };
 };
@@ -1242,7 +1242,7 @@ function ProProduction({ pass }) {
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
-  const autresFourneesSelectionnees = cur ? batches.filter((b) => (cur.autres_fournees_ids || []).includes(b.id) && b.id !== cur.id) : [];
+  const autresFourneesSelectionnees = (cur && cur.autres_du && cur.autres_au) ? batches.filter((b) => b.id !== cur.id && (b.famille || "pissaladiere") === (cur.famille || "pissaladiere") && b.date && b.date >= cur.autres_du && b.date <= cur.autres_au) : [];
   const poidsAutresFournees = autresFourneesSelectionnees.reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
   const R = cur ? pfCalc(cur, rendementEstime, poidsAutresFournees) : null;
 
@@ -1878,34 +1878,34 @@ function ProProduction({ pass }) {
           <div style={{ ...h2 }}>Contenants & vente</div>
 
           {(() => {
-            const candidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-            if (candidats.length === 0) return null;
-            const ids = new Set(f.autres_fournees_ids || []);
+            const nbCandidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).length;
+            if (nbCandidats === 0) return null;
+            const cruAutres = autresFourneesSelectionnees.reduce((s, b) => s + (pfCalc(b, rendementEstime).oignonTotalRondes || 0), 0);
+            const cruTotal = (R.oignonTotalRondes || 0) + cruAutres;
+            const cuitTotal = (R.poidsFini || 0) + poidsAutresFournees;
             return (
               <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 6, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumuler d'autres fournées « {FAM.label} »</div>
-                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Ajoute le poids fini d'autres fournées déjà enregistrées, pour répartir tous les pots/kits ensemble (ex. plusieurs jours de cuisson mis en pot le même jour).</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
-                  {candidats.map((b) => {
-                    const checked = ids.has(b.id);
-                    const rb = pfCalc(b, rendementEstime);
-                    return (
-                      <label key={b.id} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: `1px solid ${checked ? PF.navy : C.line}`, borderRadius: 8, background: checked ? "#fff" : "#f9f9f9", cursor: "pointer", fontSize: 12.5 }}>
-                        <input type="checkbox" checked={checked} onChange={() => {
-                          const next = new Set(ids);
-                          if (checked) next.delete(b.id); else next.add(b.id);
-                          change({ autres_fournees_ids: [...next] });
-                        }} />
-                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.titre || "(sans titre)"} — {b.date ? new Date(b.date).toLocaleDateString("fr-FR") : "?"}</span>
-                        <span style={{ color: C.soft, flexShrink: 0 }}>{rb.poidsFini ? rb.poidsFini.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {poidsAutresFournees > 0 && (
-                  <div style={{ marginTop: 8, fontSize: 12.5, color: PF.navy, fontWeight: 700 }}>
-                    + {poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cumulés depuis {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} fournée{autresFourneesSelectionnees.length > 1 ? "s" : ""}
+                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Choisis une période : les autres fournées « {FAM.label} » de cette plage (hors celle-ci) sont ajoutées au poids disponible pour les pots.</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                    <Lbl>Du</Lbl>
+                    <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
                   </div>
+                  <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                    <Lbl>Au</Lbl>
+                    <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                  </div>
+                </div>
+                {f.autres_du && f.autres_au && (
+                  autresFourneesSelectionnees.length === 0 ? (
+                    <div style={{ marginTop: 8, fontSize: 12, color: C.soft, fontStyle: "italic" }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
+                  ) : (
+                    <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+                      <div>{autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} fournée{autresFourneesSelectionnees.length > 1 ? "s" : ""} trouvée{autresFourneesSelectionnees.length > 1 ? "s" : ""} ({autresFourneesSelectionnees.map((b) => b.date ? new Date(b.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "?").join(", ")}) : <b style={{ color: PF.navy }}>+{cruAutres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b></div>
+                      <div style={{ marginTop: 4 }}>Total cumulé (cette fournée + les autres) : <b style={{ color: PF.navy }}>{cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit disponible pour les pots</b></div>
+                    </div>
+                  )
                 )}
               </div>
             );
