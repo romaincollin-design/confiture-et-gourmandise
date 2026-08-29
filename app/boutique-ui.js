@@ -1879,34 +1879,38 @@ function ProProduction({ pass }) {
 
           {(() => {
             const nbCandidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).length;
-            if (nbCandidats === 0) return null;
             const cruAutres = autresFourneesSelectionnees.reduce((s, b) => s + (pfCalc(b, rendementEstime).oignonTotalRondes || 0), 0);
             const cruTotal = (R.oignonTotalRondes || 0) + cruAutres;
             const cuitTotal = (R.poidsFini || 0) + poidsAutresFournees;
             return (
               <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 6, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumuler d'autres fournées « {FAM.label} »</div>
-                <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Choisis une période : les autres fournées « {FAM.label} » de cette plage (hors celle-ci) sont ajoutées au poids disponible pour les pots.</div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                    <Lbl>Du</Lbl>
-                    <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
-                  </div>
-                  <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                    <Lbl>Au</Lbl>
-                    <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 6, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Poids disponible « {FAM.label} »</div>
+                {nbCandidats > 0 && (
+                  <>
+                    <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Cumuler d'autres fournées : choisis une période, elles s'ajoutent au total ci-dessous.</div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                        <Lbl>Du</Lbl>
+                        <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                      </div>
+                      <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                        <Lbl>Au</Lbl>
+                        <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                      </div>
+                    </div>
+                    {f.autres_du && f.autres_au && autresFourneesSelectionnees.length === 0 && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: C.soft, fontStyle: "italic" }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
+                    )}
+                  </>
+                )}
+                <div style={{ marginTop: nbCandidats > 0 ? 10 : 0, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+                  {autresFourneesSelectionnees.length > 0 && (
+                    <div>Cette fournée : <b>{(R.oignonTotalRondes || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b>{(R.poidsFini || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b> + {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} ({autresFourneesSelectionnees.map((b) => b.date ? new Date(b.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "?").join(", ")}) : <b style={{ color: PF.navy }}>+{cruAutres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.navy }}>+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b></div>
+                  )}
+                  <div style={autresFourneesSelectionnees.length > 0 ? { marginTop: 4 } : {}}>
+                    <b>Poids total disponible : {cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good, fontSize: 14 }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b>
                   </div>
                 </div>
-                {f.autres_du && f.autres_au && (
-                  autresFourneesSelectionnees.length === 0 ? (
-                    <div style={{ marginTop: 8, fontSize: 12, color: C.soft, fontStyle: "italic" }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
-                  ) : (
-                    <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
-                      <div>{autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} fournée{autresFourneesSelectionnees.length > 1 ? "s" : ""} trouvée{autresFourneesSelectionnees.length > 1 ? "s" : ""} ({autresFourneesSelectionnees.map((b) => b.date ? new Date(b.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "?").join(", ")}) : <b style={{ color: PF.navy }}>+{cruAutres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b></div>
-                      <div style={{ marginTop: 4 }}>Total cumulé (cette fournée + les autres) : <b style={{ color: PF.navy }}>{cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit disponible pour les pots</b></div>
-                    </div>
-                  )
-                )}
               </div>
             );
           })()}
