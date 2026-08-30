@@ -2053,7 +2053,7 @@ function ProProduction({ pass }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft, alignItems: "center" }}>
                 {(() => {
-                  const nbAuto = (R.poidsDispoPots && pfNum(p.format_g)) ? Math.floor((R.poidsDispoPots * 1000) / pfNum(p.format_g)) : null;
+                  const nbAuto = (R.poidsDispoPots != null && pfNum(p.format_g) > 0) ? Math.floor((R.poidsDispoPots * 1000) / pfNum(p.format_g)) : null;
                   if (nbAuto == null) return null;
                   const dejaBon = pfNum(p.nb) === nbAuto;
                   return (
