@@ -1607,6 +1607,36 @@ function ProProduction({ pass }) {
             );
           })}
 
+          <div style={{ marginTop: 18, ...h2 }}>Ingrédients libres <span style={{ fontWeight: 400, fontSize: 11.5, color: C.soft }}>(ex. vin blanc)</span></div>
+          {isPissa && R.nbRondesTotal > 1 && (f.extra || []).length > 0 && (
+            <div style={{ fontSize: 11.5, color: PF.navy, marginBottom: 8, lineHeight: 1.4, background: "#f6efdd", borderRadius: 8, padding: "6px 10px" }}>
+              Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessous.
+            </div>
+          )}
+          {(f.extra || []).map((e, i) => (
+            <div key={"x" + i} style={{ display: "flex", gap: 6, alignItems: "flex-end", padding: "5px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+              <div style={{ flex: "2 1 100px", minWidth: 90 }}>
+                <Lbl>Ingrédient</Lbl>
+                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} />
+              </div>
+              <div style={{ flex: "1 1 54px", minWidth: 50 }}><Lbl>Qté</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div style={{ flex: "0 1 54px", minWidth: 50 }}>
+                <Lbl>Unité</Lbl>
+                <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="cl">cl</option>
+                  <option value="L">L</option>
+                  <option value="piece">pièce</option>
+                </select>
+              </div>
+              <div style={{ flex: "1 1 68px", minWidth: 62 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
+            </div>
+          ))}
+          <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+
           {isPissa && (() => {
             const rondes = f.rounds_extra || [];
             const updateRonde = (idx, patch) => { const arr = [...rondes]; arr[idx] = { ...arr[idx], ...patch }; change({ rounds_extra: arr }); };
@@ -1735,35 +1765,6 @@ function ProProduction({ pass }) {
             );
           })()}
 
-          <div style={{ marginTop: 18, ...h2 }}>Ingrédients libres <span style={{ fontWeight: 400, fontSize: 11.5, color: C.soft }}>(ex. vin blanc)</span></div>
-          {isPissa && R.nbRondesTotal > 1 && (f.extra || []).length > 0 && (
-            <div style={{ fontSize: 11.5, color: PF.navy, marginBottom: 8, lineHeight: 1.4, background: "#f6efdd", borderRadius: 8, padding: "6px 10px" }}>
-              Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessus.
-            </div>
-          )}
-          {(f.extra || []).map((e, i) => (
-            <div key={"x" + i} style={{ display: "flex", gap: 6, alignItems: "flex-end", padding: "5px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-              <div style={{ flex: "2 1 100px", minWidth: 90 }}>
-                <Lbl>Ingrédient</Lbl>
-                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} />
-              </div>
-              <div style={{ flex: "1 1 54px", minWidth: 50 }}><Lbl>Qté</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
-              <div style={{ flex: "0 1 54px", minWidth: 50 }}>
-                <Lbl>Unité</Lbl>
-                <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="cl">cl</option>
-                  <option value="L">L</option>
-                  <option value="piece">pièce</option>
-                </select>
-              </div>
-              <div style={{ flex: "1 1 68px", minWidth: 62 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
-              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
-            </div>
-          ))}
-          <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
           <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
             <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
