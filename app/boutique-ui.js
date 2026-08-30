@@ -1538,54 +1538,52 @@ function ProProduction({ pass }) {
               <b>Principe :</b> 1 kg de fruit · 500 g de sucre · 1 citron (sauf agrumes : oranges amères/douces) · un peu de vanille selon le fruit.
             </div>
           )}
-          {isPissa && PF_ING.map((ing) => {
-            const chosenUnit = pfDisplayUnit(f, ing);
-            const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
-            const sameUnit = chosenUnit === ing.unit;
-            const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
-            // si l'unité affichée est l'unité native (cas normal), on affiche/stocke le texte brut tel quel (pas de recalcul à chaque frappe, la virgule ne saute plus)
-            const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
-            return (
-              <div key={ing.key} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div style={{ width: 74, flexShrink: 0, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: C.ink }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</div>
-                  <div style={{ flex: "0 1 72px", minWidth: 60, maxWidth: 90 }}>
-                    <Lbl>Quantité</Lbl>
-                    <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
-                      const raw = e.target.value.replace(",", ".");
-                      const stored = sameUnit ? raw : (raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000);
-                      if (ing.key === "oignon" && raw !== "" && !isNaN(parseFloat(raw))) {
-                        const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
-                        change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
-                      } else {
-                        change({ [ing.qf]: stored });
-                      }
-                    }} style={{ ...inp(), marginTop: 3, padding: "6px 7px", fontSize: 14, fontWeight: 700 }} />
-                  </div>
-                  <div style={{ flex: "0 1 48px", minWidth: 44, maxWidth: 56 }}>
-                    <Lbl>Unité</Lbl>
-                    <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 3, fontSize: 11.5, padding: "6px 2px" }}>
-                      {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap", paddingLeft: 80 }}>
-                  <div style={{ flex: "0 1 100px", minWidth: 85, maxWidth: 130 }}>
-                    <Lbl>Réf. /kg oignon</Lbl>
-                    {ing.key === "oignon" ? (
-                      <div style={{ marginTop: 3, height: 32, display: "flex", alignItems: "center", fontSize: 11.5, color: C.soft, fontStyle: "italic" }}>base</div>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <input inputMode="decimal" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 6px", color: PF.navy, fontWeight: 700, width: "100%" }} />
-                        <span style={{ fontSize: 10.5, color: C.soft, flexShrink: 0 }}>{ing.unit}/kg</span>
+          {isPissa && (
+            <div style={{ padding: "6px 0 10px", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {PF_ING.map((ing) => {
+                  const chosenUnit = pfDisplayUnit(f, ing);
+                  const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
+                  const sameUnit = chosenUnit === ing.unit;
+                  const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
+                  const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
+                  return (
+                    <div key={ing.key} style={{ flex: "1 1 84px", minWidth: 78, maxWidth: 120 }}>
+                      <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</span></Lbl>
+                      <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                        <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
+                          const raw = e.target.value.replace(",", ".");
+                          const stored = sameUnit ? raw : (raw === "" ? "" : Math.round(pfParseToStorage(raw, ing, chosenUnit) * 1000) / 1000);
+                          if (ing.key === "oignon" && raw !== "" && !isNaN(parseFloat(raw))) {
+                            const baseKg = pfNum(raw) / PF_UNIT_OPTS.weight[chosenUnit];
+                            change({ [ing.qf]: stored, ...pfSuggestRecipe(f, baseKg) });
+                          } else {
+                            change({ [ing.qf]: stored });
+                          }
+                        }} style={{ ...inp(), padding: "6px 6px", fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                        <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), padding: "6px 1px", fontSize: 10.5, width: 36, flexShrink: 0 }}>
+                          {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
                       </div>
-                    )}
-                  </div>
-                  {NF("Prix", ing.pf, ing.pu, "0", f, (k, v) => change({ [k]: v }))}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {PF_ING.map((ing) => (
+                  <div key={ing.key + "px"} style={{ flex: "1 1 120px", minWidth: 110, maxWidth: 160 }}>
+                    <Lbl>Prix {ing.label} <span style={{ fontWeight: 400, color: C.soft }}>({ing.pu})</span></Lbl>
+                    <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                      {ing.key !== "oignon" && (
+                        <input inputMode="decimal" title="Réf. /kg oignon" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 5px", fontSize: 11.5, color: PF.navy, fontWeight: 700, width: 46, flexShrink: 0 }} />
+                      )}
+                      <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {isPissa && (f.extra || []).map((e, i) => {
             const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
