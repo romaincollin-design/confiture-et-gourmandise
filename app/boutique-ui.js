@@ -1548,8 +1548,8 @@ function ProProduction({ pass }) {
             return (
               <div key={ing.key} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
                 <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <div style={{ width: 82, flexShrink: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}><span style={{ width: 9, height: 9, borderRadius: 3, background: ing.color, display: "inline-block" }} />{ing.label}</div>
-                  <div style={{ flex: "1 1 76px", minWidth: 68 }}>
+                  <div style={{ width: 74, flexShrink: 0, display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: C.ink }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</div>
+                  <div style={{ flex: "0 1 72px", minWidth: 60, maxWidth: 90 }}>
                     <Lbl>Quantité</Lbl>
                     <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
                       const raw = e.target.value.replace(",", ".");
@@ -1560,20 +1560,20 @@ function ProProduction({ pass }) {
                       } else {
                         change({ [ing.qf]: stored });
                       }
-                    }} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700 }} />
+                    }} style={{ ...inp(), marginTop: 3, padding: "6px 7px", fontSize: 14, fontWeight: 700 }} />
                   </div>
-                  <div style={{ flex: "0 1 56px", minWidth: 52 }}>
+                  <div style={{ flex: "0 1 48px", minWidth: 44, maxWidth: 56 }}>
                     <Lbl>Unité</Lbl>
-                    <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
+                    <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), marginTop: 3, fontSize: 11.5, padding: "6px 2px" }}>
                       {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap", paddingLeft: 88 }}>
-                  <div style={{ flex: "1 1 90px", minWidth: 80 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap", paddingLeft: 80 }}>
+                  <div style={{ flex: "0 1 100px", minWidth: 85, maxWidth: 130 }}>
                     <Lbl>Réf. /kg oignon</Lbl>
                     {ing.key === "oignon" ? (
-                      <div style={{ marginTop: 3, height: 34, display: "flex", alignItems: "center", fontSize: 12, color: C.soft, fontStyle: "italic" }}>base</div>
+                      <div style={{ marginTop: 3, height: 32, display: "flex", alignItems: "center", fontSize: 11.5, color: C.soft, fontStyle: "italic" }}>base</div>
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <input inputMode="decimal" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 6px", color: PF.navy, fontWeight: 700, width: "100%" }} />
