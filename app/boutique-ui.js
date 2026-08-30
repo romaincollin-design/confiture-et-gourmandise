@@ -1248,7 +1248,7 @@ function ProProduction({ pass }) {
 
   // -------- champ numérique --------
   const NF = (l, key, unit, ph, obj, on) => (
-    <div style={{ flex: "1 1 100px", minWidth: 90 }}>
+    <div style={{ flex: "0 1 100px", minWidth: 80, maxWidth: 140 }}>
       <Lbl>{l}{unit ? <span style={{ color: C.soft, fontWeight: 400 }}> ({unit})</span> : null}</Lbl>
       <input inputMode="decimal" value={obj[key] == null ? "" : String(obj[key]).replace(".", ",")} placeholder={ph || "0"} onChange={(e) => on(key, e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink }} />
     </div>
