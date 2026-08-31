@@ -1303,7 +1303,7 @@ function ProProduction({ pass }) {
       <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{eur2(r.coutKg)}<span style={{ fontSize: 13, opacity: .8 }}>/kg</span></div>
-        <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>revient total {eur2(r.revientHE)}</div>
+        <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>coût total fournée {eur2(r.revientHE)}</div>
       </div>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / {fam.unitWord} moyen</div>
