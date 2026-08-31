@@ -1977,7 +1977,7 @@ function ProProduction({ pass }) {
                 {labels[1] && NF(labels[1], "px_capuchon", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {p.type !== "kit" && labels[2] && NF(labels[2], "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 <div style={{ flex: "0 1 100px", minWidth: 80, maxWidth: 140 }}>
-                  <Lbl>Nb de {unitWord}s {pl.isAutoNb ? <span style={{ fontWeight: 400, color: PF.navy }}>(auto)</span> : null}</Lbl>
+                  <Lbl>Nb de {unitWord}s</Lbl>
                   <input inputMode="numeric" value={pl.isAutoNb ? (pl.nb || 0) : p.nb} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: ev.target.value }; change({ pots }); }} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: pl.isAutoNb ? "#f6efdd" : "#fff" }} />
                 </div>
               </div>
