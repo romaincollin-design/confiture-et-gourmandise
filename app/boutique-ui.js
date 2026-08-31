@@ -1932,10 +1932,17 @@ function ProProduction({ pass }) {
                 {f.autres_du && f.autres_au && autresFourneesSelectionnees.length === 0 && (
                   <div style={{ marginBottom: 10, fontSize: 12.5, color: C.ink, fontWeight: 700 }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
                 )}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                  Poids total disponible : {cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru → <span style={{ color: PF.good }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</span>
-                  {autresFourneesSelectionnees.length > 0 && <span style={{ color: PF.navy }}>(+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""})</span>}
-                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    Poids total disponible : {cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru → <span style={{ color: PF.good }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</span>
+                    {autresFourneesSelectionnees.length > 0 && <span style={{ color: PF.navy }}>(+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""})</span>}
+                  </span>
+                  {(R.revenuTotalGlobal > 0 || R.nbPotsTotal > 0) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                      Marge brute totale (achat → revente, tous conditionnements) : <span style={{ color: R.margeTotaleGlobal >= 0 ? PF.good : PF.warn, fontSize: 15 }}>{eur2(R.margeTotaleGlobal)}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -2139,8 +2146,9 @@ function ProProduction({ pass }) {
           )}
 
           {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
-            <div style={{ marginTop: 12, fontSize: 12, color: R.ecartPoids < 0 ? PF.warn : C.soft, background: R.ecartPoids < 0 ? "#faece5" : "#f6efdd", borderRadius: 9, padding: "9px 11px" }}>
-              Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"}) et les pots remplis ({R.poidsAlloue.toFixed(2)}).
+            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: R.ecartPoids < 0 ? "#fff" : C.ink, background: R.ecartPoids < 0 ? PF.warn : "#f6efdd", borderRadius: 10, padding: "12px 14px" }}>
+              <span style={{ fontSize: 18 }}>{R.ecartPoids < 0 ? "⚠️" : "ℹ️"}</span>
+              <span>Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"} kg) et les pots remplis ({R.poidsAlloue.toFixed(2)} kg).</span>
             </div>
           )}
         </div>
