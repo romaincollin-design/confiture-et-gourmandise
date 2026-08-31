@@ -2164,8 +2164,8 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
 
   const flux = useMemo(() => {
     const out = [];
-    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })) }));
-    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0 })) }));
+    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null })) }));
+    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null })) }));
     return out;
   }, [sales, orders]);
   const costOf = (n) => { const p = (products || []).find((x) => x.name === n); return p ? Number(p.cost) || 0 : 0; };
@@ -2214,9 +2214,10 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
       f.items.forEach((i) => {
         r.qty += i.qty;
         if (hasCost(i.name)) { r.marge += (i.price - costOf(i.name)) * i.qty; r.caAvecCout += i.qty * i.price; }
-        if (!r.prods[i.name]) r.prods[i.name] = { qty: 0, ca: 0, marge: 0, coutConnu: false };
-        r.prods[i.name].qty += i.qty; r.prods[i.name].ca += i.qty * i.price;
-        if (hasCost(i.name)) { r.prods[i.name].marge += (i.price - costOf(i.name)) * i.qty; r.prods[i.name].coutConnu = true; }
+        const key = i.pid || i.name;
+        if (!r.prods[key]) r.prods[key] = { qty: 0, ca: 0, marge: 0, coutConnu: false, name: i.name, pid: i.pid };
+        r.prods[key].qty += i.qty; r.prods[key].ca += i.qty * i.price;
+        if (hasCost(i.name)) { r.prods[key].marge += (i.price - costOf(i.name)) * i.qty; r.prods[key].coutConnu = true; }
       });
     });
     return r;
@@ -2386,7 +2387,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
               </div>
               <div style={{ ...h2 }}>Produits vendus</div>
               {dp.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun détail.</div> : dp.map((p, i) => (
-                <div key={p.name} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                <div key={(p.pid || p.name) + "-" + i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
                     <span style={{ width: 19, height: 19, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 10.5, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
@@ -2435,11 +2436,14 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
 
       <div style={card()}>
         <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
-        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : prods.map((p, i) => (
-          <div key={p.name} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : prods.map((p, i) => {
+          const catalogue = p.pid ? (products || []).find((x) => x.id === p.pid) : (products || []).find((x) => x.name === p.name);
+          const dup = prods.filter((q) => q.name === p.name).length > 1;
+          return (
+          <div key={(p.pid || p.name) + "-" + i} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
               <span style={{ width: 20, height: 20, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 11, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{catalogue && catalogue.unit ? <span style={{ color: C.soft, fontWeight: 500 }}> · {catalogue.unit}</span> : null}{dup && <span title="Plusieurs fiches produit portent ce même nom dans le catalogue" style={{ color: PF.warn, marginLeft: 4 }}>⚠</span>}</div>
               <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
             </div>
             <div style={{ height: 8, background: C.line, borderRadius: 4, overflow: "hidden", marginBottom: 5 }}>
@@ -2451,7 +2455,8 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
               <span><b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA</span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={card()}>
@@ -2475,13 +2480,16 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
         <div style={{ ...h2 }}>Fréquentation (scans QR / ouvertures)</div>
         {(visits || []).length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Le comptage vient de démarrer : chaque scan du QR et chaque ouverture de la boutique sera compté ici.</div> : (() => {
           const bd = {}; (visits || []).forEach((v) => { const d = new Date(v.ts); bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] = (bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] || 0) + 1; });
-          const vs = []; const n2 = new Date();
-          for (let i = 29; i >= 0; i--) { const d = new Date(n2); d.setDate(n2.getDate() - i); vs.push(bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] || 0); }
+          const vs = []; const vdates = []; const n2 = new Date();
+          for (let i = 29; i >= 0; i--) { const d = new Date(n2); d.setDate(n2.getDate() - i); vs.push(bd[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] || 0); vdates.push(d); }
           const vm = Math.max(1, ...vs);
           return <>
             <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 8 }}>{(visits || []).length} visite(s) au total · 30 derniers jours</div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 90 }}>
-              {vs.map((v, i) => <div key={i} title={`${v} visite(s)`} style={{ flex: 1, height: `${Math.max(v ? 6 : 1, (v / vm) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, alignSelf: "flex-end" }} />)}
+              {vs.map((v, i) => <div key={i} title={`${vdates[i].toLocaleDateString("fr-FR")} — ${v} visite(s)`} style={{ flex: 1, height: `${Math.max(v ? 6 : 1, (v / vm) * 100)}%`, background: v ? C.caramel : C.line, borderRadius: 3, alignSelf: "flex-end" }} />)}
+            </div>
+            <div style={{ display: "flex", gap: 2, marginTop: 4 }}>
+              {vs.map((v, i) => <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 8.5, color: C.soft, fontWeight: 600 }}>{i % 5 === 0 ? vdates[i].toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : ""}</div>)}
             </div>
           </>;
         })()}
