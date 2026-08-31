@@ -1756,9 +1756,9 @@ function ProProduction({ pass }) {
                   {NF("Temps par fournée", "temps_par_ronde_min", "min", "40", f, (k, v) => change({ [k]: v }))}
                 </div>
                 {R.nbRondesTotal > 1 && (
-                  <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                    <div>{R.nbRondesTotal} fournées × {pfNum(f.temps_par_ronde_min)} min = <b style={{ color: PF.navy }}>{Math.round(R.tempsCuissonRondesMin)} min</b> de cuisson au total ({(R.tempsCuissonRondesMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) — le reste du temps de prod ({R.tempsTotal.toLocaleString("fr-FR")} h indiquées en Main d'œuvre) peut servir à éplucher/préparer la suite.</div>
-                    <div style={{ marginTop: 4 }}>Cumul du jour : <b style={{ color: PF.navy }}>{R.oignonTotalRondes.toLocaleString("fr-FR")} kg cru</b> → <b style={{ color: PF.good }}>{R.poidsCuitTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b> — ratio moyen du jour : <b style={{ color: PF.navy }}>{Math.round(R.ratioMoyenJour * 1000) / 10}%</b></div>
+                  <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6, fontWeight: 700 }}>
+                    <div>{R.nbRondesTotal} fournées × {pfNum(f.temps_par_ronde_min)} min = <span style={{ color: PF.navy }}>{Math.round(R.tempsCuissonRondesMin)} min</span> de cuisson au total ({(R.tempsCuissonRondesMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) — le reste du temps de prod ({R.tempsTotal.toLocaleString("fr-FR")} h indiquées en Main d'œuvre) peut servir à éplucher/préparer la suite.</div>
+                    <div style={{ marginTop: 4 }}>Cumul du jour : <span style={{ color: PF.navy }}>{R.oignonTotalRondes.toLocaleString("fr-FR")} kg cru</span> → <span style={{ color: PF.good }}>{R.poidsCuitTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</span> — ratio moyen du jour : <span style={{ color: PF.navy }}>{Math.round(R.ratioMoyenJour * 1000) / 10}%</span></div>
                   </div>
                 )}
               </div>
@@ -1784,13 +1784,13 @@ function ProProduction({ pass }) {
                 {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               {R.cyclesTotal > 0 && (
-                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
-                  <div>Temps de prod disponible : <b>{R.tempsTotal.toLocaleString("fr-FR")} h</b></div>
-                  <div>Tournées (cycles) par feu : {R.tempsTotal.toLocaleString("fr-FR")} h ÷ {pfNum(f.temps_cycle_min)} min/cycle = <b>{R.cyclesParFeu} cycles/feu</b></div>
-                  <div>Temps de cuisson total utilisé : {R.cyclesParFeu} cycles × {pfNum(f.temps_cycle_min)} min = <b>{Math.round(R.tempsCuissonUtiliseMin)} min</b> ({(R.tempsCuissonUtiliseMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) par feu</div>
-                  <div>Tournées totales (tous feux) : {R.cyclesParFeu} cycles/feu × {pfNum(f.nb_feux)} feux = <b>{R.cyclesTotal} cycles</b></div>
+                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7, fontWeight: 700 }}>
+                  <div>Temps de prod disponible : {R.tempsTotal.toLocaleString("fr-FR")} h</div>
+                  <div>Tournées (cycles) par feu : {R.tempsTotal.toLocaleString("fr-FR")} h ÷ {pfNum(f.temps_cycle_min)} min/cycle = {R.cyclesParFeu} cycles/feu</div>
+                  <div>Temps de cuisson total utilisé : {R.cyclesParFeu} cycles × {pfNum(f.temps_cycle_min)} min = {Math.round(R.tempsCuissonUtiliseMin)} min ({(R.tempsCuissonUtiliseMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) par feu</div>
+                  <div>Tournées totales (tous feux) : {R.cyclesParFeu} cycles/feu × {pfNum(f.nb_feux)} feux = {R.cyclesTotal} cycles</div>
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>→ <b style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</b> crus, soit ≈ <b style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</b> (rendement 90%, réf. fournée du 09/08)</span>
+                    <span>→ <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</span> crus, soit ≈ <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span> (rendement 90%, réf. fournée du 09/08)</span>
                     <button onClick={() => {
                       const q = R.quantiteBruteProcess; // kg
                       change({
@@ -1803,12 +1803,12 @@ function ProProduction({ pass }) {
                 </div>
               )}
               {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
-                <div style={{ marginTop: 10, background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
-                  <div style={{ fontWeight: 700, color: PF.navy, marginBottom: 4 }}>Pour traiter les {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg d'oignons déjà saisis :</div>
-                  <div>Capacité par tournée : {pfNum(f.nb_feux)} feux × {pfNum(f.kg_par_feu)} kg = <b>{R.capaciteParTournee} kg/tournée</b></div>
-                  <div>Tournées (fournées) nécessaires : {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg ÷ {R.capaciteParTournee} kg = <b>{R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}</b></div>
-                  <div>Temps total nécessaire : {R.tourneesNecessaires} × {pfNum(f.temps_cycle_min)} min = <b>{Math.round(R.tempsNecessaireMin)} min</b> ({(R.tempsNecessaireMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h)</div>
-                  <div>Temps de prod indiqué (Main d'œuvre) : <b>{R.tempsTotal.toLocaleString("fr-FR")} h</b> — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <b style={{ color: PF.good }}>✓ ça rentre dans le temps prévu</b> : <b style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</b>}</div>
+                <div style={{ marginTop: 10, background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7, fontWeight: 700 }}>
+                  <div style={{ color: PF.navy, marginBottom: 4 }}>Pour traiter les {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg d'oignons déjà saisis :</div>
+                  <div>Capacité par tournée : {pfNum(f.nb_feux)} feux × {pfNum(f.kg_par_feu)} kg = {R.capaciteParTournee} kg/tournée</div>
+                  <div>Tournées (fournées) nécessaires : {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg ÷ {R.capaciteParTournee} kg = {R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}</div>
+                  <div>Temps total nécessaire : {R.tourneesNecessaires} × {pfNum(f.temps_cycle_min)} min = {Math.round(R.tempsNecessaireMin)} min ({(R.tempsNecessaireMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h)</div>
+                  <div>Temps de prod indiqué (Main d'œuvre) : {R.tempsTotal.toLocaleString("fr-FR")} h — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans le temps prévu</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}</div>
                 </div>
               )}
               {FAM.key === "grande_fournee" && (
