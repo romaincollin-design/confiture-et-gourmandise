@@ -1935,28 +1935,24 @@ function ProProduction({ pass }) {
                 {NF("Nombre de plaques", "pissa_nb_plaques", "", "0", f, (k, v) => change({ [k]: v }))}
                 {NF("Prix de vente / plaque", "pissa_px_vente", "€", "0", f, (k, v) => change({ [k]: v }))}
               </div>
-              {R.poidsPissa > 0 && (
-                <div style={{ marginTop: 9, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
-                  <span>Poids pissaladière</span><span style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</span>
-                </div>
-              )}
-              {R.poidsDispoPots != null && (
-                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
-                  <span>Poids disponible pour les pots</span><span style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</span>
-                </div>
-              )}
-              {R.coutPlaque != null && (
-                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
-                  <span>Coût / plaque</span><span style={{ color: PF.navy }}>{eur3(R.coutPlaque)}</span>
-                </div>
-              )}
-              {R.pxVentePlaque != null && (
-                <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PF.navy}22`, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12.5, color: C.ink, fontWeight: 700, alignItems: "center" }}>
-                  <span>Marge/plaque <span style={{ color: R.margePlaqueUnit >= 0 ? PF.good : PF.warn }}>{eur3(R.margePlaqueUnit)}</span></span>
-                  <span>Total ventes plaques <span style={{ color: PF.navy }}>{eur2(R.revenuPlaques)}</span></span>
-                  <span>Marge totale plaques <span style={{ color: R.margePlaquesTotal >= 0 ? PF.good : PF.warn }}>{eur2(R.margePlaquesTotal)}</span></span>
-                </div>
-              )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {R.poidsPissa > 0 && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Poids pissaladière <span style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</span></span>
+                )}
+                {R.poidsDispoPots != null && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Poids disponible pour les pots <span style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</span></span>
+                )}
+                {R.coutPlaque != null && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Coût / plaque <span style={{ color: PF.navy }}>{eur3(R.coutPlaque)}</span></span>
+                )}
+                {R.pxVentePlaque != null && (
+                  <>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Marge/plaque <span style={{ color: R.margePlaqueUnit >= 0 ? PF.good : PF.warn }}>{eur3(R.margePlaqueUnit)}</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Total ventes plaques <span style={{ color: PF.navy }}>{eur2(R.revenuPlaques)}</span></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Marge totale plaques <span style={{ color: R.margePlaquesTotal >= 0 ? PF.good : PF.warn }}>{eur2(R.margePlaquesTotal)}</span></span>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -2076,12 +2072,12 @@ function ProProduction({ pass }) {
                   );
                 })()}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}`, fontSize: 12.5, color: C.ink, fontWeight: 700 }}>
-                <span>Coût/{unitWord} <span style={{ color: PF.navy }}>{eur3(cTot)}</span></span>
-                <span>Marge/{unitWord} <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</span></span>
-                <span>Coef <span style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</span></span>
-                {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span>Total ventes <span style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</span></span>}
-                {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span>Marge totale <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</span></span>}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Coût/{unitWord} <span style={{ color: PF.navy }}>{eur3(cTot)}</span></span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Marge/{unitWord} <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</span></span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Coef <span style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</span></span>
+                {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Total ventes <span style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</span></span>}
+                {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Marge totale <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</span></span>}
               </div>
               {cTot !== null && (
                 <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, marginTop: 6, lineHeight: 1.5 }}>
