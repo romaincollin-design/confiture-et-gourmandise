@@ -1889,18 +1889,40 @@ function ProProduction({ pass }) {
             return (
               <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Poids disponible « {FAM.label} »</div>
-                {nbCandidats > 0 && (
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                    <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                      <Lbl>Du</Lbl>
-                      <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
-                    </div>
-                    <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                      <Lbl>Au</Lbl>
-                      <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
-                    </div>
-                  </div>
-                )}
+                {nbCandidats > 0 && (() => {
+                  const datesDisponibles = [...new Set(batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).map((b) => b.date).filter(Boolean))].sort();
+                  return (
+                    <>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+                        <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                          <Lbl>Du</Lbl>
+                          <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                        </div>
+                        <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                          <Lbl>Au</Lbl>
+                          <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                        </div>
+                      </div>
+                      {datesDisponibles.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                          {datesDisponibles.map((d) => {
+                            const inRange = f.autres_du && f.autres_au && d >= f.autres_du && d <= f.autres_au;
+                            return (
+                              <button key={d} onClick={() => {
+                                let du = f.autres_du, au = f.autres_au;
+                                if (!du || !au) { du = d; au = d; }
+                                else { if (d < du) du = d; if (d > au) au = d; }
+                                change({ autres_du: du, autres_au: au });
+                              }} className="ca-tap" style={{ background: inRange ? PF.navy : "#fff", color: inRange ? "#fff" : C.ink, border: `1px solid ${inRange ? PF.navy : C.line}`, borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                                {new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {f.autres_du && f.autres_au && autresFourneesSelectionnees.length === 0 && (
                   <div style={{ marginBottom: 10, fontSize: 12.5, color: C.ink, fontWeight: 700 }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
                 )}
