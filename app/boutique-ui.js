@@ -1904,20 +1904,26 @@ function ProProduction({ pass }) {
                         </div>
                       </div>
                       {datesDisponibles.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10, alignItems: "center" }}>
                           {datesDisponibles.map((d) => {
                             const inRange = f.autres_du && f.autres_au && d >= f.autres_du && d <= f.autres_au;
                             return (
                               <button key={d} onClick={() => {
                                 let du = f.autres_du, au = f.autres_au;
                                 if (!du || !au) { du = d; au = d; }
+                                else if (inRange && d === du && d === au) { du = ""; au = ""; }
+                                else if (inRange && d === du) { const suivante = datesDisponibles.find((x) => x > d && x <= au); du = suivante || au; }
+                                else if (inRange && d === au) { const precedente = [...datesDisponibles].reverse().find((x) => x < d && x >= du); au = precedente || du; }
                                 else { if (d < du) du = d; if (d > au) au = d; }
                                 change({ autres_du: du, autres_au: au });
                               }} className="ca-tap" style={{ background: inRange ? PF.navy : "#fff", color: inRange ? "#fff" : C.ink, border: `1px solid ${inRange ? PF.navy : C.line}`, borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                                {new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                                {inRange ? "✕ " : ""}{new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
                               </button>
                             );
                           })}
+                          {f.autres_du && f.autres_au && (
+                            <button onClick={() => change({ autres_du: "", autres_au: "" })} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: "5px 4px", textDecoration: "underline" }}>Tout désélectionner</button>
+                          )}
                         </div>
                       )}
                     </>
@@ -2247,7 +2253,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
     const out = [];
     if (gran === "jour") { for (let h = 0; h < 24; h++) out.push({ lab: String(h).padStart(2,"0"), ca: 0 }); }
     else if (gran === "semaine") { for (let i = 0; i < 7; i++) { const d = new Date(cur.start); d.setDate(cur.start.getDate() + i); out.push({ lab: JN[d.getDay()], ca: 0 }); } }
-    else if (gran === "mois") { const n = new Date(cur.start.getFullYear(), cur.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0 }); }
+    else if (gran === "mois") { const n = new Date(cur.start.getFullYear(), cur.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0, dow: new Date(cur.start.getFullYear(), cur.start.getMonth(), i).getDay() }); }
     else { for (let i = 0; i < 12; i++) out.push({ lab: M3[i], ca: 0 }); }
     flux.forEach((f) => {
       const t = new Date(f.ts); if (t < cur.start || t >= cur.end) return;
@@ -2322,12 +2328,23 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
         {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (<>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: -6, marginBottom: 8 }}>Touchez une barre pour voir le détail des produits vendus.</div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
-            {subs.map((s, i) => (
-              <div key={i} onClick={() => s.ca && setDrill(i)} title={s.ca ? `${s.lab} · ${eur(s.ca)} — cliquer pour le détail` : s.lab} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0, cursor: s.ca ? "pointer" : "default" }}>
-                <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s, filter .15s" }} />
-                <div style={{ fontSize: gran === "mois" ? 7.5 : 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{gran === "mois" ? (i % 3 === 0 ? s.lab : "") : s.lab}</div>
-              </div>
-            ))}
+            {subs.map((s, i) => {
+              const isWeekend = gran === "mois" && (s.dow === 0 || s.dow === 6);
+              const isMonday = gran === "mois" && s.dow === 1;
+              return (
+                <div key={i} onClick={() => s.ca && setDrill(i)} title={s.ca ? `${s.lab} · ${eur(s.ca)} — cliquer pour le détail` : s.lab} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0, cursor: s.ca ? "pointer" : "default", background: isWeekend ? "#00000006" : "transparent", borderRadius: 3 }}>
+                  <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s, filter .15s" }} />
+                  {gran === "mois" ? (
+                    <div style={{ marginTop: 4, textAlign: "center", lineHeight: 1.15 }}>
+                      <div style={{ fontSize: 9, color: isMonday ? PF.navy : C.soft, fontWeight: isMonday ? 800 : 600 }}>{JN[s.dow][0]}</div>
+                      {isMonday && <div style={{ fontSize: 8.5, color: PF.navy, fontWeight: 800 }}>{s.lab}</div>}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{s.lab}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>)}
       </div>
