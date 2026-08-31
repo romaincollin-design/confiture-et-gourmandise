@@ -1150,8 +1150,11 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   let poidsCumulAvant = 0; // poids déjà alloué aux formats précédents (cumul séquentiel)
   let coefSum = 0, coefCount = 0, margeSumParUnite = 0, prixSumParUnite = 0; // moyenne non pondérée (par ligne), utilisée si aucune quantité n'est encore saisie
   const potLines = pots.map((p) => {
-    const nb = pfNum(p.nb);
     const formatKg = pfNum(p.format_g) / 1000;
+    const poidsRestantAvant = poidsDispoPots != null ? poidsDispoPots - poidsCumulAvant : null;
+    const isAutoNb = p.nb === "" || p.nb == null;
+    const nbAutoCalc = (isAutoNb && formatKg > 0 && poidsRestantAvant != null && poidsRestantAvant > 0) ? Math.floor(poidsRestantAvant / formatKg) : 0;
+    const nb = isAutoNb ? nbAutoCalc : pfNum(p.nb);
     const coutAccomp = p.type === "kit"
       ? (p.accompagnements || []).reduce((s, a) => { const div = (EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).div; return s + (pfNum(a.qty) / div) * pfNum(a.price); }, 0)
       : pfNum(p.px_etiquette);
@@ -1163,14 +1166,13 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
     const pxv = (p.px_vente === "" || p.px_vente == null) ? pxVenteSuggere : pfNum(p.px_vente);
     const mU = (pxv != null && cTot !== null) ? pxv - cTot : null;
     const coefU = (pxv != null && cTot) ? pxv / cTot : null;
-    const poidsRestantAvant = poidsDispoPots != null ? poidsDispoPots - poidsCumulAvant : null;
     poidsCumulAvant += formatKg * nb;
     const poidsRestantApres = poidsDispoPots != null ? poidsDispoPots - poidsCumulAvant : null;
     poidsAlloue += formatKg * nb; coutEmballageTotal += cEmb * nb; nbPotsTotal += nb;
     if (cTot !== null) coutProduitTotal += cTot * nb;
     if (pxv != null) { margeTotale += (mU || 0) * nb; revenuTotal += pxv * nb; nbPotsPrix += nb; if (cTot !== null) coutProduitAvecPrix += cTot * nb; }
     if (coefU != null) { coefSum += coefU; coefCount++; margeSumParUnite += mU || 0; prixSumParUnite += pxv; }
-    return { ...p, nb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere, poidsRestantAvant, poidsRestantApres };
+    return { ...p, nb, isAutoNb, coutUnitaireProduit: cProd, coutUnitaireEmballage: cEmb, coutUnitaireTotal: cTot, margeUnitaire: mU, coefUnitaire: coefU, pxVenteEffectif: pxv, pxVenteSuggere, poidsRestantAvant, poidsRestantApres };
   });
   const ecartPoids = poidsDispoPots !== null ? poidsDispoPots - poidsAlloue : null;
   const coutPotMoyen = nbPotsTotal ? coutProduitTotal / nbPotsTotal : null;
@@ -1892,33 +1894,26 @@ function ProProduction({ pass }) {
             const cuitTotal = (R.poidsFini || 0) + poidsAutresFournees;
             return (
               <div style={{ background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 6, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Poids disponible « {FAM.label} »</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Poids disponible « {FAM.label} »</div>
                 {nbCandidats > 0 && (
-                  <>
-                    <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 8, lineHeight: 1.4 }}>Cumuler d'autres fournées : choisis une période, elles s'ajoutent au total ci-dessous.</div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                        <Lbl>Du</Lbl>
-                        <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
-                      </div>
-                      <div style={{ flex: "1 1 130px", minWidth: 120 }}>
-                        <Lbl>Au</Lbl>
-                        <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
-                      </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                    <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                      <Lbl>Du</Lbl>
+                      <input type="date" value={f.autres_du || ""} onChange={(e) => change({ autres_du: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
                     </div>
-                    {f.autres_du && f.autres_au && autresFourneesSelectionnees.length === 0 && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: C.soft, fontStyle: "italic" }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
-                    )}
-                  </>
-                )}
-                <div style={{ marginTop: nbCandidats > 0 ? 10 : 0, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
-                  {autresFourneesSelectionnees.length > 0 && (
-                    <div>Cette fournée : <b>{(R.oignonTotalRondes || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b>{(R.poidsFini || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b> + {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""} ({autresFourneesSelectionnees.map((b) => b.date ? new Date(b.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) : "?").join(", ")}) : <b style={{ color: PF.navy }}>+{cruAutres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.navy }}>+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b></div>
-                  )}
-                  <div style={autresFourneesSelectionnees.length > 0 ? { marginTop: 4 } : {}}>
-                    <b>Poids total disponible : {cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru</b> → <b style={{ color: PF.good, fontSize: 14 }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</b>
+                    <div style={{ flex: "1 1 130px", minWidth: 120 }}>
+                      <Lbl>Au</Lbl>
+                      <input type="date" value={f.autres_au || ""} onChange={(e) => change({ autres_au: e.target.value })} style={{ ...inp(), marginTop: 4 }} />
+                    </div>
                   </div>
-                </div>
+                )}
+                {f.autres_du && f.autres_au && autresFourneesSelectionnees.length === 0 && (
+                  <div style={{ marginBottom: 10, fontSize: 12.5, color: C.ink, fontWeight: 700 }}>Aucune autre fournée « {FAM.label} » dans cette période.</div>
+                )}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                  Poids total disponible : {cruTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cru → <span style={{ color: PF.good }}>{cuitTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit</span>
+                  {autresFourneesSelectionnees.length > 0 && <span style={{ color: PF.navy }}>(+{poidsAutresFournees.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de {autresFourneesSelectionnees.length} autre{autresFourneesSelectionnees.length > 1 ? "s" : ""})</span>}
+                </span>
               </div>
             );
           })()}
@@ -1991,7 +1986,10 @@ function ProProduction({ pass }) {
                 {labels[0] && NF(labels[0], "px_bocal", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {labels[1] && NF(labels[1], "px_capuchon", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
                 {p.type !== "kit" && labels[2] && NF(labels[2], "px_etiquette", "€", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
-                {NF(`Nb de ${unitWord}s`, "nb", "", "0", p, (k, v) => { const pots = [...f.pots]; pots[i] = { ...pots[i], [k]: v }; change({ pots }); })}
+                <div style={{ flex: "0 1 100px", minWidth: 80, maxWidth: 140 }}>
+                  <Lbl>Nb de {unitWord}s {pl.isAutoNb ? <span style={{ fontWeight: 400, color: PF.navy }}>(auto)</span> : null}</Lbl>
+                  <input inputMode="numeric" value={pl.isAutoNb ? (pl.nb || 0) : p.nb} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: ev.target.value }; change({ pots }); }} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: pl.isAutoNb ? "#f6efdd" : "#fff" }} />
+                </div>
               </div>
               {p.type === "kit" && (
                 <div style={{ marginTop: 10 }}>
@@ -2052,18 +2050,6 @@ function ProProduction({ pass }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.ink, fontWeight: 700, alignItems: "center" }}>
                 {(() => {
-                  const nbAuto = (R.poidsDispoPots != null && pfNum(p.format_g) > 0) ? Math.floor((R.poidsDispoPots * 1000) / pfNum(p.format_g)) : null;
-                  if (nbAuto == null) return null;
-                  const dejaBon = pfNum(p.nb) === nbAuto;
-                  return (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f6efdd", borderRadius: 8, padding: "4px 9px" }}>
-                      <Package size={13} color={PF.navy} />
-                      <span>≈ <span style={{ color: PF.navy }}>{nbAuto} {unitWord}(s)</span> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
-                      {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
-                    </span>
-                  );
-                })()}
-                {(() => {
                   const coef = pfNum(p.coef_vente);
                   if (!coef || !cTot) return null;
                   const suggestion = Math.round(cTot * coef * 100) / 100;
@@ -2111,24 +2097,13 @@ function ProProduction({ pass }) {
             </div>
           ); })}
           {(f.pots || []).length > 0 && R.poidsDispoPots != null && (() => {
-            const poidsTotalDepart = (R.poidsFini || 0) + (poidsAutresFournees || 0);
-            const formatsUtilises = (f.pots || []).filter((p, i) => pfNum(p.nb) > 0 && R.potLines[i]);
             const dernierePl = R.potLines.length > 0 ? R.potLines[R.potLines.length - 1] : null;
             const finalRestant = dernierePl && dernierePl.poidsRestantApres != null ? dernierePl.poidsRestantApres : R.poidsDispoPots;
             return (
-              <div style={{ marginTop: 4, marginBottom: 14, background: PF.navy, color: "#fff", borderRadius: 12, padding: "12px 14px", fontSize: 12.5, fontWeight: 700, lineHeight: 1.8 }}>
-                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", opacity: .75, marginBottom: 4 }}>Décompte du poids — plaques + tous les pots</div>
-                <div>Poids total disponible : {poidsTotalDepart.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>
-                {R.poidsPissa > 0 && <div>− Plaques : {R.poidsPissa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>}
-                {formatsUtilises.map((p, idx) => {
-                  const i = (f.pots || []).indexOf(p);
-                  const kg = (pfNum(p.format_g) * pfNum(p.nb)) / 1000;
-                  return <div key={i}>− Format {i + 1} ({pfNum(p.format_g)} g × {pfNum(p.nb)}) : {kg.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>;
-                })}
-                <div style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,.3)" }}>
-                  Poids restant final : <span style={{ color: finalRestant >= 0 ? "#fff" : "#ffd7d7" }}>{finalRestant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span>
-                </div>
-              </div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 14 }}>
+                <Package size={14} color={PF.navy} />
+                Poids restant après plaques + pots : <span style={{ color: finalRestant >= 0 ? PF.good : PF.warn }}>{finalRestant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span>
+              </span>
             );
           })()}
           <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
