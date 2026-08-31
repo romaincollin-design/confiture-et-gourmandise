@@ -1786,31 +1786,25 @@ function ProProduction({ pass }) {
                 {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               {R.cyclesTotal > 0 && (
-                <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7, fontWeight: 700 }}>
-                  <div>Temps de prod disponible : {R.tempsTotal.toLocaleString("fr-FR")} h</div>
-                  <div>Tournées (cycles) par feu : {R.tempsTotal.toLocaleString("fr-FR")} h ÷ {pfNum(f.temps_cycle_min)} min/cycle = {R.cyclesParFeu} cycles/feu</div>
-                  <div>Temps de cuisson total utilisé : {R.cyclesParFeu} cycles × {pfNum(f.temps_cycle_min)} min = {Math.round(R.tempsCuissonUtiliseMin)} min ({(R.tempsCuissonUtiliseMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h) par feu</div>
-                  <div>Tournées totales (tous feux) : {R.cyclesParFeu} cycles/feu × {pfNum(f.nb_feux)} feux = {R.cyclesTotal} cycles</div>
-                  <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>→ <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg d'oignons</span> crus, soit ≈ <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span> (rendement 90%, réf. fournée du 09/08)</span>
-                    <button onClick={() => {
-                      const q = R.quantiteBruteProcess; // kg
-                      change({
-                        oignon_kg: Math.round(q * 1000) / 1000,
-                        ...pfSuggestRecipe(f, q),
-                        poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
-                      });
-                    }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
-                  </div>
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    Capacité max en {R.tempsTotal.toLocaleString("fr-FR")} h : <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg crus</span> → <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span>
+                  </span>
+                  <button onClick={() => {
+                    const q = R.quantiteBruteProcess; // kg
+                    change({
+                      oignon_kg: Math.round(q * 1000) / 1000,
+                      ...pfSuggestRecipe(f, q),
+                      poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
+                    });
+                  }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
                 </div>
               )}
               {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
-                <div style={{ marginTop: 10, background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.7, fontWeight: 700 }}>
-                  <div style={{ color: PF.navy, marginBottom: 4 }}>Pour traiter les {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg d'oignons déjà saisis :</div>
-                  <div>Capacité par tournée : {pfNum(f.nb_feux)} feux × {pfNum(f.kg_par_feu)} kg = {R.capaciteParTournee} kg/tournée</div>
-                  <div>Tournées (fournées) nécessaires : {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg ÷ {R.capaciteParTournee} kg = {R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}</div>
-                  <div>Temps total nécessaire : {R.tourneesNecessaires} × {pfNum(f.temps_cycle_min)} min = {Math.round(R.tempsNecessaireMin)} min ({(R.tempsNecessaireMin / 60).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h)</div>
-                  <div>Temps de prod indiqué (Main d'œuvre) : {R.tempsTotal.toLocaleString("fr-FR")} h — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans le temps prévu</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}</div>
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
+                  </span>
                 </div>
               )}
               {FAM.key === "grande_fournee" && (
