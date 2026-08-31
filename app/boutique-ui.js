@@ -1941,25 +1941,25 @@ function ProProduction({ pass }) {
                 {NF("Prix de vente / plaque", "pissa_px_vente", "€", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               {R.poidsPissa > 0 && (
-                <div style={{ marginTop: 9, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
-                  <span style={{ color: C.soft }}>Poids pissaladière</span><b style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</b>
+                <div style={{ marginTop: 9, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
+                  <span>Poids pissaladière</span><span style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</span>
                 </div>
               )}
               {R.poidsDispoPots != null && (
-                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
-                  <span style={{ color: C.soft }}>Poids disponible pour les pots</span><b style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</b>
+                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
+                  <span>Poids disponible pour les pots</span><span style={{ color: PF.good }}>{R.poidsDispoPots.toFixed(2)} kg</span>
                 </div>
               )}
               {R.coutPlaque != null && (
-                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink }}>
-                  <span style={{ color: C.soft }}>Coût / plaque</span><b style={{ color: PF.navy }}>{eur3(R.coutPlaque)}</b>
+                <div style={{ marginTop: 3, fontSize: 12.5, display: "flex", justifyContent: "space-between", color: C.ink, fontWeight: 700 }}>
+                  <span>Coût / plaque</span><span style={{ color: PF.navy }}>{eur3(R.coutPlaque)}</span>
                 </div>
               )}
               {R.pxVentePlaque != null && (
-                <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PF.navy}22`, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12.5, color: C.soft, alignItems: "center" }}>
-                  <span>Marge/plaque <b style={{ color: R.margePlaqueUnit >= 0 ? PF.good : PF.warn }}>{eur3(R.margePlaqueUnit)}</b></span>
-                  <span>Total ventes plaques <b style={{ color: PF.navy }}>{eur2(R.revenuPlaques)}</b></span>
-                  <span>Marge totale plaques <b style={{ color: R.margePlaquesTotal >= 0 ? PF.good : PF.warn }}>{eur2(R.margePlaquesTotal)}</b></span>
+                <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PF.navy}22`, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12.5, color: C.ink, fontWeight: 700, alignItems: "center" }}>
+                  <span>Marge/plaque <span style={{ color: R.margePlaqueUnit >= 0 ? PF.good : PF.warn }}>{eur3(R.margePlaqueUnit)}</span></span>
+                  <span>Total ventes plaques <span style={{ color: PF.navy }}>{eur2(R.revenuPlaques)}</span></span>
+                  <span>Marge totale plaques <span style={{ color: R.margePlaquesTotal >= 0 ? PF.good : PF.warn }}>{eur2(R.margePlaquesTotal)}</span></span>
                 </div>
               )}
             </div>
@@ -1981,9 +1981,9 @@ function ProProduction({ pass }) {
                 </div>
               </div>
               {R.poidsDispoPots != null && (
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 9, background: "#f6efdd", borderRadius: 8, padding: "7px 10px", fontSize: 12 }}>
-                  <span style={{ color: C.soft }}>Poids disponible avant ce format : <b style={{ color: PF.navy }}>{pl.poidsRestantAvant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</b></span>
-                  <span style={{ color: C.soft }}>Restant après ce format : <b style={{ color: pl.poidsRestantApres > 0 ? PF.good : (pl.poidsRestantApres < 0 ? PF.warn : C.soft) }}>{pl.poidsRestantApres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</b></span>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 9, background: "#f6efdd", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: C.ink, fontWeight: 700 }}>
+                  <span>Poids disponible avant ce format : <span style={{ color: PF.navy }}>{pl.poidsRestantAvant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span></span>
+                  <span>Restant après ce format : <span style={{ color: pl.poidsRestantApres > 0 ? PF.good : (pl.poidsRestantApres < 0 ? PF.warn : C.ink) }}>{pl.poidsRestantApres.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span></span>
                 </div>
               )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
@@ -2050,7 +2050,7 @@ function ProProduction({ pass }) {
                   );
                 })()}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.soft, alignItems: "center" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 10, fontSize: 12, color: C.ink, fontWeight: 700, alignItems: "center" }}>
                 {(() => {
                   const nbAuto = (R.poidsDispoPots != null && pfNum(p.format_g) > 0) ? Math.floor((R.poidsDispoPots * 1000) / pfNum(p.format_g)) : null;
                   if (nbAuto == null) return null;
@@ -2058,7 +2058,7 @@ function ProProduction({ pass }) {
                   return (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f6efdd", borderRadius: 8, padding: "4px 9px" }}>
                       <Package size={13} color={PF.navy} />
-                      <span>≈ <b style={{ color: PF.navy }}>{nbAuto} {unitWord}(s)</b> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
+                      <span>≈ <span style={{ color: PF.navy }}>{nbAuto} {unitWord}(s)</span> possibles ({R.poidsDispoPots.toFixed(2)} kg ÷ {pfNum(p.format_g)} g)</span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: nbAuto }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
@@ -2071,7 +2071,7 @@ function ProProduction({ pass }) {
                   return (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f3ece0", borderRadius: 8, padding: "4px 9px" }}>
                       <Percent size={13} color={PF.navy} />
-                      <span>≈ <b style={{ color: PF.navy }}>{eur2(suggestion)}</b> suggéré (coût {eur3(cTot)} × {coef.toLocaleString("fr-FR")}) → marge <b style={{ color: PF.good }}>{eur3(suggestion - cTot)}</b></span>
+                      <span>≈ <span style={{ color: PF.navy }}>{eur2(suggestion)}</span> suggéré (coût {eur3(cTot)} × {coef.toLocaleString("fr-FR")}) → marge <span style={{ color: PF.good }}>{eur3(suggestion - cTot)}</span></span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: suggestion }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
@@ -2084,32 +2084,53 @@ function ProProduction({ pass }) {
                   return (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#eef3f6", borderRadius: 8, padding: "4px 9px" }}>
                       <Wallet size={13} color={PF.navy} />
-                      <span>≈ <b style={{ color: PF.navy }}>{eur2(suggestion)}</b> suggéré ({pxKg.toLocaleString("fr-FR")} €/kg × {pfNum(p.format_g)} g)</span>
+                      <span>≈ <span style={{ color: PF.navy }}>{eur2(suggestion)}</span> suggéré ({pxKg.toLocaleString("fr-FR")} €/kg × {pfNum(p.format_g)} g)</span>
                       {!dejaBon && <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], px_vente: suggestion }; change({ pots }); }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Appliquer</button>}
                     </span>
                   );
                 })()}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}`, fontSize: 12.5 }}>
-                <span style={{ color: C.soft }}>Coût/{unitWord} <b style={{ color: PF.navy }}>{eur3(cTot)}</b></span>
-                <span style={{ color: C.soft }}>Marge/{unitWord} <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</b></span>
-                <span style={{ color: C.soft }}>Coef <b style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</b></span>
-                {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span style={{ color: C.soft }}>Total ventes <b style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</b></span>}
-                {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span style={{ color: C.soft }}>Marge totale <b style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</b></span>}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}`, fontSize: 12.5, color: C.ink, fontWeight: 700 }}>
+                <span>Coût/{unitWord} <span style={{ color: PF.navy }}>{eur3(cTot)}</span></span>
+                <span>Marge/{unitWord} <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</span></span>
+                <span>Coef <span style={{ color: PF.ochre }}>{pl.coefUnitaire ? "×" + pl.coefUnitaire.toFixed(2) : "—"}</span></span>
+                {pfNum(p.nb) > 0 && pfNum(p.px_vente) > 0 && <span>Total ventes <span style={{ color: PF.navy }}>{eur2(pfNum(p.nb) * pfNum(p.px_vente))}</span></span>}
+                {pfNum(p.nb) > 0 && pl.margeUnitaire != null && <span>Marge totale <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur2(pfNum(p.nb) * pl.margeUnitaire)}</span></span>}
               </div>
               {cTot !== null && (
-                <div style={{ fontSize: 10.5, color: C.soft, marginTop: 6, fontStyle: "italic", lineHeight: 1.5 }}>
-                  détail matière : coût de revient {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = <b>{eur3(pl.coutUnitaireProduit)}</b> (produit)
+                <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, marginTop: 6, lineHeight: 1.5 }}>
+                  détail matière : coût de revient {eur3(R.coutKg)}/kg × {pfNum(p.format_g)} g = <span style={{ color: PF.navy }}>{eur3(pl.coutUnitaireProduit)}</span> (produit)
                   <br />détail emballage : {p.type === "kit"
                     ? [labels[0] && `${eur3(p.px_bocal)} (${labels[0]})`, labels[1] && `${eur3(p.px_capuchon)} (${labels[1]})`, ...(p.accompagnements || []).map((a) => a.label && `${eur3((pfNum(a.qty) / (EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).div) * pfNum(a.price))} (${a.label})`)].filter(Boolean).join(" + ")
                     : [labels[0], labels[1], labels[2]].map((l, li) => l && `${eur3([p.px_bocal, p.px_capuchon, p.px_etiquette][li])} (${l})`).filter(Boolean).join(" + ")
-                  } = <b>{eur3(pl.coutUnitaireEmballage)}</b>
-                  <br />coût total : {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = <b>{eur3(cTot)}</b> (coût du {unitWord})
-                  {pl.margeUnitaire != null && <><br />marge : {eur2(pl.pxVenteEffectif)} (prix de vente) − {eur3(cTot)} (coût) = <b>{eur3(pl.margeUnitaire)}</b></>}
+                  } = <span style={{ color: PF.navy }}>{eur3(pl.coutUnitaireEmballage)}</span>
+                  <br />coût total : {eur3(pl.coutUnitaireProduit)} (produit) + {eur3(pl.coutUnitaireEmballage)} (emballage) = <span style={{ color: PF.navy }}>{eur3(cTot)}</span> (coût du {unitWord})
+                  {pl.margeUnitaire != null && <><br />marge : {eur2(pl.pxVenteEffectif)} (prix de vente) − {eur3(cTot)} (coût) = <span style={{ color: pl.margeUnitaire >= 0 ? PF.good : PF.warn }}>{eur3(pl.margeUnitaire)}</span></>}
                 </div>
               )}
             </div>
           ); })}
+          {(f.pots || []).length > 0 && R.poidsDispoPots != null && (() => {
+            const poidsTotalDepart = (R.poidsFini || 0) + (poidsAutresFournees || 0);
+            const formatsUtilises = (f.pots || []).filter((p, i) => pfNum(p.nb) > 0 && R.potLines[i]);
+            const dernierePl = R.potLines.length > 0 ? R.potLines[R.potLines.length - 1] : null;
+            const finalRestant = dernierePl && dernierePl.poidsRestantApres != null ? dernierePl.poidsRestantApres : R.poidsDispoPots;
+            return (
+              <div style={{ marginTop: 4, marginBottom: 14, background: PF.navy, color: "#fff", borderRadius: 12, padding: "12px 14px", fontSize: 12.5, fontWeight: 700, lineHeight: 1.8 }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", opacity: .75, marginBottom: 4 }}>Décompte du poids — plaques + tous les pots</div>
+                <div>Poids total disponible : {poidsTotalDepart.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>
+                {R.poidsPissa > 0 && <div>− Plaques : {R.poidsPissa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>}
+                {formatsUtilises.map((p, idx) => {
+                  const i = (f.pots || []).indexOf(p);
+                  const kg = (pfNum(p.format_g) * pfNum(p.nb)) / 1000;
+                  return <div key={i}>− Format {i + 1} ({pfNum(p.format_g)} g × {pfNum(p.nb)}) : {kg.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</div>;
+                })}
+                <div style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid rgba(255,255,255,.3)" }}>
+                  Poids restant final : <span style={{ color: finalRestant >= 0 ? "#fff" : "#ffd7d7" }}>{finalRestant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span>
+                </div>
+              </div>
+            );
+          })()}
           <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
 
           {(R.revenuTotalGlobal > 0 || R.nbPotsTotal > 0) && (
