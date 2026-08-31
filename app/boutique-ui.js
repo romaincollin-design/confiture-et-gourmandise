@@ -2090,9 +2090,9 @@ function ProProduction({ pass }) {
             const dernierePl = R.potLines.length > 0 ? R.potLines[R.potLines.length - 1] : null;
             const finalRestant = dernierePl && dernierePl.poidsRestantApres != null ? dernierePl.poidsRestantApres : R.poidsDispoPots;
             return (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 14 }}>
-                <Package size={14} color={PF.navy} />
-                Poids restant après plaques + pots : <span style={{ color: finalRestant >= 0 ? PF.good : PF.warn }}>{finalRestant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: "#f6efdd", borderRadius: 10, padding: "11px 15px", fontSize: 16, fontWeight: 700, color: C.ink, marginBottom: 14 }}>
+                <Package size={18} color={PF.navy} />
+                Poids restant après plaques + pots : <span style={{ color: finalRestant >= 0 ? PF.good : PF.warn, fontSize: 19 }}>{finalRestant.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg</span>
               </span>
             );
           })()}
