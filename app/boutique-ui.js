@@ -2435,9 +2435,9 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
           if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
           else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
           else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
-          else { a = new Date(cur.start.getFullYear(), drill, 1); b = new Date(cur.start.getFullYear(), drill + 1, 1); }
+          else { const yy = gran === "total" ? new Date().getFullYear() : cur.start.getFullYear(); a = new Date(yy, drill, 1); b = new Date(yy, drill + 1, 1); }
           titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
-            : gran === "annee" ? `${MOIS[drill]} ${cur.start.getFullYear()}`
+            : (gran === "annee" || gran === "total") ? `${MOIS[drill]} ${a.getFullYear()}`
             : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
         }
         const D = agg(a, b);
