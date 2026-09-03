@@ -668,7 +668,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
-        {tab === "gestion" && <ProProduction {...{ pass }} />}
+        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
@@ -1197,7 +1197,7 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
-function ProProduction({ pass }) {
+function ProProduction({ pass, products, setProducts }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
@@ -1225,12 +1225,49 @@ function ProProduction({ pass }) {
     const o = { ...f };
     NUM_KEYS.forEach((k) => { if (o[k] === "" || o[k] == null) { if (k === "poids_fini_kg") o[k] = ""; else o[k] = 0; } else o[k] = pfNum(o[k]); });
     o.personnel = (o.personnel || []).map((p) => ({ nom: p.nom || "", taux: p.taux === "" || p.taux == null ? 0 : pfNum(p.taux) }));
-    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_capuchon: pfNum(p.px_capuchon), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente) }));
+    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_capuchon: pfNum(p.px_capuchon), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente), type: p.type || "pot", pid: p.pid || null, accompagnements: (p.accompagnements || []).map((a) => ({ label: a.label || "", qty: pfNum(a.qty), price: pfNum(a.price), unit: a.unit || "piece" })) }));
     o.extra = (o.extra || []).map((e) => ({ label: e.label || "", qty: pfNum(e.qty), price: pfNum(e.price), unit: e.unit || "piece" }));
     o.frais_extra = (o.frais_extra || []).map((x) => ({ label: x.label || "", montant: pfNum(x.montant) }));
     o.famille = f.famille || "pissaladiere";
     return o;
   };
+  const pousserVersStock = async (pid, deltaStock, nouveauCout) => {
+    if (!pid || !supabase || !pass) return;
+    const prod = (products || []).find((x) => x.id === pid);
+    if (!prod) return;
+    const np = { ...prod, stock: (Number(prod.stock) || 0) + deltaStock, cost: nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost };
+    setProducts((list) => list.map((x) => x.id === pid ? np : x));
+    try {
+      await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false });
+    } catch (e) {}
+  };
+
+  const validerEtPousserStock = async (f, R) => {
+    const dejaApplique = f.stock_applique || {};
+    const nouveauSnapshot = {};
+    if (isPissaFam(f.famille || "pissaladiere") && f.pissa_plaque_pid && R.nbPlaques > 0) {
+      nouveauSnapshot[f.pissa_plaque_pid] = (nouveauSnapshot[f.pissa_plaque_pid] || 0) + R.nbPlaques;
+    }
+    (f.pots || []).forEach((p, i) => {
+      const pl = R.potLines[i];
+      if (p.pid && pl && pl.nb > 0) nouveauSnapshot[p.pid] = (nouveauSnapshot[p.pid] || 0) + pl.nb;
+    });
+    const pids = new Set([...Object.keys(dejaApplique), ...Object.keys(nouveauSnapshot)]);
+    for (const pid of pids) {
+      const avant = dejaApplique[pid] || 0;
+      const apres = nouveauSnapshot[pid] || 0;
+      const delta = apres - avant;
+      if (delta !== 0) {
+        let cout = null;
+        if (pid === f.pissa_plaque_pid) cout = R.coutPlaque;
+        const idx = (f.pots || []).findIndex((p) => p.pid === pid);
+        if (idx >= 0 && R.potLines[idx]) cout = R.potLines[idx].coutUnitaireTotal;
+        await pousserVersStock(pid, delta, cout);
+      }
+    }
+    return nouveauSnapshot;
+  };
+
   const persist = async (fRaw) => {
     if (!supabase || !pass) return;
     const f = pfNorm(fRaw);
@@ -1967,6 +2004,13 @@ function ProProduction({ pass }) {
                 {NF("Nombre de plaques", "pissa_nb_plaques", "", "0", f, (k, v) => change({ [k]: v }))}
                 {NF("Prix de vente / plaque", "pissa_px_vente", "€", "0", f, (k, v) => change({ [k]: v }))}
               </div>
+              <div style={{ marginTop: 10 }}>
+                <Lbl>Produit lié (stock)</Lbl>
+                <select value={f.pissa_plaque_pid || ""} onChange={(e) => change({ pissa_plaque_pid: e.target.value || null })} style={{ ...inp(), marginTop: 3 }}>
+                  <option value="">— non lié —</option>
+                  {(products || []).map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.unit ? " · " + pr.unit : ""}</option>)}
+                </select>
+              </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
                 {R.poidsPissa > 0 && (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f6efdd", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Poids pissaladière <span style={{ color: PF.navy }}>{R.poidsPissa.toFixed(2)} kg</span></span>
@@ -2018,6 +2062,13 @@ function ProProduction({ pass }) {
                   <Lbl>Nb de {unitWord}s</Lbl>
                   <input inputMode="numeric" value={pl.isAutoNb ? (pl.nb || 0) : p.nb} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: ev.target.value.replace(/^0+(?=\d)/, "") }; change({ pots }); }} style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: pl.isAutoNb ? "#f6efdd" : "#fff" }} />
                 </div>
+              </div>
+              <div style={{ marginTop: 9 }}>
+                <Lbl>Produit lié (stock)</Lbl>
+                <select value={p.pid || ""} onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], pid: ev.target.value || null }; change({ pots }); }} style={{ ...inp(), marginTop: 3 }}>
+                  <option value="">— non lié —</option>
+                  {(products || []).map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.unit ? " · " + pr.unit : ""}</option>)}
+                </select>
               </div>
               {p.type === "kit" && (
                 <div style={{ marginTop: 10 }}>
@@ -2157,7 +2208,12 @@ function ProProduction({ pass }) {
         </div>
       )}
 
-      <button onClick={async () => { clearTimeout(timer.current); await persist(cur); setView("list"); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée</button>
+      <button onClick={async () => {
+        clearTimeout(timer.current);
+        const nouveauSnapshot = await validerEtPousserStock(cur, R);
+        await persist({ ...cur, stock_applique: nouveauSnapshot });
+        setView("list");
+      }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
     </div>
   );
 }
@@ -2324,6 +2380,12 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
         {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
         {kpi("Marge", A.caAvecCout > 0 ? eur(A.marge) : "—", A.caAvecCout > 0 ? `${Math.round((A.marge / A.caAvecCout) * 100)}% · calculée sur ${Math.round((A.caAvecCout / A.ca) * 100)}% du CA (coût connu)` : "prix d'achat non renseignés")}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
+        {(() => {
+          const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
+          const valeurStock = prodsAvecStock.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0);
+          const prodsAvecCoutConnu = prodsAvecStock.filter((p) => Number(p.cost) > 0).length;
+          return kpi("Valeur du stock", valeurStock > 0 ? eur(valeurStock) : "—", prodsAvecStock.length > 0 ? `${prodsAvecCoutConnu}/${prodsAvecStock.length} produits avec coût connu` : "aucun stock renseigné");
+        })()}
       </div>
 
       {enCours && gran !== "total" && (
