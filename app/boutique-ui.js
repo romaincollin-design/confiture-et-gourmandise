@@ -310,9 +310,12 @@ function Welcome({ setStep, setIntent, profile, returning, cust, reviews }) {
   const avg = reviews && reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
   return (
     <div className="ca-anim">
-      <div style={{ background: "#ECE1CC", borderBottom: `1px solid ${C.line}`, padding: "22px 24px 12px", textAlign: "center" }}>
+      <div style={{ background: "#ECE1CC", borderBottom: `1px solid ${C.line}`, padding: "26px 24px 12px", textAlign: "center" }}>
+        <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", margin: "0 auto 12px", boxShadow: "0 3px 10px #7A2B3340" }}>
+          <span style={{ fontFamily: SCRIPT, fontSize: 24, lineHeight: 1 }}>C&nbsp;&amp;&nbsp;G</span>
+        </div>
         <div style={{ fontSize: 12, color: C.caramel }}>✦ &nbsp; ✦ &nbsp; ✦</div>
-        <div style={{ fontSize: 10.5, letterSpacing: ".24em", textTransform: "uppercase", color: C.soft, marginTop: 6 }}>Association artisanale</div>
+        <div style={{ fontSize: 10.5, letterSpacing: ".24em", textTransform: "uppercase", color: C.soft, marginTop: 6 }}>Bienvenue · Association artisanale</div>
         <h1 style={{ fontFamily: SCRIPT, fontSize: 38, lineHeight: 1.22, margin: "8px 0 0", color: C.jam }}>{profile.name}</h1>
         <div style={{ fontFamily: SCRIPT, fontSize: 15.5, lineHeight: 1.25, color: C.ink, marginTop: 2, padding: "0 6px" }}>{profile.tag}</div>
         <Hero />
