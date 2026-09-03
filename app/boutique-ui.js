@@ -2788,12 +2788,14 @@ function ProProducts({ products, setProducts, pass }) {
       {cats.map((cat) => {
         const items = products.filter((p) => p.cat === cat);
         const isOpen = !!openCat[cat];
+        const sansAchat = items.filter((p) => !p.cost || +p.cost === 0).length;
         return (
           <div key={cat} style={{ marginBottom: 10 }}>
             <button onClick={() => setOpenCat((o) => ({ ...o, [cat]: !o[cat] }))} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 15px", borderRadius: 12, border: `1px solid ${C.line}`, background: isOpen ? "#7A2B3308" : C.paper, cursor: "pointer" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{cat}</span>
                 <span style={{ fontSize: 11.5, color: C.soft, background: C.cream, padding: "3px 9px", borderRadius: 20, fontWeight: 600 }}>{items.length}</span>
+                {sansAchat > 0 && <span title="Produits sans prix d'achat renseigné" style={{ fontSize: 11, color: PF.warn, background: "#faece5", padding: "3px 9px", borderRadius: 20, fontWeight: 700 }}>⚠ {sansAchat} sans prix d'achat</span>}
               </span>
               <ChevronDown size={18} color={C.soft} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
@@ -2805,7 +2807,7 @@ function ProProducts({ products, setProducts, pass }) {
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={p.illu} col={p.col} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
-                      <div><MiniLabel>Prix vente €</MiniLabel><input type="number" value={p.price} onChange={(e) => onPrice(p, e.target.value)} style={inp()} /></div>
+                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input type="number" value={p.price} onChange={(e) => onPrice(p, e.target.value)} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
                       <div><MiniLabel>Stock</MiniLabel><input type="number" value={p.stock} onChange={(e) => updField(p.id, "stock", e.target.value)} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
                       <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
@@ -2814,8 +2816,8 @@ function ProProducts({ products, setProducts, pass }) {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 11, color: C.soft }}>Achat</span>
-                        <input type="number" value={p.cost ?? ""} onChange={(e) => onCost(p, e.target.value)} placeholder="—" style={{ ...inp(), width: 66, padding: "7px 9px" }} />
+                        <span style={{ fontSize: 11, color: (!p.cost || +p.cost === 0) ? PF.warn : C.soft, fontWeight: (!p.cost || +p.cost === 0) ? 700 : 400 }}>Achat</span>
+                        <input type="number" value={p.cost ?? ""} onChange={(e) => onCost(p, e.target.value)} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
