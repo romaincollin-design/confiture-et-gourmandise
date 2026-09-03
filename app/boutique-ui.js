@@ -4225,7 +4225,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   return (
     <div className="ca-anim" style={{ paddingBottom: 24 }}>
       <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
-      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la commande » pour l'enregistrer.</div>
+      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
 
       <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -4250,7 +4250,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 30, fontWeight: 700 }}>{todayOrders.length}</div>
-          <div style={{ fontSize: 11, opacity: .65 }}>commande{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
+          <div style={{ fontSize: 11, opacity: .65 }}>vente{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
         </div>
       </div>
 
@@ -4322,7 +4322,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         <div className="caisse-ticket" ref={ticketRef}>
           {tCount > 0 ? (
             <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Commande en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
+              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
               {lines.map(([pid, l]) => (
                 <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4345,14 +4345,14 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
                 </div>
               ))}
               <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la commande · ${tCount} art.`}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la vente · ${tCount} art.`}</span>
                 <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
               </button>
-              <button onClick={() => setTicket({})} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la commande</button>
+              <button onClick={() => setTicket({})} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>Vider la vente</button>
             </div>
           ) : (
             <div className="caisse-empty-ticket" style={card}>
-              <div style={h2}>Commande en cours</div>
+              <div style={h2}>Vente en cours</div>
               <div style={{ fontSize: 13, color: C.soft }}>Touchez un produit pour commencer une vente.</div>
             </div>
           )}
@@ -4366,12 +4366,12 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
         </button>
       )}
 
-      {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Commande enregistrée</div>}
+      {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Vente enregistrée</div>}
 
       <div style={card}>
         <div style={h2}>{focusIsToday ? "Ventes du jour" : "Ventes du " + new Date(focusTs).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
         {todayOrders.length === 0 ? (
-          <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune commande fermée aujourd'hui.</div>
+          <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune vente fermée aujourd'hui.</div>
         ) : todayOrders.map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
             <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
