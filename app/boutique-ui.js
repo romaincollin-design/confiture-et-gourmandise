@@ -2222,6 +2222,7 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
   const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
+  const [autresOpen, setAutresOpen] = useState(false); // detail de la part "Autres" du donut
   const [calDay, setCalDay] = useState(null); // jour précis choisi via le calendrier (iso)
   const [calOpen, setCalOpen] = useState(false);
 
@@ -2496,10 +2497,22 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
             </svg>
             <div style={{ flex: "1 1 200px", minWidth: 190 }}>
               {arcs.map((a, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5 }}>
-                  <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
-                  <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}</span>
-                  <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
+                <div key={i}>
+                  <div onClick={() => a.p.name === "Autres" && setAutresOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5, cursor: a.p.name === "Autres" ? "pointer" : "default" }}>
+                    <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}{a.p.name === "Autres" ? (autresOpen ? " ▲" : " ▼") : ""}</span>
+                    <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
+                  </div>
+                  {a.p.name === "Autres" && autresOpen && (
+                    <div style={{ margin: "2px 0 6px 19px", padding: "6px 10px", background: C.cream, borderRadius: 8 }}>
+                      {prods.slice(8).map((p2, j) => (
+                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 11.5, padding: "2.5px 0", color: C.soft }}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p2.name}</span>
+                          <span style={{ flexShrink: 0, fontWeight: 700, color: C.ink }}>{eur(p2.ca)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
