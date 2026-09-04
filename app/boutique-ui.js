@@ -665,7 +665,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         ))}
       </div>
       <div className="ca-scroll pro-content">
-        {tab === "caisse" && <ProCaisse {...{ products, sales, setSales, pass, orders, setOrders }} />}
+        {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts }} />}
@@ -1165,7 +1165,7 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
     const cProd = coutKg !== null ? coutKg * formatKg : null;
     const cTot = cProd !== null ? cProd + cEmb : null;
     const pxKgRef = pfNum(f.px_vente_kg);
-    const pxVenteSuggere = (pxKgRef && formatKg) ? Math.round(pxKgRef * formatKg * 100) / 100 : null;
+    const pxVenteSuggere = (pxKgRef && formatKg) ? Math.ceil(pxKgRef * formatKg) : null;
     const pxv = (p.px_vente === "" || p.px_vente == null) ? pxVenteSuggere : pfNum(p.px_vente);
     const mU = (pxv != null && cTot !== null) ? pxv - cTot : null;
     const coefU = (pxv != null && cTot) ? pxv / cTot : null;
@@ -1231,11 +1231,21 @@ function ProProduction({ pass, products, setProducts }) {
     o.famille = f.famille || "pissaladiere";
     return o;
   };
-  const pousserVersStock = async (pid, deltaStock, nouveauCout) => {
+  const pousserVersStock = async (pid, deltaStock, nouveauCout, extra = {}) => {
     if (!pid || !supabase || !pass) return;
     const prod = (products || []).find((x) => x.id === pid);
     if (!prod) return;
-    const np = { ...prod, stock: (Number(prod.stock) || 0) + deltaStock, cost: nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost };
+    const cost = nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost;
+    const price = extra.price != null ? extra.price : prod.price;
+    const coef = (Number(cost) > 0 && Number(price) > 0) ? Math.round((Number(price) / Number(cost)) * 100) / 100 : prod.coef;
+    const np = {
+      ...prod,
+      stock: (Number(prod.stock) || 0) + deltaStock,
+      cost,
+      price,
+      coef,
+      unit: extra.unit != null && extra.unit !== "" ? extra.unit : prod.unit,
+    };
     setProducts((list) => list.map((x) => x.id === pid ? np : x));
     try {
       await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false });
@@ -1258,11 +1268,16 @@ function ProProduction({ pass, products, setProducts }) {
       const apres = nouveauSnapshot[pid] || 0;
       const delta = apres - avant;
       if (delta !== 0) {
-        let cout = null;
-        if (pid === f.pissa_plaque_pid) cout = R.coutPlaque;
+        let cout = null, extra = {};
+        if (pid === f.pissa_plaque_pid) { cout = R.coutPlaque; if (R.pxVentePlaque != null) extra.price = R.pxVentePlaque; }
         const idx = (f.pots || []).findIndex((p) => p.pid === pid);
-        if (idx >= 0 && R.potLines[idx]) cout = R.potLines[idx].coutUnitaireTotal;
-        await pousserVersStock(pid, delta, cout);
+        if (idx >= 0 && R.potLines[idx]) {
+          const pl = R.potLines[idx];
+          cout = pl.coutUnitaireTotal;
+          if (pl.pxVenteEffectif != null) extra.price = pl.pxVenteEffectif;
+          if (pl.format_g) extra.unit = `pot ${pfNum(pl.format_g)}g`;
+        }
+        await pousserVersStock(pid, delta, cout, extra);
       }
     }
     return nouveauSnapshot;
@@ -2144,7 +2159,7 @@ function ProProduction({ pass, products, setProducts }) {
                 {(() => {
                   const pxKg = pfNum(f.px_vente_kg);
                   if (!pxKg || !pfNum(p.format_g)) return null;
-                  const suggestion = Math.round(pxKg * pfNum(p.format_g) / 1000 * 100) / 100;
+                  const suggestion = Math.ceil(pxKg * pfNum(p.format_g) / 1000);
                   const dejaBon = pfNum(p.px_vente) === suggestion;
                   return (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#eef3f6", borderRadius: 8, padding: "4px 9px" }}>
@@ -4093,7 +4108,7 @@ function InstallBanner({ admin = false }) {
   );
 }
 
-function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
+function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOrders }) {
   const ticketRef = useRef(null);
   const [ticket, setTicket] = useState({});
   const ticketFirstSave = useRef(true);
@@ -4156,6 +4171,22 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + (l.offert ? 0 : l.qty * pfNum(l.price)), 0);
   const closingRef = useRef(false);
+  const decrementerStock = async (items) => {
+    if (!setProducts) return;
+    const parId = {};
+    items.forEach((it) => { if (it.pid && !it.offert && (products.find((p) => p.id === it.pid))) parId[it.pid] = (parId[it.pid] || 0) + it.qty; });
+    const ids = Object.keys(parId);
+    if (ids.length === 0) return;
+    setProducts((list) => list.map((p) => ids.includes(p.id) ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - parId[p.id]) } : p));
+    if (supabase && pass) {
+      for (const pid of ids) {
+        const prod = products.find((p) => p.id === pid); if (!prod) continue;
+        const np = { ...prod, stock: Math.max(0, (Number(prod.stock) || 0) - parId[pid]) };
+        try { await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }); } catch (e) {}
+      }
+    }
+  };
+
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
     closingRef.current = true;
@@ -4165,6 +4196,7 @@ function ProCaisse({ products, sales, setSales, pass, orders, setOrders }) {
     setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
     setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
     if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
+    await decrementerStock(items);
     closingRef.current = false;
   };
   const cancelOrder = (id) => { setSales((o) => o.filter((x) => x.id !== id)); if (supabase && pass) { try { supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} } };
