@@ -394,7 +394,7 @@ function Contact({ setStep, profile }) {
 
 function Coords({ cust, setCust, setStep, upsertClient, intent }) {
   const [optin, setOptin] = useState(false);
-  const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email);
+  const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6;
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
   const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
@@ -408,7 +408,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
           <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
         </div>
         <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
-        <Field label="Email" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
+        <Field label="Email (facultatif)" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
       </form>
       <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 12px" }}>
         <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2, width: 17, height: 17, flexShrink: 0 }} />
@@ -420,7 +420,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
         : intent === "contact"
           ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>Valider et voir nos coordonnées <ChevronRight size={17} /></BigBtn>
           : <BigBtn disabled={!ok} onClick={() => valider("shop")}>Voir nos saveurs <ChevronRight size={17} /></BigBtn>}
-      {!ok && <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", marginTop: 10 }}>Prénom, nom, téléphone et email sont nécessaires pour commander.</p>}
+      {!ok && <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", marginTop: 10 }}>Prénom, nom et téléphone suffisent. Email et adresse : à compléter plus tard dans votre profil, pour les envois.</p>}
     </div>
   );
 }
@@ -468,17 +468,17 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
             {isOpen && items.map((p) => {
               const q = cart[p.id] || 0; const out = p.stock === 0 && !p.soon;
               return (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderTop: `1px solid ${C.line}`, opacity: (out || p.soon) ? .6 : 1 }}>
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderTop: `1px solid ${C.line}`, opacity: p.soon ? .6 : 1 }}>
                   <div style={{ width: 46, height: 46, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={p.illu} col={p.col} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: C.soft }}>
                       <span style={{ fontFamily: SCRIPT, color: C.jam, fontSize: 14 }}>{eur(p.price)}</span> · {p.unit}
-                      {!out && !p.soon && p.stock <= 5 && <span style={{ color: C.caramel, fontWeight: 600 }}> · plus que {p.stock}</span>}
+                      {out && <span style={{ color: C.caramel, fontWeight: 600 }}> · sur commande</span>}
                     </div>
                   </div>
-                  {p.soon ? <Pill>Bientôt</Pill> : out ? <Pill>Rupture</Pill> : q === 0 ? (
-                    <button onClick={() => add(p.id)} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: "transparent", color: C.jam, borderRadius: 10, width: 38, height: 38, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Plus size={18} /></button>
+                  {p.soon ? <Pill>Bientôt</Pill> : q === 0 ? (
+                    <button onClick={() => add(p.id)} className="ca-tap" style={{ border: `1.5px solid ${out ? C.caramel : C.jam}`, background: out ? C.paper : C.jam, color: out ? C.caramel : "#fff", borderRadius: 10, padding: "9px 15px", fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flexShrink: 0 }}>{out ? <ShoppingBag size={15} /> : <Plus size={16} />} Ajouter</button>
                   ) : (
                     <div style={{ display: "flex", alignItems: "center", gap: 4, background: C.jam, borderRadius: 10, padding: 3, flexShrink: 0 }}>
                       <Sq onClick={() => sub1(p.id)}><Minus size={15} color="#fff" /></Sq>
