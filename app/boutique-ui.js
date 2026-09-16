@@ -411,6 +411,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
           <p style={{ fontSize: 16, color: C.jam, lineHeight: 1.4, margin: 0, fontWeight: 700 }}>Passez vos commandes&nbsp;!</p>
           <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "3px 0 0", fontWeight: 500 }}>Recevez les dernières préparations de saison&nbsp;!</p>
         </div>
+        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "10px 14px 0" }}>et recevez en avant-première nos nouvelles fournées et préparations de saison.</p>
         <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.5, margin: "12px 12px 0", fontWeight: 600 }}>Laissez-nous vos coordonnées 👋</p>
         <p style={{ fontSize: 14, color: C.jam, lineHeight: 1.5, margin: "4px 14px 0", fontWeight: 700 }}>On garde le contact&nbsp;!</p>
       </div>
