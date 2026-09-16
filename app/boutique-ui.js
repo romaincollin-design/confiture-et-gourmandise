@@ -400,13 +400,10 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
   const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
   return (
     <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
-      <div style={{ textAlign: "center", marginBottom: 18 }}>
-        <svg width="72" height="72" viewBox="0 0 76 76" style={{ display: "block", margin: "0 auto 10px", filter: "drop-shadow(0 6px 18px rgba(122,43,51,0.33))" }}>
-          <circle cx="38" cy="38" r="38" fill={C.jam} />
-          <text x="38" y="39" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="Georgia, serif" fontSize="25" fontWeight="700" letterSpacing="1">C &amp; G</text>
-        </svg>
-        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "0", color: C.jam }}>Bienvenue !</h2>
-        <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "8px 8px 0" }}>Laissez-nous vos coordonnées pour commander et recevoir nos préparations de saison.</p>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ maxWidth: 250, margin: "0 auto" }}><Hero /></div>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 32, margin: "10px 0 0", color: C.jam }}>Bienvenue !</h2>
+        <p style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.5, margin: "6px 10px 0" }}>Laissez-nous vos coordonnées pour commander et recevoir nos préparations de saison.</p>
       </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
