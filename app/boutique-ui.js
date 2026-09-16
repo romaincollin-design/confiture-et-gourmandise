@@ -665,7 +665,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches }) {
   const [tab, setTab] = useState("caisse");
   const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Production", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
@@ -677,9 +677,9 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
-        {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, onRefresh, loading }} />}
+        {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
-        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts }} />}
+        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
@@ -1208,7 +1208,7 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
-function ProProduction({ pass, products, setProducts }) {
+function ProProduction({ pass, products, setProducts, sales }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
@@ -1414,8 +1414,35 @@ function ProProduction({ pass, products, setProducts }) {
     const cumulCoutKg = cumulCuit > 0 ? cumulRevient / cumulCuit : null;
     const cumulNbFormat = (cumulCuit > 0 && pfNum(cumulFormat) > 0) ? Math.floor((cumulCuit * 1000) / pfNum(cumulFormat)) : null;
     const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    // stock oignons cuits = produit par toutes les fournées pissaladière - consommé par les ventes de pissaladière
+    const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere")).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
+    const PISSA_PLAQUE_KG = 0.75;
+    const oignonsCuitsConsommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
+      const n = (it.name || "").toLowerCase();
+      if (!n.includes("pissalad")) return si;
+      const g = parseFloat(String((products || []).find((p) => p.name === it.name)?.unit || "").replace(/[^0-9.]/g, "")) || 0;
+      if (n.includes("plaque") || (!g && n.includes("pissalad"))) return si + (it.qty || 0) * PISSA_PLAQUE_KG;
+      return si + (it.qty || 0) * (g / 1000);
+    }, 0), 0);
+    const stockOignonsCuits = oignonsCuitsProduits - oignonsCuitsConsommes;
     return (
       <div className="ca-anim">
+        {isPissa && oignonsCuitsProduits > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            <div style={{ flex: "1 1 130px", background: C.jam, color: "#fff", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, opacity: .8, textTransform: "uppercase", letterSpacing: ".08em" }}>Stock oignons cuits</div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+            </div>
+            <div style={{ flex: "1 1 110px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, color: C.soft, textTransform: "uppercase", letterSpacing: ".08em" }}>Produit</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: PF.good, marginTop: 2 }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+            </div>
+            <div style={{ flex: "1 1 110px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, color: C.soft, textTransform: "uppercase", letterSpacing: ".08em" }}>Consommé (ventes)</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: PF.navy, marginTop: 2 }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
           <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Pilotage des fournées · coût de revient & marges</div></div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -2287,7 +2314,7 @@ function ProProduction({ pass, products, setProducts }) {
   );
 }
 
-function ProStats({ sales, orders, visits, clients, products, onRefresh, loading }) {
+function ProStats({ sales, orders, visits, clients, products, batches, onRefresh, loading }) {
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
   const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
@@ -2307,6 +2334,47 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
   }, [sales, orders]);
   const costOf = (n) => { const p = (products || []).find((x) => x.name === n); return p ? Number(p.cost) || 0 : 0; };
   const hasCost = (n) => { const p = (products || []).find((x) => x.name === n); return !!(p && Number(p.cost) > 0); };
+
+  // ---- recettes par produit (g d'ingrédient cru par g de produit fini), déduites des fournées ----
+  const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
+  const EXU = { g: 1, kg: 1000, ml: 1, cl: 10, L: 1000, piece: 0 };
+  const recettes = useMemo(() => {
+    // map: nomNormalisé -> { ing: {label -> g par g fini}, finiTotal }
+    const acc = {};
+    (batches || []).forEach((b) => {
+      const d = b.data || b; const fini = Number(d.poids_fini_kg) * 1000; if (!fini || fini <= 0) return;
+      const cle = normNom(d.titre || ""); if (!cle) return;
+      const ings = {};
+      (d.extra || []).forEach((e) => { const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1); if (g > 0 && e.label) ings[e.label.trim()] = (ings[e.label.trim()] || 0) + g; });
+      // pissaladière : oignons/sel/huile/anchois portés par champs dédiés
+      const dm = (k, mult) => { const v = Number(d[k]) || 0; if (v > 0) return v * (mult || 1); return 0; };
+      const og = dm("oignon_kg", 1000); if (og) ings["Oignons"] = (ings["Oignons"] || 0) + og;
+      const sl = dm("sel_g", 1); if (sl) ings["Sel"] = (ings["Sel"] || 0) + sl;
+      const hu = dm("huile_cl", 10); if (hu) ings["Huile d'olive"] = (ings["Huile d'olive"] || 0) + hu;
+      const an = dm("anchois_g", 1); if (an) ings["Anchois"] = (ings["Anchois"] || 0) + an;
+      if (!acc[cle]) acc[cle] = { ing: {}, fini: 0 };
+      Object.entries(ings).forEach(([k, g]) => { acc[cle].ing[k] = (acc[cle].ing[k] || 0) + g; });
+      acc[cle].fini += fini;
+    });
+    // normaliser en g/g fini
+    const out = {};
+    Object.entries(acc).forEach(([cle, v]) => { if (v.fini > 0) { out[cle] = {}; Object.entries(v.ing).forEach(([k, g]) => { out[cle][k] = g / v.fini; }); } });
+    return out;
+  }, [batches]);
+
+  // conso matières sur un ensemble de ventes (items) : renvoie {ingredient -> grammes crus}
+  const consoDe = (items) => {
+    const res = {};
+    (items || []).forEach((it) => {
+      const cle = normNom(it.name); const rec = recettes[cle]; if (!rec) return;
+      const prod = (products || []).find((p) => normNom(p.name) === cle && p.unit) || (products || []).find((p) => p.name === it.name);
+      const gParUnit = prod && prod.unit ? (parseFloat(String(prod.unit).replace(/[^0-9.]/g, "")) || 0) : 0;
+      if (!gParUnit) return;
+      const gFini = gParUnit * (it.qty || 0);
+      Object.entries(rec).forEach(([ing, r]) => { res[ing] = (res[ing] || 0) + r * gFini; });
+    });
+    return res;
+  };
 
   // ---- bornes de la période sélectionnée (et de la précédente) ----
   const bounds = (o) => {
@@ -2360,6 +2428,13 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
     return r;
   };
   const A = agg(cur.start, cur.end);
+  const consoPeriode = useMemo(() => {
+    const items = [];
+    flux.forEach((f) => { const t = new Date(f.ts); if (t >= cur.start && t < cur.end) (f.items || []).forEach((i) => items.push(i)); });
+    const c = consoDe(items);
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [flux, cur.start, cur.end, recettes, products]);
+  const fmtQty = (g) => g >= 1000 ? `${(g / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString("fr-FR")} g`;
   // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
   const B = agg(prv.start, prv.end, enCours ? ecoule : null);
   const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
@@ -2554,6 +2629,23 @@ function ProStats({ sales, orders, visits, clients, products, onRefresh, loading
           </div>
         );
       })()}
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Consommation matières (crues)</div>
+        <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Estimée à partir des ventes de la période et des recettes de vos fournées.</div>
+        {consoPeriode.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.soft }}>Aucune consommation calculable sur cette période (pas de vente reliée à une recette de fournée).</div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {consoPeriode.map(([ing, g]) => (
+              <div key={ing} style={{ flex: "1 1 120px", minWidth: 110, background: C.cream, borderRadius: 11, padding: "11px 13px" }}>
+                <div style={{ fontSize: 12, color: C.soft }}>{ing}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.jam, marginTop: 2 }}>{fmtQty(g)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div style={card()}>
         <div style={{ ...h2 }}>Répartition des ventes par produit</div>
@@ -3918,6 +4010,7 @@ export function EspacePro() {
   const [clients, setClients] = useState(SEED_CLIENTS);
   const [promos, setPromos] = useState(SEED_PROMOS);
   const [visits, setVisits] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
   const [profile, setProfile] = useState(SEED_PROFILE);
   const [proAuth, setProAuth] = useState(false);
@@ -3928,18 +4021,20 @@ export function EspacePro() {
     if (!supabase || !key) return;
     setLoading(true);
     try {
-      const [ro, rc, rs, rp, rv] = await Promise.all([
+      const [ro, rc, rs, rp, rv, rb] = await Promise.all([
         supabase.rpc("admin_orders", { pass: key }),
         supabase.rpc("admin_customers", { pass: key }),
         supabase.rpc("admin_sales", { pass: key }),
         supabase.from("products").select("*").order("sort", { ascending: true }),
         supabase.rpc("admin_visits", { pass: key }),
+        supabase.rpc("admin_batches", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
       if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
+      if (rb && rb.data && Array.isArray(rb.data.batches)) setBatches(rb.data.batches);
     } catch (e) {}
     finally { setLoading(false); }
   };
@@ -3958,7 +4053,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits, batches }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
       <InstallBanner admin />
     </div>
