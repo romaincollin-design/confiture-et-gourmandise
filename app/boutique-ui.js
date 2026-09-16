@@ -2740,7 +2740,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   );
 }
 function ProProducts({ products, setProducts, pass }) {
-  const ILLUS = ["orange", "lemon", "plum", "mure", "apple", "quince", "berry", "apricot", "caramel", "cake", "loaf", "pissa", "miel", "marron"];
+  const ILLUS = ["berry", "lemon", "mure", "caramel", "cake", "loaf", "pissa", "potpissa", "miel", "marron"];
   const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "orange", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
   const [nw, setNw] = useState(blank);
