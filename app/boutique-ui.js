@@ -402,8 +402,9 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
     <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <div style={{ maxWidth: 250, margin: "0 auto" }}><Hero /></div>
-        <h2 style={{ fontFamily: SCRIPT, fontSize: 32, margin: "10px 0 0", color: C.jam }}>Bienvenue !</h2>
-        <p style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.5, margin: "6px 10px 0" }}>Laissez-nous vos coordonnées pour commander et recevoir nos préparations de saison.</p>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 34, margin: "10px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
+        <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.55, margin: "8px 12px 0", fontWeight: 500 }}>Dites-nous qui vous êtes 👋</p>
+        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "4px 14px 0" }}>et recevez en avant-première nos nouvelles fournées et préparations de saison.</p>
       </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
