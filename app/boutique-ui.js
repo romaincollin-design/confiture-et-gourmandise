@@ -1207,6 +1207,7 @@ function ProProduction({ pass, products, setProducts }) {
   const [view, setView] = useState("list"); // list | edit | dash
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [confirmValide, setConfirmValide] = useState(null); // lignes du pop-up de validation
   const [saved, setSaved] = useState(false);
   const [etab, setEtab] = useState("mat");
   const [dateDebut, setDateDebut] = useState("");
@@ -2226,12 +2227,54 @@ function ProProduction({ pass, products, setProducts }) {
         </div>
       )}
 
-      <button onClick={async () => {
-        clearTimeout(timer.current);
-        const nouveauSnapshot = await validerEtPousserStock(cur, R);
-        await persist({ ...cur, stock_applique: nouveauSnapshot });
-        setView("list");
+      <button onClick={() => {
+        const lignes = [];
+        if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
+          const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
+          lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, cout: R.coutPlaque, prix: R.pxVentePlaque, stockAvant: Number(prod?.stock) || 0 });
+        }
+        (cur.pots || []).forEach((p, i) => {
+          const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
+          const prod = (products || []).find((x) => x.id === p.pid);
+          lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, stockAvant: Number(prod?.stock) || 0 });
+        });
+        setConfirmValide({ lignes });
       }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
+
+      {confirmValide && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.paper, borderRadius: 18, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: "22px 20px 18px" }}>
+            <div style={{ textAlign: "center", marginBottom: 14 }}>
+              <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#3F7A4B18", display: "grid", placeItems: "center", margin: "0 auto 8px" }}><Check size={26} color={C.ok} /></div>
+              <h2 style={{ fontFamily: SCRIPT, fontSize: 26, margin: 0, color: C.jam }}>Valider la fournée</h2>
+              <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock et le prix d'achat de ces produits vont être mis à jour.</p>
+            </div>
+            {confirmValide.lignes.length === 0 ? (
+              <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Reliez vos formats à un produit du catalogue (menu « Produit lié ») avant de valider.</div>
+            ) : confirmValide.lignes.map((l, i) => (
+              <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: C.ink }}>{l.nom}</span>
+                  <span style={{ fontSize: 12, color: C.soft }}>{l.unit}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Stock {l.stockAvant} → <span style={{ color: PF.good }}>{l.stockAvant + l.nb}</span> (+{l.nb})</span>
+                  {l.cout != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Achat <span style={{ color: PF.navy }}>{eur3(l.cout)}</span></span>}
+                  {l.prix != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Vente <span style={{ color: PF.navy }}>{eur2(l.prix)}</span></span>}
+                  {l.cout != null && l.prix != null && l.cout > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Marge <span style={{ color: (l.prix - l.cout) >= 0 ? PF.good : PF.warn }}>{eur2(l.prix - l.cout)}</span></span>}
+                </div>
+              </div>
+            ))}
+            <button disabled={confirmValide.lignes.length === 0} onClick={async () => {
+              clearTimeout(timer.current);
+              const snap = await validerEtPousserStock(cur, R);
+              await persist({ ...cur, stock_applique: snap });
+              setConfirmValide(null); setView("list");
+            }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: confirmValide.lignes.length === 0 ? C.line : C.jam, color: confirmValide.lignes.length === 0 ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: confirmValide.lignes.length === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Confirmer et mettre à jour</button>
+            <button onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
