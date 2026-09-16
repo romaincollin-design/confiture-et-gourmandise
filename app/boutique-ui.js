@@ -410,6 +410,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
         <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "10px 4px 0" }}>Laissez-nous vos coordonnées pour <b>commander</b> et <b>recevoir nos préparations de saison</b>.</p>
       </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+        <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
           <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
           <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
