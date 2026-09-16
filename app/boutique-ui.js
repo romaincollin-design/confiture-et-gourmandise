@@ -2362,6 +2362,27 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
     return out;
   }, [batches]);
 
+  const prixMatiere = useMemo(() => {
+    // prix moyen au kg par matière, pondéré par les quantités des fournées
+    const acc = {}; // label -> { g, euros }
+    (batches || []).forEach((b) => {
+      const d = b.data || b;
+      (d.extra || []).forEach((e) => {
+        const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1);
+        const px = Number(e.price) || 0; // prix au kg/L saisi
+        if (g > 0 && px > 0 && e.label) { const k = e.label.trim(); if (!acc[k]) acc[k] = { g: 0, euros: 0 }; acc[k].g += g; acc[k].euros += (g / 1000) * px; }
+      });
+      const addDm = (lbl, k, mult, pxKey) => { const q = (Number(d[k]) || 0) * (mult || 1); const px = Number(d[pxKey]) || 0; if (q > 0 && px > 0) { if (!acc[lbl]) acc[lbl] = { g: 0, euros: 0 }; acc[lbl].g += q; acc[lbl].euros += (q / 1000) * px; } };
+      addDm("Oignons", "oignon_kg", 1000, "px_oignon");
+      addDm("Sel", "sel_g", 1, "px_sel");
+      addDm("Huile d'olive", "huile_cl", 10, "px_huile");
+      addDm("Anchois", "anchois_g", 1, "px_anchois");
+    });
+    const out = {};
+    Object.entries(acc).forEach(([k, v]) => { if (v.g > 0) out[k] = v.euros / (v.g / 1000); });
+    return out;
+  }, [batches]);
+
   // conso matières sur un ensemble de ventes (items) : renvoie {ingredient -> grammes crus}
   const consoDe = (items) => {
     const res = {};
@@ -2459,6 +2480,22 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
     const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0);
     const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1);
     return { d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}`, col: DONUT[i % DONUT.length], p, pct: Math.round(frac * 1000) / 10 };
+  });
+
+  // donut consommation matières
+  const consoTop = consoPeriode.slice(0, 9);
+  const consoAutres = consoPeriode.slice(9).reduce((a, [, g]) => a + g, 0);
+  const consoList = consoAutres > 0 ? [...consoTop, ["Autres", consoAutres]] : consoTop;
+  const cTot = consoList.reduce((a, [, g]) => a + g, 0) || 1;
+  let cacc = 0;
+  const consoArcs = consoList.map(([ing, g], i) => {
+    const frac = g / cTot;
+    const a0 = cacc * 2 * Math.PI - Math.PI / 2; cacc += frac;
+    const a1 = cacc * 2 * Math.PI - Math.PI / 2;
+    const large = frac > 0.5 ? 1 : 0;
+    const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0);
+    const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1);
+    return { d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}`, col: DONUT[i % DONUT.length], ing, g, pct: Math.round(frac * 1000) / 10 };
   });
 
   // ---- courbe d'évolution (sous-périodes de la période courante) ----
@@ -2636,13 +2673,22 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
         {consoPeriode.length === 0 ? (
           <div style={{ fontSize: 13, color: C.soft }}>Aucune consommation calculable sur cette période (pas de vente reliée à une recette de fournée).</div>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {consoPeriode.map(([ing, g]) => (
-              <div key={ing} style={{ flex: "1 1 120px", minWidth: 110, background: C.cream, borderRadius: 11, padding: "11px 13px" }}>
-                <div style={{ fontSize: 12, color: C.soft }}>{ing}</div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: C.jam, marginTop: 2 }}>{fmtQty(g)}</div>
-              </div>
-            ))}
+          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
+              {consoArcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
+              <text x="65" y="60" textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: C.jam }}>{fmtQty(cTot)}</text>
+              <text x="65" y="74" textAnchor="middle" style={{ fontSize: 7, fill: C.soft }}>consommés</text>
+            </svg>
+            <div style={{ flex: "1 1 220px", minWidth: 200 }}>
+              {consoArcs.map((a, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12.5, borderBottom: i < consoArcs.length - 1 ? `1px solid ${C.line}` : "none" }}>
+                  <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.ing}</span>
+                  {prixMatiere[a.ing] > 0 && a.ing !== "Autres" && <span style={{ color: C.soft, flexShrink: 0, fontSize: 11 }}>{eur2(prixMatiere[a.ing])}/kg</span>}
+                  <b style={{ color: C.jam, flexShrink: 0, minWidth: 58, textAlign: "right" }}>{fmtQty(a.g)}</b>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
