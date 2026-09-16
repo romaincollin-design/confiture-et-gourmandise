@@ -392,7 +392,7 @@ function Contact({ setStep, profile }) {
   );
 }
 
-function Coords({ cust, setCust, setStep, upsertClient, intent }) {
+function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
   const [optin, setOptin] = useState(false);
   const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6;
   const lead = intent === "lead";
@@ -400,8 +400,12 @@ function Coords({ cust, setCust, setStep, upsertClient, intent }) {
   const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
-      <StepHead onBack={() => setStep("welcome")} title="Vos coordonnées"
-        sub={lead ? "Restez informé·e de nos nouveautés et offres" : "Pour préparer et confirmer votre commande"} />
+      <div style={{ textAlign: "center", margin: "8px 0 14px" }}>
+        <div style={{ width: 54, height: 54, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", margin: "0 auto 10px" }}><span style={{ fontFamily: SCRIPT, fontSize: 22 }}>C&amp;G</span></div>
+        <div style={{ fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase", color: C.soft }}>Bienvenue chez</div>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "2px 0 0", color: C.jam }}>{profile?.name || "Comme Avant"}</h2>
+        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "8px 0 0" }}>{lead ? "Laissez vos coordonnées pour être informé·e de nos nouveautés." : "Laissez vos coordonnées pour commander ou être informé·e de nos nouveautés."}</p>
+      </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
           <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
@@ -3775,8 +3779,9 @@ export function BoutiquePublique() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("ca_cust");
-      if (saved) { const c = JSON.parse(saved); if (c && c.prenom) { setCust(c); setReturning(true); } }
-    } catch (e) {}
+      if (saved) { const c = JSON.parse(saved); if (c && c.prenom) { setCust(c); setReturning(true); } else { setStep("coords"); } }
+      else { setStep("coords"); }
+    } catch (e) { setStep("coords"); }
   }, []);
   const [cart, setCart] = useState({});
   const [mode, setMode] = useState("retrait");
