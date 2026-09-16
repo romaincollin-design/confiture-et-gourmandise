@@ -401,7 +401,10 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
   return (
     <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
       <div style={{ textAlign: "center", margin: "8px 0 14px" }}>
-        <div style={{ width: 54, height: 54, borderRadius: "50%", background: C.jam, color: "#fff", display: "grid", placeItems: "center", margin: "0 auto 10px" }}><span style={{ fontFamily: SCRIPT, fontSize: 22 }}>C&amp;G</span></div>
+        <svg width="76" height="76" viewBox="0 0 76 76" style={{ display: "block", margin: "0 auto 12px", filter: "drop-shadow(0 6px 18px rgba(122,43,51,0.33))" }}>
+          <circle cx="38" cy="38" r="38" fill={C.jam} />
+          <text x="38" y="39" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="Georgia, serif" fontSize="25" fontWeight="700" letterSpacing="1">C &amp; G</text>
+        </svg>
         <div style={{ fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase", color: C.soft }}>Bienvenue chez</div>
         <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "2px 0 0", color: C.jam }}>{profile?.name || "Comme Avant"}</h2>
         <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "8px 0 0" }}>{lead ? "Laissez vos coordonnées pour être informé·e de nos nouveautés." : "Laissez vos coordonnées pour commander ou être informé·e de nos nouveautés."}</p>
