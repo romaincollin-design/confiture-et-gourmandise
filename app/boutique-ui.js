@@ -428,7 +428,7 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
           ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>C'est parti <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
           : intent === "contact"
             ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>{ok ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-            : <BigBtn disabled={!ok} onClick={() => valider("shop")}>{ok ? <>Découvrir nos saveurs <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>}
+            : <button disabled={!ok} onClick={() => valider("shop")} className="ca-tap" style={{ width: "100%", background: ok ? C.jam : C.line, color: ok ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "16px 18px", fontWeight: 700, fontSize: 15, cursor: ok ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{ok ? <>Valider et accéder à la carte <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</button>}
       </div>
       {!ok && <p style={{ fontSize: 12, color: C.caramel, textAlign: "center", marginTop: 10, fontWeight: 600 }}>Prénom, nom et téléphone pour continuer.</p>}
       <p style={{ fontSize: 11, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}>🔒 Vos infos restent chez nous, jamais partagées. Email &amp; adresse plus tard, si vous commandez.</p>
