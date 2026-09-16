@@ -399,15 +399,14 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
   const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
   return (
-    <div className="ca-anim" style={{ padding: "6px 22px 28px" }}>
-      <div style={{ textAlign: "center", margin: "8px 0 14px" }}>
-        <svg width="76" height="76" viewBox="0 0 76 76" style={{ display: "block", margin: "0 auto 12px", filter: "drop-shadow(0 6px 18px rgba(122,43,51,0.33))" }}>
+    <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
+      <div style={{ textAlign: "center", marginBottom: 18 }}>
+        <svg width="72" height="72" viewBox="0 0 76 76" style={{ display: "block", margin: "0 auto 10px", filter: "drop-shadow(0 6px 18px rgba(122,43,51,0.33))" }}>
           <circle cx="38" cy="38" r="38" fill={C.jam} />
           <text x="38" y="39" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="Georgia, serif" fontSize="25" fontWeight="700" letterSpacing="1">C &amp; G</text>
         </svg>
-        <div style={{ fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase", color: C.soft }}>Bienvenue à</div>
-        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "2px 0 0", color: C.jam }}>{profile?.name || "Comme Avant"}</h2>
-        <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "10px 4px 0" }}>Laissez-nous vos coordonnées pour <b>commander</b> et <b>recevoir nos préparations de saison</b>.</p>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "0", color: C.jam }}>Bienvenue !</h2>
+        <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "8px 8px 0" }}>Laissez-nous vos coordonnées pour commander et recevoir nos préparations de saison.</p>
       </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
@@ -416,20 +415,16 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
           <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
         </div>
         <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
-        <Field label="Email (facultatif)" value={cust.email} onChange={set("email")} type="email" name="email" autoComplete="email" />
       </form>
-      <label className="ca-tap" style={{ display: "flex", alignItems: "flex-start", gap: 9, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", cursor: "pointer", margin: "2px 0 12px" }}>
-        <input type="checkbox" checked={optin} onChange={(e) => setOptin(e.target.checked)} style={{ accentColor: C.jam, marginTop: 2, width: 17, height: 17, flexShrink: 0 }} />
-        <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>Je souhaite rester en contact et vous autorise à me contacter (nouveautés, offres et confirmation de commande).</span>
-      </label>
-      <p style={{ fontSize: 11, color: C.soft, lineHeight: 1.5, margin: "0 0 16px" }}>Vos coordonnées servent uniquement à gérer votre commande et, si vous l'acceptez, à vous tenir informé·e — jamais transmises à des tiers. Vous pouvez demander leur suppression à tout moment.</p>
-      {lead
-        ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>Valider mes coordonnées <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-        : intent === "contact"
-          ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>{ok ? <>Valider et voir nos coordonnées <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-          : <BigBtn disabled={!ok} onClick={() => valider("shop")}>{ok ? <>Découvrir nos saveurs <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>}
-      {!ok && <p style={{ fontSize: 12, color: C.caramel, textAlign: "center", marginTop: 10, fontWeight: 600 }}>Prénom, nom et téléphone sont nécessaires pour continuer.</p>}
-      {ok && <p style={{ fontSize: 11, color: C.soft, textAlign: "center", marginTop: 10 }}>Email et adresse : à compléter plus tard dans votre profil, pour les envois.</p>}
+      <div style={{ marginTop: 6 }}>
+        {lead
+          ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>C'est parti <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
+          : intent === "contact"
+            ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>{ok ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
+            : <BigBtn disabled={!ok} onClick={() => valider("shop")}>{ok ? <>Découvrir nos saveurs <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>}
+      </div>
+      {!ok && <p style={{ fontSize: 12, color: C.caramel, textAlign: "center", marginTop: 10, fontWeight: 600 }}>Prénom, nom et téléphone pour continuer.</p>}
+      <p style={{ fontSize: 11, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}>🔒 Vos infos restent chez nous, jamais partagées. Email &amp; adresse plus tard, si vous commandez.</p>
     </div>
   );
 }
