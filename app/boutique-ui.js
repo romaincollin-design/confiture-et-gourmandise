@@ -236,7 +236,11 @@ export default function App() {
 
 /* ---------------- CLIENT ---------------- */
 function ClientView(props) {
-  const { step } = props;
+  const { step, cust, setStep } = props;
+  const coordsOk = cust && cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6;
+  useEffect(() => {
+    if (!coordsOk && ["shop", "cart", "checkout", "done"].includes(step)) setStep("coords");
+  }, [step, coordsOk, setStep]);
   return (
     <div style={{ display: "grid", placeItems: "start center", padding: "20px 14px 120px", minHeight: "100%", background: `radial-gradient(120% 70% at 80% -10%, ${C.jam}10, transparent 55%), ${C.cream}` }}>
       <div style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 24, border: `1px solid ${C.line}`, boxShadow: "0 24px 60px -34px #16140f44", overflow: "hidden" }}>
@@ -3887,7 +3891,7 @@ export function BoutiquePublique() {
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
-      <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />
+      {step !== "coords" && <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />}
       <Header profile={profile} />
       <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
     </div>
