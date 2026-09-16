@@ -407,9 +407,12 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <div style={{ maxWidth: 250, margin: "0 auto" }}><Hero /></div>
         <h2 style={{ fontFamily: SCRIPT, fontSize: 34, margin: "10px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
-        <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.55, margin: "8px 12px 0", fontWeight: 500 }}>Laissez-nous vos coordonnées 👋</p>
-        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "4px 14px 0" }}>et recevez en avant-première nos nouvelles fournées et préparations de saison.</p>
-        <p style={{ fontSize: 14.5, color: C.jam, lineHeight: 1.5, margin: "8px 14px 0", fontWeight: 600 }}>Passez vos commandes&nbsp;!</p>
+        <div style={{ background: "#f6efdd", borderRadius: 14, padding: "13px 15px", margin: "12px 6px 0" }}>
+          <p style={{ fontSize: 16, color: C.jam, lineHeight: 1.4, margin: 0, fontWeight: 700 }}>Passez vos commandes&nbsp;!</p>
+          <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "3px 0 0", fontWeight: 500 }}>Recevez les dernières préparations de saison&nbsp;!</p>
+        </div>
+        <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.5, margin: "12px 12px 0", fontWeight: 600 }}>Laissez-nous vos coordonnées 👋</p>
+        <p style={{ fontSize: 14, color: C.jam, lineHeight: 1.5, margin: "4px 14px 0", fontWeight: 700 }}>On garde le contact&nbsp;!</p>
       </div>
       <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
