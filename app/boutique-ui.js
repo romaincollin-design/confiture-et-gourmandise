@@ -162,78 +162,6 @@ function Illu({ k, col, s = 46 }) {
   return wrap(<>{leaf}<circle cx="23" cy="26" r="13" fill={col} /><ellipse cx="18" cy="21" rx="3.4" ry="2.4" fill={hl} /></>);
 }
 
-export default function App() {
-  const [view, setView] = useState("client");
-  const [products, setProducts] = useState(SEED_PRODUCTS);
-  const [orders, setOrders] = useState(SEED_ORDERS);
-  const [clients, setClients] = useState(SEED_CLIENTS);
-  const [promos, setPromos] = useState([{ code: "SAVEURS10", pct: 10, active: true }]);
-  const [paymentEnabled, setPaymentEnabled] = useState(false);
-  const [profile, setProfile] = useState({ name: "Comme Avant", tag: "Confitures, gourmandises & produits locaux", tagline: "Des goûts et des saveurs d'antan, par amour du goût du vrai.", tel: "06 13 54 52 24", email: "confituresetgourmandise@gmail.com", wa: "33613545224", pin: "1234" });
-  const [proAuth, setProAuth] = useState(false);
-
-  const [step, setStep] = useState("welcome");
-  const [intent, setIntent] = useState("order");
-  const [cust, setCust] = useState({ prenom: "", nom: "", tel: "", email: "" });
-  const [cart, setCart] = useState({});
-  const [mode, setMode] = useState("retrait");
-  const [promoInput, setPromoInput] = useState("");
-  const [applied, setApplied] = useState(null);
-  const [lastOrder, setLastOrder] = useState(null);
-
-  const cartLines = useMemo(
-    () => Object.entries(cart).map(([id, q]) => ({ ...products.find((p) => p.id === id), qty: q })).filter((l) => l.qty > 0),
-    [cart, products]
-  );
-  const sub = cartLines.reduce((s, l) => s + l.price * l.qty, 0);
-  const discount = applied ? sub * (applied.pct / 100) : 0;
-  const total = sub - discount;
-  const count = cartLines.reduce((s, l) => s + l.qty, 0);
-
-  const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
-  const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
-
-  const upsertClient = (c) => setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0 }, ...list]);
-
-  const placeOrder = () => {
-    const id = "C-" + (1043 + orders.length);
-    const o = { id, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, items: count, total, mode, date: "Auj.", status: "À préparer", paid: false };
-    setOrders((l) => [o, ...l]);
-    setClients((list) => list.map((x) => x.email === cust.email ? { ...x, orders: x.orders + 1, spent: +(x.spent + total).toFixed(2) } : x));
-    setLastOrder({ ...o, lines: cartLines });
-    setStep("done");
-  };
-  const resetClient = () => { setStep("welcome"); setIntent("order"); setCart({}); setApplied(null); setPromoInput(""); setCust({ prenom: "", nom: "", tel: "", email: "" }); setMode("retrait"); };
-
-  return (
-    <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: 770, borderRadius: 16, overflow: "hidden", position: "relative" }}>
-      <style>{FONT}</style>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderBottom: `1px solid ${C.line}`, background: C.paper }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: C.board, display: "grid", placeItems: "center" }}><Store size={16} color={C.chalk} /></div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: SCRIPT, fontSize: 18, lineHeight: 1, color: C.jam }}>{profile.name}</div>
-            <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, maxWidth: 230, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile.tag}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", background: C.cream, borderRadius: 11, padding: 3, border: `1px solid ${C.line}` }}>
-          {[["client", "Client", Smartphone], ["pro", "Pro", Settings]].map(([k, lbl, Ic]) => (
-            <button key={k} onClick={() => setView(k)} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, border: "none", cursor: "pointer", padding: "7px 13px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, letterSpacing: ".03em", background: view === k ? C.board : "transparent", color: view === k ? C.chalk : C.soft }}>
-              <Ic size={14} /> {lbl}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {view === "client"
-        ? <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, upsertClient, lastOrder, resetClient, profile }} />
-        : proAuth
-          ? <ProView {...{ orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => setProAuth(false) }} />
-          : <ProLogin pin={profile.pin} onOk={() => setProAuth(true)} />}
-    </div>
-  );
-}
-
 /* ---------------- CLIENT ---------------- */
 function ClientView(props) {
   const { step, cust, setStep } = props;
@@ -457,7 +385,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
   return (
     <div className="ca-anim" style={{ padding: "4px 0 92px" }}>
       <div style={{ padding: "0 22px" }}>
-        <button onClick={() => setStep("coords")} className="ca-tap" style={backBtn()}><ChevronLeft size={16} /> Retour</button>
+        <button onClick={() => setStep("welcome")} className="ca-tap" style={backBtn()}><ChevronLeft size={16} /> Retour</button>
         <div style={{ textAlign: "center", margin: "4px 0 12px" }}>
           <div style={{ fontSize: 12, color: C.caramel }}>✦ &nbsp; ✦ &nbsp; ✦</div>
           <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "2px 0 0", color: C.jam }}>Nos Saveurs</h2>
@@ -603,7 +531,7 @@ function Checkout({ pickupDay, setPickupDay, sub, discount, total, paymentEnable
   );
 }
 
-function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, setStep }) {
+function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }) {
   const [copied, setCopied] = useState(false);
   const [ask, setAsk] = useState(false);
   const [sent, setSent] = useState(false);
@@ -618,10 +546,8 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
   const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
-  useEffect(() => {
-    const t = setTimeout(() => { try { const w = window.open(wa, "_blank"); if (w) markSent(); } catch (e) {} }, 900);
-    return () => clearTimeout(t);
-  }, []);
+  // pas d'ouverture automatique de WhatsApp : Safari iOS la bloque, et la commande restait alors marquée "non transmise".
+  // Le bouton vert ci-dessous pulse tant que l'envoi n'a pas été fait.
   const copy = () => { try { navigator.clipboard && navigator.clipboard.writeText(recap); } catch (e) {} setCopied(true); setTimeout(() => setCopied(false), 1800); };
   return (
     <div className="ca-anim" style={{ padding: "30px 22px 30px", textAlign: "center" }}>
@@ -665,7 +591,7 @@ function Done({ lastOrder, mode, resetClient, paymentEnabled, cust, profile, set
 }
 
 /* ---------------- PRO ---------------- */
-function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches }) {
+function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
   const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Production", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
@@ -677,7 +603,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       </div>
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
-        {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, onRefresh, loading }} />}
+        {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
@@ -1205,6 +1131,22 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
   return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes, poidsCuitTotalRondes, ratioMoyenJour };
 }
+// Grammage de produit fini contenu dans UNE unité de vente, déduit du conditionnement.
+// On lit le premier nombre réellement suivi d'une unité de poids : "part ≈ 272 g · 35 €/kg" = 272 g
+// (et non 27235 comme le donnerait une simple extraction de tous les chiffres).
+const G_PAR_PLAQUE = 750;      // CLAUDE.md 5.1 : ~750 g d'oignons cuits par plaque
+const PARTS_PAR_PLAQUE = 12;   // une plaque se découpe en 12 parts
+const grammesUnite = (unit, estPissa) => {
+  const u = String(unit || "").toLowerCase().replace(",", ".");
+  const m = u.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/);
+  if (m) return parseFloat(m[1]) * (m[2] === "kg" ? 1000 : 1);
+  if (!estPissa) return 0;
+  // pissaladière : elle se vend aussi en plaques entières ou à la part, sans grammage écrit
+  const pl = u.match(/(\d+(?:\.\d+)?)\s*plaque/);
+  if (pl) return parseFloat(pl[1]) * G_PAR_PLAQUE;
+  if (/\bparts?\b/.test(u)) return G_PAR_PLAQUE / PARTS_PAR_PLAQUE;
+  return G_PAR_PLAQUE;
+};
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
@@ -1237,7 +1179,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
     const o = { ...f };
     NUM_KEYS.forEach((k) => { if (o[k] === "" || o[k] == null) { if (k === "poids_fini_kg") o[k] = ""; else o[k] = 0; } else o[k] = pfNum(o[k]); });
     o.personnel = (o.personnel || []).map((p) => ({ nom: p.nom || "", taux: p.taux === "" || p.taux == null ? 0 : pfNum(p.taux) }));
-    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_capuchon: pfNum(p.px_capuchon), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente), type: p.type || "pot", pid: p.pid || null, accompagnements: (p.accompagnements || []).map((a) => ({ label: a.label || "", qty: pfNum(a.qty), price: pfNum(a.price), unit: a.unit || "piece" })) }));
+    o.pots = (o.pots || []).map((p) => ({ format_g: p.format_g === "" || p.format_g == null ? 0 : pfNum(p.format_g), px_bocal: pfNum(p.px_bocal), px_capuchon: pfNum(p.px_capuchon), px_etiquette: pfNum(p.px_etiquette), nb: p.nb === "" || p.nb == null ? "" : pfNum(p.nb), px_vente: p.px_vente === "" || p.px_vente == null ? "" : pfNum(p.px_vente), coef_vente: p.coef_vente === "" || p.coef_vente == null ? "" : pfNum(p.coef_vente), type: p.type || "pot", pid: p.pid || null, accompagnements: (p.accompagnements || []).map((a) => ({ label: a.label || "", qty: pfNum(a.qty), price: pfNum(a.price), unit: a.unit || "piece" })) }));
     o.extra = (o.extra || []).map((e) => ({ label: e.label || "", qty: pfNum(e.qty), price: pfNum(e.price), unit: e.unit || "piece" }));
     o.frais_extra = (o.frais_extra || []).map((x) => ({ label: x.label || "", montant: pfNum(x.montant) }));
     o.famille = f.famille || "pissaladiere";
@@ -1248,7 +1190,8 @@ function ProProduction({ pass, products, setProducts, sales }) {
     const prod = (products || []).find((x) => x.id === pid);
     if (!prod) return;
     const cost = nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost;
-    const price = extra.price != null ? extra.price : prod.price;
+    // prix de vente FIGE : on ne le remplace que si le produit n'en a pas encore (CLAUDE.md 5.2 / 5.4)
+    const price = (Number(prod.price) > 0) ? prod.price : (extra.price != null ? extra.price : prod.price);
     const coef = (Number(cost) > 0 && Number(price) > 0) ? Math.round((Number(price) / Number(cost)) * 100) / 100 : prod.coef;
     const np = {
       ...prod,
@@ -1416,12 +1359,12 @@ function ProProduction({ pass, products, setProducts, sales }) {
     const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
     // stock oignons cuits = produit par toutes les fournées pissaladière - consommé par les ventes de pissaladière
     const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere")).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
-    const PISSA_PLAQUE_KG = 0.75;
     const oignonsCuitsConsommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
       const n = (it.name || "").toLowerCase();
-      if (!n.includes("pissalad")) return si;
-      const g = parseFloat(String((products || []).find((p) => p.name === it.name)?.unit || "").replace(/[^0-9.]/g, "")) || 0;
-      if (n.includes("plaque") || (!g && n.includes("pissalad"))) return si + (it.qty || 0) * PISSA_PLAQUE_KG;
+      if (!n.includes("pissalad") && !n.includes("oignon")) return si;
+      // même lecture du conditionnement que le tableau de bord (plaque = 750 g, part = 1/12 de plaque)
+      const prod = (it.pid ? (products || []).find((p) => p.id === it.pid) : null) || (products || []).find((p) => p.name === it.name);
+      const g = grammesUnite((prod && prod.unit) || it.unit || n, true);
       return si + (it.qty || 0) * (g / 1000);
     }, 0), 0);
     const stockOignonsCuits = oignonsCuitsProduits - oignonsCuitsConsommes;
@@ -2197,6 +2140,8 @@ function ProProduction({ pass, products, setProducts, sales }) {
                 })()}
                 {(() => {
                   const pxKg = pfNum(f.px_vente_kg);
+                  // une seule suggestion à la fois : le coefficient prime s'il est renseigné, sinon le prix au kilo
+                  if (pfNum(p.coef_vente) && cTot) return null;
                   if (!pxKg || !pfNum(p.format_g)) return null;
                   const suggestion = Math.ceil(pxKg * pfNum(p.format_g) / 1000);
                   const dejaBon = pfNum(p.px_vente) === suggestion;
@@ -2263,15 +2208,17 @@ function ProProduction({ pass, products, setProducts, sales }) {
       )}
 
       <button onClick={() => {
+        // on n'annonce que ce qui va RÉELLEMENT bouger : la validation est idempotente via stock_applique
+        const deja = cur.stock_applique || {};
         const lignes = [];
         if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
           const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
-          lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, cout: R.coutPlaque, prix: R.pxVentePlaque, stockAvant: Number(prod?.stock) || 0 });
+          lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, dejaApplique: deja[cur.pissa_plaque_pid] || 0, cout: R.coutPlaque, prix: R.pxVentePlaque, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
         }
         (cur.pots || []).forEach((p, i) => {
           const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
           const prod = (products || []).find((x) => x.id === p.pid);
-          lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, stockAvant: Number(prod?.stock) || 0 });
+          lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, dejaApplique: deja[p.pid] || 0, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
         });
         setConfirmValide({ lignes });
       }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
@@ -2282,24 +2229,31 @@ function ProProduction({ pass, products, setProducts, sales }) {
             <div style={{ textAlign: "center", marginBottom: 14 }}>
               <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#3F7A4B18", display: "grid", placeItems: "center", margin: "0 auto 8px" }}><Check size={26} color={C.ok} /></div>
               <h2 style={{ fontFamily: SCRIPT, fontSize: 26, margin: 0, color: C.jam }}>Valider la fournée</h2>
-              <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock et le prix d'achat de ces produits vont être mis à jour.</p>
+              <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock et le prix d'achat de ces produits vont être mis à jour. Un prix de vente déjà fixé n'est jamais modifié.</p>
             </div>
             {confirmValide.lignes.length === 0 ? (
               <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Reliez vos formats à un produit du catalogue (menu « Produit lié ») avant de valider.</div>
-            ) : confirmValide.lignes.map((l, i) => (
+            ) : confirmValide.lignes.map((l, i) => {
+              const delta = l.nb - (l.dejaApplique || 0);
+              return (
               <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: C.ink }}>{l.nom}</span>
                   <span style={{ fontSize: 12, color: C.soft }}>{l.unit}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
-                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Stock {l.stockAvant} → <span style={{ color: PF.good }}>{l.stockAvant + l.nb}</span> (+{l.nb})</span>
+                  {delta === 0 ? (
+                    <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.soft }}>Stock inchangé · les {l.nb} sont déjà appliqués</span>
+                  ) : (
+                    <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Stock {l.stockAvant} → <span style={{ color: delta > 0 ? PF.good : PF.warn }}>{Math.max(0, l.stockAvant + delta)}</span> ({delta > 0 ? "+" : ""}{delta}){l.dejaApplique > 0 && <span style={{ color: C.soft }}> · {l.dejaApplique} déjà appliqués</span>}</span>
+                  )}
                   {l.cout != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Achat <span style={{ color: PF.navy }}>{eur3(l.cout)}</span></span>}
-                  {l.prix != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Vente <span style={{ color: PF.navy }}>{eur2(l.prix)}</span></span>}
+                  {l.prix != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Vente <span style={{ color: PF.navy }}>{eur2(l.prix)}</span>{l.prixFige && <span style={{ color: C.soft }}> · prix boutique conservé</span>}</span>}
                   {l.cout != null && l.prix != null && l.cout > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Marge <span style={{ color: (l.prix - l.cout) >= 0 ? PF.good : PF.warn }}>{eur2(l.prix - l.cout)}</span></span>}
                 </div>
               </div>
-            ))}
+              );
+            })}
             <button disabled={confirmValide.lignes.length === 0} onClick={async () => {
               clearTimeout(timer.current);
               const snap = await validerEtPousserStock(cur, R);
@@ -2314,7 +2268,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
   );
 }
 
-function ProStats({ sales, orders, visits, clients, products, batches, onRefresh, loading }) {
+function ProStats({ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }) {
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
   const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
@@ -2328,12 +2282,13 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
 
   const flux = useMemo(() => {
     const out = [];
-    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null })) }));
-    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null })) }));
+    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null, cost: Number(i.cost) || 0, offert: !!i.offert })) }));
+    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null, cost: Number(i.cost) || 0, offert: false })) }));
     return out;
   }, [sales, orders]);
-  const costOf = (n) => { const p = (products || []).find((x) => x.name === n); return p ? Number(p.cost) || 0 : 0; };
-  const hasCost = (n) => { const p = (products || []).find((x) => x.name === n); return !!(p && Number(p.cost) > 0); };
+  // prix d'achat d'une ligne vendue : celui figé au moment de la vente, sinon la fiche produit retrouvée par son identifiant (jamais par le nom : 15 noms sont partagés par plusieurs produits)
+  const prodDe = (i) => (i.pid ? (products || []).find((x) => x.id === i.pid) : null) || (products || []).find((x) => x.name === i.name) || null;
+  const costOf = (i) => { if (Number(i.cost) > 0) return Number(i.cost); const p = prodDe(i); return p ? Number(p.cost) || 0 : 0; };
 
   // ---- recettes par produit (g d'ingrédient cru par g de produit fini), déduites des fournées ----
   const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
@@ -2346,7 +2301,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
       const estPissa = isPissaFam(d.famille || "");
       // poids fini : champ direct, sinon estimé depuis oignons crus x rendement (pissaladière)
       let fini = Number(d.poids_fini_kg) * 1000;
-      if ((!fini || fini <= 0) && estPissa) { const og = Number(d.oignon_kg) || 0; if (og > 0) fini = og * 1000 * ((Number(rendementEstime) || 64.3) / 100); }
+      if ((!fini || fini <= 0) && estPissa) { const og = Number(d.oignon_kg) || 0; if (og > 0) fini = og * 1000 * ((Number(rendement) || 64.3) / 100); }
       if (!fini || fini <= 0) return;
       // pissaladière : toujours indexée sous une clé fixe (le titre est souvent vide)
       const cle = estPissa ? "pissaladiere" : normNom(d.titre || "");
@@ -2367,7 +2322,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
     const out = {};
     Object.entries(acc).forEach(([cle, v]) => { if (v.fini > 0) { out[cle] = {}; Object.entries(v.ing).forEach(([k, g]) => { out[cle][k] = g / v.fini; }); } });
     return out;
-  }, [batches, rendementEstime]);
+  }, [batches, rendement]);
 
   const prixMatiere = useMemo(() => {
     // prix moyen au kg par matière, pondéré par les quantités des fournées
@@ -2400,10 +2355,9 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
       const estPissa = nom.includes("pissalad") || nom.includes("oignon");
       const cle = estPissa ? "pissaladiere" : normNom(it.name);
       const rec = recettes[cle]; if (!rec) return;
-      const prod = (products || []).find((p) => p.name === it.name) || (products || []).find((p) => normNom(p.name) === cle && p.unit);
-      const gUnit = prod && prod.unit ? (parseFloat(String(prod.unit).replace(/[^0-9.]/g, "")) || 0) : 0;
-      // plaque de pissaladière = 750 g de produit fini si pas de grammage dans l'unité
-      const gFiniUnit = gUnit || (estPissa ? 750 : 0);
+      // on retrouve la fiche par identifiant en priorité : plusieurs produits partagent le même nom
+      const prod = prodDe(it) || (products || []).find((p) => normNom(p.name) === cle && p.unit);
+      const gFiniUnit = grammesUnite((prod && prod.unit) || it.unit, estPissa);
       if (!gFiniUnit) return;
       const gFini = gFiniUnit * (it.qty || 0);
       Object.entries(rec).forEach(([ing, r]) => { res[ing] = (res[ing] || 0) + r * gFini; });
@@ -2453,11 +2407,13 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
       r.ca += f.total; r.nb += 1;
       f.items.forEach((i) => {
         r.qty += i.qty;
-        if (hasCost(i.name)) { r.marge += (i.price - costOf(i.name)) * i.qty; r.caAvecCout += i.qty * i.price; }
+        const pv = i.offert ? 0 : i.price;   // un article offert ne rapporte rien : il ne doit pas gonfler le CA par produit
+        const c = costOf(i);
+        if (c > 0) { r.marge += (pv - c) * i.qty; r.caAvecCout += i.qty * pv; }
         const key = i.pid || i.name;
         if (!r.prods[key]) r.prods[key] = { qty: 0, ca: 0, marge: 0, coutConnu: false, name: i.name, pid: i.pid };
-        r.prods[key].qty += i.qty; r.prods[key].ca += i.qty * i.price;
-        if (hasCost(i.name)) { r.prods[key].marge += (i.price - costOf(i.name)) * i.qty; r.prods[key].coutConnu = true; }
+        r.prods[key].qty += i.qty; r.prods[key].ca += i.qty * pv;
+        if (c > 0) { r.prods[key].marge += (pv - c) * i.qty; r.prods[key].coutConnu = true; }
       });
     });
     return r;
@@ -2829,12 +2785,13 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
     const items = edit.items.filter((i) => i.qty > 0);
     const total = items.reduce((a, i) => a + i.price * i.qty, 0);
     const count = items.reduce((a, i) => a + i.qty, 0);
-    if (items.length === 0) { await delOrder(); return; }
+    if (items.length === 0) { await delOrder(); setBusy(false); return; }
     setOrders((l) => l.map((x) => x.id === edit.id ? { ...x, lines: items, total, items: count, pickup: edit.pickup, status: edit.status } : x));
     if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: edit.oid, p_items: items, p_total: total, p_count: count, p_pickup: edit.pickup, p_status: edit.status }); } catch (e) {} }
     setBusy(false); setEdit(null);
   };
   const delOrder = async () => {
+    if (!window.confirm(`Supprimer définitivement la commande ${edit.ref || edit.id}${edit.name ? ` de ${edit.name}` : ""} ?\n\nCette action est irréversible.`)) { setBusy(false); return; }
     setOrders((l) => l.filter((x) => x.id !== edit.id));
     if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_delete_order", { pass, p_oid: edit.oid }); } catch (e) {} }
     setBusy(false); setEdit(null);
@@ -2944,28 +2901,50 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
 }
 function ProProducts({ products, setProducts, pass }) {
   const ILLUS = ["berry", "lemon", "mure", "caramel", "cake", "loaf", "pissa", "potpissa", "miel", "marron"];
-  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "orange", col: "#C25E1E" };
+  // illu par défaut prise dans ILLUS : "orange" n'a pas de dessin propre et retombait sur le fruit générique (CLAUDE.md 7)
+  const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "berry", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
   const [nw, setNw] = useState(blank);
   const [openId, setOpenId] = useState(null);
   const [openCat, setOpenCat] = useState({});
 
-  const persist = (np) => { if (supabase && pass) { supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }).then(() => {}, () => {}); } };
+  // une seule ecriture par produit apres 500 ms de pause : evite un appel RPC a chaque frappe
+  const timers = useRef({});
+  const persist = (np) => {
+    if (!supabase || !pass) return;
+    clearTimeout(timers.current[np.id]);
+    timers.current[np.id] = setTimeout(() => {
+      supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }).then(() => {}, () => {});
+    }, 500);
+  };
   const apply = (id, fn) => { const cur = products.find((p) => p.id === id); if (!cur) return; const np = fn(cur); setProducts((l) => l.map((p) => p.id === id ? np : p)); persist(np); };
-  const updField = (id, key, val) => apply(id, (p) => ({ ...p, [key]: (key === "price" || key === "stock" || key === "cost") ? (val === "" ? 0 : +val) : val }));
-  // prix d'achat × coef = prix de vente (liaison à double sens)
-  const onCost = (p, val) => apply(p.id, (x) => { const cost = val === "" ? 0 : +val; const coef = x.coef || (x.cost ? +(x.price / x.cost).toFixed(2) : 0); return { ...x, cost, coef, price: coef ? +(cost * coef).toFixed(2) : x.price }; });
-  const onCoef = (p, val) => apply(p.id, (x) => { const coef = val === "" ? 0 : +val; return { ...x, coef, price: x.cost ? +(x.cost * coef).toFixed(2) : x.price }; });
-  const onPrice = (p, val) => apply(p.id, (x) => { const price = val === "" ? 0 : +val; return { ...x, price, coef: x.cost ? +(price / x.cost).toFixed(2) : x.coef }; });
+  const updField = (id, key, val) => apply(id, (p) => ({ ...p, [key]: val }));
+  // brouillon de saisie : on garde la frappe telle quelle (y compris "2," ou "2,5") et on ne normalise qu'a la sortie du champ (CLAUDE.md 8)
+  const [draft, setDraft] = useState({});
+  const dk = (id, k) => id + "|" + k;
+  const dval = (p, k) => { const d = draft[dk(p.id, k)]; if (d != null) return d; const v = p[k]; return (v == null || v === "") ? "" : String(v).replace(".", ","); };
+  const dset = (p, k, raw, fn) => { setDraft((o) => ({ ...o, [dk(p.id, k)]: raw })); fn(pfNum(raw)); };
+  const dblur = (p, k) => setDraft((o) => { const n = { ...o }; delete n[dk(p.id, k)]; return n; });
+  // prix de vente FIGE : saisir un prix d'achat ne recalcule que le coefficient (CLAUDE.md 5.4)
+  const onCost = (p, cost) => apply(p.id, (x) => ({ ...x, cost, coef: (cost > 0 && Number(x.price) > 0) ? +(Number(x.price) / cost).toFixed(2) : x.coef }));
+  // le coef est le seul geste qui fixe volontairement un prix de vente a partir du prix d'achat
+  const onCoef = (p, coef) => apply(p.id, (x) => ({ ...x, coef, price: Number(x.cost) > 0 ? +(Number(x.cost) * coef).toFixed(2) : x.price }));
+  const onPrice = (p, price) => apply(p.id, (x) => ({ ...x, price, coef: Number(x.cost) > 0 ? +(price / Number(x.cost)).toFixed(2) : x.coef }));
   const toggle = (id) => apply(id, (p) => ({ ...p, active: p.active === false ? true : false }));
-  const remove = (id) => { setProducts((l) => l.filter((p) => p.id !== id)); if (supabase && pass) { supabase.rpc("admin_delete_product", { pass, p_id: id }).then(() => {}, () => {}); } };
+  const remove = (id) => {
+    const p = products.find((x) => x.id === id);
+    if (!window.confirm(`Supprimer définitivement « ${p ? p.name : "ce produit"} »${p && p.unit ? ` (${p.unit})` : ""} ?\n\nCette action est irréversible. Pour le retirer seulement de la boutique, utilisez « Masquer ».`)) return;
+    clearTimeout(timers.current[id]);
+    setProducts((l) => l.filter((x) => x.id !== id));
+    if (supabase && pass) { supabase.rpc("admin_delete_product", { pass, p_id: id }).then(() => {}, () => {}); }
+  };
   const canCreate = nw.name && (nw.price !== "" || (nw.cost !== "" && nw.coef !== ""));
   const create = () => {
-    const cost = +nw.cost || 0; const coef = +nw.coef || 0;
-    const price = nw.price !== "" ? +nw.price : (cost && coef ? +(cost * coef).toFixed(2) : 0);
+    const cost = pfNum(nw.cost); const coef = pfNum(nw.coef);
+    const price = nw.price !== "" ? pfNum(nw.price) : (cost && coef ? Math.round(cost * coef * 100) / 100 : 0);
     if (!nw.name || !price) return;
     const slug = (nw.name || "prod").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "prod";
-    const np = { id: slug + "-" + Date.now().toString(36).slice(-4), name: nw.name, cat: nw.cat, unit: nw.unit, price, cost, coef, stock: +nw.stock || 0, illu: nw.illu, col: nw.col, soon: false, active: true };
+    const np = { id: slug + "-" + Date.now().toString(36).slice(-4), name: nw.name, cat: nw.cat, unit: nw.unit, price, cost, coef: coef || (cost > 0 ? Math.round((price / cost) * 100) / 100 : 0), stock: Math.round(pfNum(nw.stock)), illu: nw.illu, col: nw.col, soon: false, active: true };
     setProducts((l) => [np, ...l]); persist(np);
     setOpenCat((o) => ({ ...o, [nw.cat]: true }));
     setNw(blank); setCreating(false);
@@ -2988,10 +2967,10 @@ function ProProducts({ products, setProducts, pass }) {
             <div style={{ gridColumn: "1 / -1" }}><MiniLabel>Nom</MiniLabel><input value={nw.name} onChange={(e) => setNw({ ...nw, name: e.target.value })} placeholder="Confiture de figue" style={inp()} /></div>
             <div><MiniLabel>Catégorie</MiniLabel><select value={nw.cat} onChange={(e) => setNw({ ...nw, cat: e.target.value })} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><MiniLabel>Format / poids</MiniLabel><input value={nw.unit} onChange={(e) => setNw({ ...nw, unit: e.target.value })} placeholder="pot 250g" style={inp()} /></div>
-            <div><MiniLabel>Prix d'achat €</MiniLabel><input type="number" value={nw.cost} onChange={(e) => { const cost = e.target.value; setNw((n) => ({ ...n, cost, price: (n.coef !== "" && cost !== "") ? (+cost * +n.coef).toFixed(2) : n.price })); }} placeholder="2.50" style={inp()} /></div>
-            <div><MiniLabel>Coef ×</MiniLabel><input type="number" step="0.1" value={nw.coef} onChange={(e) => { const coef = e.target.value; setNw((n) => ({ ...n, coef, price: (coef !== "" && n.cost !== "") ? (+n.cost * +coef).toFixed(2) : n.price })); }} placeholder="2.8" style={inp()} /></div>
-            <div><MiniLabel>Prix de vente €</MiniLabel><input type="number" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} placeholder="7" style={inp()} /></div>
-            <div><MiniLabel>Stock</MiniLabel><input type="number" value={nw.stock} onChange={(e) => setNw({ ...nw, stock: e.target.value })} placeholder="0" style={inp()} /></div>
+            <div><MiniLabel>Prix d'achat €</MiniLabel><input inputMode="decimal" value={nw.cost} onChange={(e) => { const cost = e.target.value; setNw((n) => ({ ...n, cost, price: (n.coef !== "" && cost !== "" && n.price === "") ? String(Math.round(pfNum(cost) * pfNum(n.coef) * 100) / 100).replace(".", ",") : n.price })); }} placeholder="2,50" style={inp()} /></div>
+            <div><MiniLabel>Coef ×</MiniLabel><input inputMode="decimal" value={nw.coef} onChange={(e) => { const coef = e.target.value; setNw((n) => ({ ...n, coef, price: (coef !== "" && n.cost !== "") ? String(Math.round(pfNum(n.cost) * pfNum(coef) * 100) / 100).replace(".", ",") : n.price })); }} placeholder="2,8" style={inp()} /></div>
+            <div><MiniLabel>Prix de vente €</MiniLabel><input inputMode="decimal" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} placeholder="7" style={inp()} /></div>
+            <div><MiniLabel>Stock</MiniLabel><input inputMode="numeric" value={nw.stock} onChange={(e) => setNw({ ...nw, stock: e.target.value })} placeholder="0" style={inp()} /></div>
           </div>
           <div style={{ margin: "12px 0 0" }}><MiniLabel>Illustration & couleur</MiniLabel>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" }}>
@@ -3028,8 +3007,8 @@ function ProProducts({ products, setProducts, pass }) {
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={p.illu} col={p.col} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
-                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input type="number" value={p.price} onChange={(e) => onPrice(p, e.target.value)} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
-                      <div><MiniLabel>Stock</MiniLabel><input type="number" value={p.stock} onChange={(e) => updField(p.id, "stock", e.target.value)} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
+                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
+                      <div><MiniLabel>Stock</MiniLabel><input inputMode="numeric" value={dval(p, "stock")} onChange={(e) => dset(p, "stock", e.target.value, (n) => updField(p.id, "stock", Math.round(n)))} onBlur={() => dblur(p, "stock")} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
                       <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
                         <button onClick={() => remove(p.id)} className="ca-tap" title="Supprimer" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 9, padding: "9px 10px", cursor: "pointer", display: "grid", placeItems: "center" }}><Trash2 size={15} /></button>
@@ -3038,13 +3017,13 @@ function ProProducts({ products, setProducts, pass }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: (!p.cost || +p.cost === 0) ? PF.warn : C.soft, fontWeight: (!p.cost || +p.cost === 0) ? 700 : 400 }}>Achat</span>
-                        <input type="number" value={p.cost ?? ""} onChange={(e) => onCost(p, e.target.value)} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
+                        <input inputMode="decimal" value={dval(p, "cost")} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: C.soft }}>Coef</span>
-                        <input type="number" step="0.1" value={p.coef ?? ""} onChange={(e) => onCoef(p, e.target.value)} placeholder="—" style={{ ...inp(), width: 62, padding: "7px 9px" }} />
+                        <input inputMode="decimal" value={dval(p, "coef")} onChange={(e) => dset(p, "coef", e.target.value, (n) => onCoef(p, n))} onBlur={() => dblur(p, "coef")} placeholder="—" style={{ ...inp(), width: 62, padding: "7px 9px" }} />
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>=</span>
                       <span style={{ fontSize: 12.5, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Vente <b style={{ color: C.jam }}>{eur(p.price || 0)}</b>{p.cost > 0 && <> · marge <b style={{ color: (p.price - p.cost) >= 0 ? C.ok : "#B23B3B" }}>{eur(+(p.price - p.cost).toFixed(2))}</b></>}</span>
@@ -3745,7 +3724,7 @@ function ShareBtn({ cust, label = "Partager Comme Avant" }) {
   return <GhostBtn onClick={share}><Send size={15} /> {label}</GhostBtn>;
 }
 function Reviews({ setStep, setIntent, reviews, addReview, cust }) {
-  const registered = !!(cust && cust.prenom && cust.prenom.trim() && cust.email && /\S+@\S+\.\S+/.test(cust.email));
+  const registered = !!(cust && cust.prenom && cust.prenom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [done, setDone] = useState(false);
@@ -3996,7 +3975,8 @@ export function BoutiquePublique() {
   const discount = applied ? sub * (applied.pct / 100) : 0;
   const total = sub - discount;
   const count = cartLines.reduce((s, l) => s + l.qty, 0);
-  const add = (id) => { const p = products.find((x) => x.id === id); setCart((c) => ({ ...c, [id]: Math.min((c[id] || 0) + 1, p.stock) })); };
+  // pas de plafond sur le stock : un produit epuise reste commandable ("sur commande"), et le stock n'est jamais expose au client
+  const add = (id) => { if (!products.find((x) => x.id === id)) return; setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 })); };
   const sub1 = (id) => setCart((c) => ({ ...c, [id]: Math.max((c[id] || 0) - 1, 0) }));
   const [placing, setPlacing] = useState(false);
   const upsertClient = async (c) => {
@@ -4016,7 +3996,8 @@ export function BoutiquePublique() {
     }
     return true;
   };
-  const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6 && /\S+@\S+\.\S+/.test(cust.email || ""));
+  // La commande est transmise par WhatsApp : prenom + nom + telephone suffisent (email facultatif, cf. CLAUDE.md 6.1)
+  const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6);
   const placeOrder = async () => {
     if (!custOk) { setStep("coords"); return; }
     if (placing) return;
@@ -4071,12 +4052,15 @@ export function EspacePro() {
   const [promos, setPromos] = useState(SEED_PROMOS);
   const [visits, setVisits] = useState([]);
   const [batches, setBatches] = useState([]);
+  const [rendement, setRendement] = useState(64.3);
   const [paymentEnabled, setPaymentEnabled] = useState(false);
   const [profile, setProfile] = useState(SEED_PROFILE);
   const [proAuth, setProAuth] = useState(false);
   const [pass, setPass] = useState(null);
   const [loading, setLoading] = useState(false);
-  const refresh = async (p) => {
+  // sansProduits : utilisé par le rafraîchissement automatique, pour ne jamais écraser un stock
+  // en cours d'écriture (fermeture de vente, validation de fournée) par une version périmée
+  const refresh = async (p, sansProduits) => {
     const key = p || pass;
     if (!supabase || !key) return;
     setLoading(true);
@@ -4091,10 +4075,12 @@ export function EspacePro() {
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
-      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0 })) })));
-      if (rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
+      // on conserve pid et offert : ce sont eux qui permettent d'agréger par produit (et non par nom, cf. CLAUDE.md 8) et de sortir les offerts du CA
+      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "" })) })));
+      if (!sansProduits && rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
       if (rb && rb.data && Array.isArray(rb.data.batches)) setBatches(rb.data.batches);
+      if (rb && rb.data && rb.data.rendement != null) setRendement(Number(rb.data.rendement) || 64.3);
     } catch (e) {}
     finally { setLoading(false); }
   };
@@ -4105,7 +4091,7 @@ export function EspacePro() {
     const onVis = () => { if (!document.hidden) refresh(pass); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
-    const iv = setInterval(() => { if (!document.hidden) refresh(pass); }, 60000);
+    const iv = setInterval(() => { if (!document.hidden) refresh(pass, true); }, 60000);
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVis); clearInterval(iv); };
   }, [proAuth, pass]);
   return (
@@ -4113,7 +4099,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits, batches }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits, batches, rendement }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
       <InstallBanner admin />
     </div>
@@ -4381,21 +4367,27 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + (l.offert ? 0 : l.qty * pfNum(l.price)), 0);
   const closingRef = useRef(false);
-  const decrementerStock = async (items) => {
+  // deltas de stock par produit : signe -1 = sortie (vente), +1 = retour (annulation)
+  const deltasDe = (items, signe) => {
+    const d = {};
+    (items || []).forEach((it) => { if (it.pid && !it.offert && it.qty > 0) d[it.pid] = (d[it.pid] || 0) + signe * it.qty; });
+    return d;
+  };
+  const fusionne = (...maps) => maps.reduce((acc, m) => { Object.entries(m || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; }); return acc; }, {});
+  const ajusterStock = async (deltas) => {
     if (!setProducts) return;
-    const parId = {};
-    items.forEach((it) => { if (it.pid && !it.offert && (products.find((p) => p.id === it.pid))) parId[it.pid] = (parId[it.pid] || 0) + it.qty; });
-    const ids = Object.keys(parId);
+    const ids = Object.keys(deltas).filter((id) => deltas[id] !== 0 && products.find((p) => p.id === id));
     if (ids.length === 0) return;
-    setProducts((list) => list.map((p) => ids.includes(p.id) ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - parId[p.id]) } : p));
+    setProducts((list) => list.map((p) => ids.includes(p.id) ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + deltas[p.id]) } : p));
     if (supabase && pass) {
       for (const pid of ids) {
         const prod = products.find((p) => p.id === pid); if (!prod) continue;
-        const np = { ...prod, stock: Math.max(0, (Number(prod.stock) || 0) - parId[pid]) };
+        const np = { ...prod, stock: Math.max(0, (Number(prod.stock) || 0) + deltas[pid]) };
         try { await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }); } catch (e) {}
       }
     }
   };
+  const decrementerStock = (items) => ajusterStock(deltasDe(items, -1));
 
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
@@ -4409,7 +4401,13 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
     await decrementerStock(items);
     closingRef.current = false;
   };
-  const cancelOrder = (id) => { setSales((o) => o.filter((x) => x.id !== id)); if (supabase && pass) { try { supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} } };
+  const cancelOrder = async (id) => {
+    const v = sales.find((x) => x.id === id);
+    if (!window.confirm(`Annuler cette vente de ${eur(v ? v.total : 0)} ?\n\nElle sera supprimée et le stock des articles vendus sera remis.`)) return;
+    setSales((o) => o.filter((x) => x.id !== id));
+    if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} }
+    if (v) await ajusterStock(deltasDe(v.items, 1));
+  };
   const [edit, setEdit] = useState(null);
   const [ebusy, setEbusy] = useState(false);
   const pad = (n) => String(n).padStart(2, "0");
@@ -4424,15 +4422,25 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
     const total = items.reduce((a, i) => a + i.price * i.qty, 0);
     const cnt = items.reduce((a, i) => a + i.qty, 0);
     const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
-    if (items.length === 0) { setSales((l) => l.filter((x) => x.id !== edit.id)); if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} } setEbusy(false); setEdit(null); return; }
+    const avant = (sales.find((x) => x.id === edit.id) || {}).items || [];
+    if (items.length === 0) {
+      setSales((l) => l.filter((x) => x.id !== edit.id));
+      if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} }
+      await ajusterStock(deltasDe(avant, 1));
+      setEbusy(false); setEdit(null); return;
+    }
     setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
     if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
+    // on applique au stock la seule différence entre l'ancienne et la nouvelle composition
+    await ajusterStock(fusionne(deltasDe(avant, 1), deltasDe(items, -1)));
     setEbusy(false); setEdit(null);
   };
 
-  const validateOrder = (o) => {
+  const validateOrder = async (o) => {
     if (setOrders) setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: "Remise", paid: true } : x));
-    if (supabase && pass && o.oid) { try { supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }).then(() => {}, () => {}); } catch (e) {} }
+    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }); } catch (e) {} }
+    // une commande remise sort du stock au même titre qu'une vente en caisse
+    await ajusterStock(deltasDe(o.lines, -1));
   };
   const pending = (orders || []).filter((o) => o.status !== "Remise");
   const pendingByDate = {};
