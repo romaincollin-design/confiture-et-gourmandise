@@ -1375,6 +1375,12 @@ const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 // (et non 27235 comme le donnerait une simple extraction de tous les chiffres).
 const G_PAR_PLAQUE = 750;      // CLAUDE.md 5.1 : ~750 g d'oignons cuits par plaque
 const PARTS_PAR_PLAQUE = 12;   // une plaque se découpe en 12 parts
+
+// Un ingrédient libellé en CONTENANT ("Pissaladière (pot 300 g)") n'est pas une matière première :
+// c'est un produit déjà fabriqué, réintroduit dans une fournée de type kit. Le compter comme une
+// matière double la marchandise (on compterait les oignons ET la pissaladière faite avec).
+// Aucune matière première réelle du fichier ne porte un de ces mots.
+const estProduitFini = (label) => /\b(pots?|bocal|bocaux|plaques?|barquettes?|sachets?|bo[iî]tes?)\b/i.test(String(label || ""));
 const grammesUnite = (unit, estPissa) => {
   const u = String(unit || "").toLowerCase().replace(",", ".");
   const m = u.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/);
@@ -2780,6 +2786,8 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const [autresOpen, setAutresOpen] = useState(false); // detail de la part "Autres" du donut
   const [calDay, setCalDay] = useState(null); // jour précis choisi via le calendrier (iso)
   const [calOpen, setCalOpen] = useState(false);
+  const [matiere, setMatiere] = useState(null);   // matière ouverte au clic sur le camembert
+  const [vueConso, setVueConso] = useState("semaine"); // semaine | mois | annee
 
   const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
@@ -2812,7 +2820,9 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       const cle = estPissa ? "pissaladiere" : normNom(d.titre || "");
       if (!cle) return;
       const ings = {};
-      (d.extra || []).forEach((e) => { const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1); if (g > 0 && e.label) ings[e.label.trim()] = (ings[e.label.trim()] || 0) + g; });
+      // estProduitFini : on écarte les lignes qui sont un produit déjà fabriqué (fournée « kit »),
+      // pas une matière achetée. Sans ça, la pissaladière en pot apparaissait comme matière première.
+      (d.extra || []).forEach((e) => { if (estProduitFini(e.label)) return; const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1); if (g > 0 && e.label) ings[e.label.trim()] = (ings[e.label.trim()] || 0) + g; });
       const dm = (k, mult) => { const v = Number(d[k]) || 0; return v > 0 ? v * (mult || 1) : 0; };
       const og = dm("oignon_kg", 1000); if (og) ings["Oignons"] = (ings["Oignons"] || 0) + og;
       const sl = dm("sel_g", 1); if (sl) ings["Sel"] = (ings["Sel"] || 0) + sl;
@@ -2836,6 +2846,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       const d = b.data || b;
       if (!fourneeComptee(d)) return;
       (d.extra || []).forEach((e) => {
+        if (estProduitFini(e.label)) return;   // même règle que pour les recettes
         const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1);
         const px = Number(e.price) || 0; // prix au kg/L saisi
         if (g > 0 && px > 0 && e.label) { const k = e.label.trim(); if (!acc[k]) acc[k] = { g: 0, euros: 0 }; acc[k].g += g; acc[k].euros += (g / 1000) * px; }
@@ -2853,22 +2864,43 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return out;
   }, [batches]);
 
-  // conso matières sur un ensemble de ventes (items) : renvoie {ingredient -> grammes crus}
-  const consoDe = (items) => {
-    const res = {};
+  // Conso matières sur un ensemble de ventes. Renvoie trois choses :
+  //  - matieres : {ingredient -> {g, parProduit:{produit -> g}}} pour le détail au clic du camembert
+  //  - produits : {produit -> {qty, gFini, matieres:{ingredient -> g}}} pour la vue par produit
+  //  - sansRecette : ce qui s'est vendu sans qu'aucune fournée n'en donne la recette. C'est la
+  //    marchandise qu'on ne peut pas déduire : on l'estime alors sur les ventes (poids vendu).
+  const consoDetail = (items) => {
+    const matieres = {}, produits = {}, sansRecette = {};
     (items || []).forEach((it) => {
       const nom = (it.name || "").toLowerCase();
       const estPissa = nom.includes("pissalad") || nom.includes("oignon");
       const cle = estPissa ? "pissaladiere" : normNom(it.name);
-      const rec = recettes[cle]; if (!rec) return;
       // on retrouve la fiche par identifiant en priorité : plusieurs produits partagent le même nom
       const prod = prodDe(it) || (products || []).find((p) => normNom(p.name) === cle && p.unit);
-      const gFiniUnit = grammesUnite((prod && prod.unit) || it.unit, estPissa);
-      if (!gFiniUnit) return;
-      const gFini = gFiniUnit * (it.qty || 0);
-      Object.entries(rec).forEach(([ing, r]) => { res[ing] = (res[ing] || 0) + r * gFini; });
+      const gUnit = grammesUnite((prod && prod.unit) || it.unit, estPissa);
+      const qty = Number(it.qty) || 0;
+      const libelle = (prod && prod.name) || it.name || "—";
+      const rec = recettes[cle];
+      if (!rec) {
+        if (!sansRecette[libelle]) sansRecette[libelle] = { qty: 0, g: 0, unit: (prod && prod.unit) || it.unit || "" };
+        sansRecette[libelle].qty += qty;
+        sansRecette[libelle].g += gUnit * qty;
+        return;
+      }
+      if (!gUnit) return;
+      const gFini = gUnit * qty;
+      if (!produits[libelle]) produits[libelle] = { qty: 0, gFini: 0, matieres: {}, unit: (prod && prod.unit) || it.unit || "" };
+      produits[libelle].qty += qty;
+      produits[libelle].gFini += gFini;
+      Object.entries(rec).forEach(([ing, r]) => {
+        const g = r * gFini;
+        if (!matieres[ing]) matieres[ing] = { g: 0, parProduit: {} };
+        matieres[ing].g += g;
+        matieres[ing].parProduit[libelle] = (matieres[ing].parProduit[libelle] || 0) + g;
+        produits[libelle].matieres[ing] = (produits[libelle].matieres[ing] || 0) + g;
+      });
     });
-    return res;
+    return { matieres, produits, sansRecette };
   };
 
   // ---- bornes de la période sélectionnée (et de la précédente) ----
@@ -2932,12 +2964,14 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     if (t < cur.start || t >= cur.end) return acc;
     return { nb: acc.nb + 1, total: acc.total + (Number(o.total) || 0) };
   }, { nb: 0, total: 0 });
-  const consoPeriode = useMemo(() => {
+  const conso = useMemo(() => {
     const items = [];
     flux.forEach((f) => { const t = new Date(f.ts); if (t >= cur.start && t < cur.end) (f.items || []).forEach((i) => items.push(i)); });
-    const c = consoDe(items);
-    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+    return consoDetail(items);
   }, [flux, cur.start, cur.end, recettes, products]);
+  const consoPeriode = Object.entries(conso.matieres).map(([ing, v]) => [ing, v.g]).sort((a, b) => b[1] - a[1]);
+  const produitsConso = Object.entries(conso.produits).map(([nom, v]) => ({ nom, ...v })).sort((a, b) => b.gFini - a.gFini);
+  const sansRecette = Object.entries(conso.sansRecette).map(([nom, v]) => ({ nom, ...v })).sort((a, b) => b.qty - a.qty);
   const fmtQty = (g) => g >= 1000 ? `${(g / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString("fr-FR")} g`;
   // Rythme de vente sur les 8 dernières semaines, indépendant de la période affichée :
   // c'est lui qui dit combien de temps le stock actuel va tenir, donc quand relancer une fournée.
@@ -2949,6 +2983,26 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     Object.keys(acc).forEach((k) => { acc[k] = acc[k] / (JOURS_RYTHME / 7); });   // unités par semaine
     return acc;
   }, [flux]);
+  // Consommation ramenée à la semaine, au mois et à l'année, mesurée sur les 8 dernières semaines
+  // (fenêtre glissante, indépendante de la période affichée : c'est le rythme réel, pas un total).
+  const SEMAINES_PAR_MOIS = 52 / 12;
+  const consoRythme = useMemo(() => {
+    const depuis = Date.now() - JOURS_RYTHME * 86400000;
+    const items = [];
+    flux.forEach((f) => { if (f.ts < depuis) return; (f.items || []).forEach((i) => items.push(i)); });
+    const d = consoDetail(items);
+    const sem = JOURS_RYTHME / 7;
+    const parSemaine = (v) => v / sem;
+    return {
+      produits: Object.entries(d.produits).map(([nom, v]) => ({
+        nom, unit: v.unit,
+        uSem: parSemaine(v.qty), gSem: parSemaine(v.gFini),
+        matieres: Object.entries(v.matieres).map(([ing, g]) => ({ ing, gSem: parSemaine(g) })).sort((a, b) => b.gSem - a.gSem),
+      })).sort((a, b) => b.gSem - a.gSem),
+      matieres: Object.entries(d.matieres).map(([ing, v]) => ({ ing, gSem: parSemaine(v.g) })).sort((a, b) => b.gSem - a.gSem),
+      sansRecette: Object.entries(d.sansRecette).map(([nom, v]) => ({ nom, unit: v.unit, uSem: parSemaine(v.qty), gSem: parSemaine(v.g) })).sort((a, b) => b.uSem - a.uSem),
+    };
+  }, [flux, recettes, products]);
   // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
   const B = agg(prv.start, prv.end, enCours ? ecoule : null);
   const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
@@ -3186,19 +3240,19 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
 
       <div style={card()}>
         <div style={{ ...h2 }}>Consommation matières (crues)</div>
-        <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Estimée à partir des ventes de la période et des recettes de vos fournées.</div>
+        <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Estimée à partir des ventes de la période et des recettes de vos fournées. Touchez une matière pour voir quels produits l&apos;ont consommée.</div>
         {consoPeriode.length === 0 ? (
           <div style={{ fontSize: 13, color: C.soft }}>Aucune consommation calculable sur cette période (pas de vente reliée à une recette de fournée).</div>
         ) : (
           <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
-              {consoArcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
+              {consoArcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} style={{ cursor: a.ing === "Autres" ? "default" : "pointer" }} onClick={() => a.ing !== "Autres" && setMatiere(a.ing)} />)}
               <text x="65" y="60" textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: C.jam }}>{fmtQty(cTot)}</text>
               <text x="65" y="74" textAnchor="middle" style={{ fontSize: 7, fill: C.soft }}>consommés</text>
             </svg>
             <div style={{ flex: "1 1 220px", minWidth: 200 }}>
               {consoArcs.map((a, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12.5, borderBottom: i < consoArcs.length - 1 ? `1px solid ${C.line}` : "none" }}>
+                <div key={i} onClick={() => a.ing !== "Autres" && setMatiere(a.ing)} className={a.ing === "Autres" ? undefined : "ca-tap"} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12.5, borderBottom: i < consoArcs.length - 1 ? `1px solid ${C.line}` : "none", cursor: a.ing === "Autres" ? "default" : "pointer" }}>
                   <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
                   <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.ing}</span>
                   {prixMatiere[a.ing] > 0 && a.ing !== "Autres" && <span style={{ color: C.soft, flexShrink: 0, fontSize: 11 }}>{eur2(prixMatiere[a.ing])}/kg</span>}
@@ -3209,6 +3263,100 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           </div>
         )}
       </div>
+
+      {/* Détail segmenté d'une matière : d'où elle vient, produit par produit. */}
+      {matiere && conso.matieres[matiere] && (() => {
+        const m = conso.matieres[matiere];
+        const parts = Object.entries(m.parProduit).map(([nom, g]) => ({ nom, g })).sort((a, b) => b.g - a.g);
+        const px = prixMatiere[matiere] || 0;
+        const mx = Math.max(1, ...parts.map((p) => p.g));
+        const rSem = (consoRythme.matieres.find((x) => x.ing === matiere) || {}).gSem || 0;
+        return (
+          <div onClick={() => setMatiere(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, lineHeight: 1.15 }}>{matiere}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>{cur.label}</div>
+                </div>
+                <button onClick={() => setMatiere(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 120px", background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Consommé</div><div style={{ fontSize: 20, fontWeight: 700 }}>{fmtQty(m.g)}</div></div>
+                <div style={{ flex: "1 1 120px", background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Coût estimé</div><div style={{ fontSize: 20, fontWeight: 700 }}>{px > 0 ? eur((m.g / 1000) * px) : "—"}</div><div style={{ fontSize: 9.5, opacity: .65, marginTop: 2 }}>{px > 0 ? `${eur2(px)}/kg` : "prix d'achat inconnu"}</div></div>
+              </div>
+              {rSem > 0 && (
+                <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+                  Rythme réel sur les 8 dernières semaines : <b>{fmtQty(rSem)}/semaine</b> · <b>{fmtQty(rSem * SEMAINES_PAR_MOIS)}/mois</b> · <b>{fmtQty(rSem * 52)}/an</b>
+                  {px > 0 && <div style={{ marginTop: 3, color: C.soft }}>Soit environ {eur((rSem * 52 / 1000) * px)} d&apos;achat sur l&apos;année.</div>}
+                </div>
+              )}
+              <div style={{ ...h2 }}>D&apos;où elle vient</div>
+              {parts.map((p, i) => (
+                <div key={i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+                    <span style={{ width: 19, height: 19, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 10.5, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}</div>
+                    <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>{Math.round((p.g / (m.g || 1)) * 100)}%</span>
+                    <b style={{ fontSize: 13, color: C.jam, flexShrink: 0, minWidth: 58, textAlign: "right" }}>{fmtQty(p.g)}</b>
+                  </div>
+                  <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden" }}><div style={{ width: `${(p.g / mx) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} /></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Consommation par produit, ramenée à la semaine / au mois / à l'année. */}
+      <div style={card()}>
+        <div style={{ ...h2 }}>Consommation par produit</div>
+        <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Rythme réel mesuré sur les 8 dernières semaines, quelle que soit la période affichée plus haut.</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          {[["semaine", "Par semaine"], ["mois", "Par mois"], ["annee", "Par an"]].map(([k, l]) => (
+            <button key={k} onClick={() => setVueConso(k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${vueConso === k ? C.jam : C.line}`, background: vueConso === k ? C.jam : "#fff", color: vueConso === k ? "#fff" : C.ink, borderRadius: 999, padding: "8px 10px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+          ))}
+        </div>
+        {consoRythme.produits.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.soft }}>Aucune vente reliée à une recette de fournée sur les 8 dernières semaines.</div>
+        ) : consoRythme.produits.map((p, i) => {
+          const mult = vueConso === "semaine" ? 1 : vueConso === "mois" ? SEMAINES_PAR_MOIS : 52;
+          const cout = p.matieres.reduce((s, m) => s + (prixMatiere[m.ing] > 0 ? (m.gSem * mult / 1000) * prixMatiere[m.ing] : 0), 0);
+          return (
+            <div key={i} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 160px", minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}{p.unit ? <span style={{ color: C.soft, fontWeight: 500 }}> · {p.unit}</span> : null}</div>
+                <span style={{ fontSize: 12, color: C.soft, flexShrink: 0 }}>{(p.uSem * mult).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} unités</span>
+                <b style={{ fontSize: 13.5, color: C.jam, flexShrink: 0 }}>{fmtQty(p.gSem * mult)}</b>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {p.matieres.map((m, j) => (
+                  <span key={j} style={{ background: "#f6efdd", borderRadius: 7, padding: "4px 9px", fontSize: 11.5, fontWeight: 700, color: C.ink }}>{m.ing} <span style={{ color: PF.navy }}>{fmtQty(m.gSem * mult)}</span></span>
+                ))}
+                {cout > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "4px 9px", fontSize: 11.5, fontWeight: 700, color: C.jam }}>≈ {eur(cout)} de matières</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Ce que les fournées ne couvrent pas : estimation à partir des ventes seules. */}
+      {consoRythme.sansRecette.length > 0 && (
+        <div style={card()}>
+          <div style={{ ...h2 }}>Vendu sans recette de fournée</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Aucune fournée n&apos;en donne la recette : impossible d&apos;en déduire les matières. L&apos;estimation se fait alors sur les ventes seules — c&apos;est ce qu&apos;il faut produire ou racheter pour tenir le même rythme.</div>
+          {consoRythme.sansRecette.map((p, i) => {
+            const mult = vueConso === "semaine" ? 1 : vueConso === "mois" ? SEMAINES_PAR_MOIS : 52;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderBottom: i < consoRythme.sansRecette.length - 1 ? `1px solid ${C.line}` : "none", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 160px", minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nom}{p.unit ? <span style={{ color: C.soft, fontWeight: 500 }}> · {p.unit}</span> : null}</div>
+                <b style={{ fontSize: 13, color: C.jam, flexShrink: 0 }}>{(p.uSem * mult).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} unités</b>
+                {p.gSem > 0 && <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0, minWidth: 62, textAlign: "right" }}>{fmtQty(p.gSem * mult)}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div style={card()}>
         <div style={{ ...h2 }}>Répartition des ventes par produit</div>

@@ -160,8 +160,25 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
   « Ne pas compter dans les statistiques », et celles au rendement impossible (poids cuit > poids cru).
   Les fournées de démonstration faussaient le ratio oignons/produit fini d'un facteur ~2.
 - Recette exprimée en g d'ingrédient cru **par g de produit fini** (ingrédients ÷ poids fini de la fournée).
-- Affichage : donut par matière + prix d'achat moyen au kg (pondéré par les fournées), même sélecteur
+- **Un ingrédient libellé en contenant n'est pas une matière première** : `estProduitFini(label)`
+  (mots `pot / bocal / plaque / barquette / sachet / boîte`) écarte les lignes qui sont un produit
+  **déjà fabriqué**, réintroduit dans une fournée de type kit. La fournée « Kit Pissaladière » du
+  16/08 porte `Pissaladière (pot 300 g) — d'après ta fournée du 09/08`, 200 kg à 21,09 €/kg :
+  comptée comme matière, elle ajoutait **187,73 kg fantômes sur 402 kg**, soit 47 % du total, et
+  arrivait en tête du donut devant les oignons. Aucune des 56 matières réelles ne porte un de ces
+  mots — la règle est sûre sur les données existantes. Même filtre dans `recettes` et `prixMatiere`.
+- Affichage : donut **cliquable** par matière (→ détail segmenté : quels produits l'ont consommée,
+  part de chacun, coût estimé, rythme semaine/mois/an) + prix d'achat moyen au kg, même sélecteur
   de période (jour/semaine/mois/année) que les ventes.
+- **Consommation par produit** : vue semaine / mois / année, mesurée sur les **8 dernières semaines**
+  glissantes (indépendante de la période affichée), avec les matières de chaque produit et leur coût.
+- **« Vendu sans recette de fournée »** : ce qui s'est vendu sans qu'aucune fournée n'en donne la
+  recette (Miel, Crème de marron, Caramels, Reine Claude…) est estimé **sur les ventes seules**
+  (unités + poids). C'est la marchandise à produire ou racheter pour tenir le même rythme.
+- ⚠️ **Ne jamais rattacher une vente à une recette par préfixe de nom.** Testé sur les données
+  réelles : une fournée au titre `C` (saisie incomplète) captait Citron, Citron Bergamotte, Crème de
+  marron, clafoutis et caramel à tartiner. Rattachement **exact** uniquement (`normNom`) ; ce qui ne
+  matche pas va dans « vendu sans recette », visible, plutôt que deviné.
 
 ### 5.5 bis — Réassort & rythme de vente
 - **« À refaire »** = produit en vente (`active`), non `soon`, stock ≤ 5. Même règle partout :
