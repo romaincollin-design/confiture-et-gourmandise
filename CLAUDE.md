@@ -73,6 +73,11 @@ Après push, vérifier le déploiement Vercel (statut "success") avant d'annonce
 - `production_batches` — fournées. Colonnes : `id` (uuid), `data` (jsonb = toute la fournée),
   `batch_date`, `created_at`, `updated_at`.
 
+### RPC publiques (boutique client, sans PIN)
+`track_visit`, `save_lead` (enregistre un contact **avec ou sans email** : sans email, la fiche est
+identifiée par les **9 derniers chiffres du téléphone**, ce qui unifie `06 99…`, `0699…` et `+336 99…`),
+`save_customer` (ancienne version, exige un email — conservée, plus appelée par l'app), `mark_wa_sent`.
+
 ### RPC utilisés (tous préfixés `admin_`, prennent `pass`)
 `admin_check`, `admin_orders`, `admin_customers`, `admin_sales`, `admin_visits`, `admin_batches`,
 `admin_suppliers`, `admin_save_product`, `admin_delete_product`, `admin_import_product`,
@@ -108,20 +113,37 @@ pour chaque format **relié à un produit du catalogue** (menu "Produit lié"), 
 La validation est **idempotente** : `data.stock_applique` mémorise ce qui a déjà été poussé,
 donc re-valider n'ajoute que le delta (jamais de double comptage).
 
-### 5.3 Caisse → Stock
+### 5.3 Caisse → Stock (dans les deux sens)
 Fermer une vente en caisse (`closeOrder`) **décrémente le stock** des produits vendus
 (hors offerts, hors articles libres sans fiche catalogue). `Math.max(0, ...)`.
+Symétriquement : **annuler** une vente rend le stock, **modifier** une vente applique la différence,
+et **« Valider le retrait »** d'une commande en ligne décrémente le stock (la commande n'est donc
+pas à repasser en caisse — elle compte déjà dans le chiffre d'affaires).
 
 ### 5.4 Règle de prix / marge
 - Le **prix de vente est figé** (fixé par le commerçant). On ne le recalcule jamais depuis la marge.
 - Coef et marge se déduisent tout seuls : `marge = prix_vente − prix_achat`, `coef = prix_vente / prix_achat`.
 - Arrondi des prix de vente suggérés en Production : **euro supérieur** (`Math.ceil`) — ex. 170 g × 42 €/kg = 7,14 € → **8 €**.
 
+### 5.4 bis — Ce qui peut / ne peut pas bouger un prix de vente
+- Validation de fournée : pousse `cost`, `unit`, `stock`, `coef`. **N'écrase jamais un `price` > 0.**
+- Onglet Produits, champ **Prix d'achat** : recalcule le **coef** seulement.
+- Onglet Produits, champ **Coef** : c'est le **seul** geste qui fixe volontairement `price = cost × coef`.
+- Onglet Produits, champ **Prix de vente** : recalcule le coef.
+- Toutes les saisies numériques acceptent la **virgule** (brouillon conservé pendant la frappe,
+  normalisation à la sortie du champ).
+
 ### 5.5 Consommation matières (Tableau de bord)
 Section "Consommation matières (crues)" : croise les **ventes de la période** avec les **recettes des fournées**
 pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fruits, sucre…).
 - Lien vente ↔ recette **par nom normalisé** (`normNom` : minuscules, sans accents, sans "confiture/de/la/les",
   singulier/pluriel ignorés). "confiture fraise" == "confiture de fraises".
+- **Grammage d'une unité vendue** : toujours via `grammesUnite(unit, estPissa)`, jamais en extrayant
+  tous les chiffres de `unit` ("part ≈ 272 g · 35 €/kg" donnerait 27 235 g). Plaque = 750 g,
+  part = 1/12 de plaque.
+- **Fournées comptées** : `fourneeComptee()` écarte celles marquées « estimation », celles cochées
+  « Ne pas compter dans les statistiques », et celles au rendement impossible (poids cuit > poids cru).
+  Les fournées de démonstration faussaient le ratio oignons/produit fini d'un facteur ~2.
 - Recette exprimée en g d'ingrédient cru **par g de produit fini** (ingrédients ÷ poids fini de la fournée).
 - Affichage : donut par matière + prix d'achat moyen au kg (pondéré par les fournées), même sélecteur
   de période (jour/semaine/mois/année) que les ventes.
@@ -136,6 +158,9 @@ pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consom
 
 1. **Flash QR → écran de coordonnées OBLIGATOIRE** (step `coords`). On demande prénom + nom + téléphone
    (email et adresse **facultatifs**, complétés plus tard dans le profil). Autofill natif iOS/Android activé.
+   ⚠️ **Aucun écran ne doit exiger d'email** : la commande part par **WhatsApp**, pas par mail.
+   Trois verrous email (commande, avis, enregistrement du contact) ont bloqué toute commande
+   du 16/09 au 17/09/2026 — ne pas les réintroduire.
 2. **Verrouillage strict** : impossible de voir la carte, le panier ou de commander sans coordonnées valides.
    Garde-fou dans `ClientView` : tout accès à `shop/cart/checkout/done` sans `coordsOk` renvoie à `coords`.
    Le bandeau promo ("Announce") ne s'affiche pas sur l'écran `coords`.
@@ -175,7 +200,16 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 - **Décalage de cellules** : un label sur 2 lignes (ex. suffixe "(auto)") désaligne toute la rangée flex.
 - **Champs de saisie** : plafonner la largeur (`maxWidth`) sinon ils s'étirent sur toute la ligne.
 - **Fournées orphelines en base** : quelques entrées test (`pissaladiere_volume`, titre vide). Ne pas
-  supprimer de données sans accord explicite du propriétaire.
+  supprimer de données sans accord explicite du propriétaire. Elles sont désormais visibles dans
+  l'onglet **« Non classées »** de Production et reclassables via le sélecteur de famille.
+- **`pid` des lignes de vente et de commande** : toujours le conserver au chargement (`admin_sales`,
+  `admin_orders`) et à l'enregistrement. Sans lui, l'agrégation retombe sur le nom, et 15 noms sont
+  partagés par plusieurs produits.
+- **Portée des variables dans ce gros fichier** : `ProStats` a référencé `rendementEstime`, un état de
+  `ProProduction`. Le build passe, mais l'onglet plante au render (`ReferenceError`). Aucun type-check
+  ici : vérifier à l'œil que chaque identifiant est bien dans la portée du composant.
+- **Actions destructrices** : suppression d'un produit, d'une commande ou d'une vente = `window.confirm`
+  obligatoire. Pour un produit, préférer « Masquer ».
 
 ---
 

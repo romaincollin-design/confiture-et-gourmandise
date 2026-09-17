@@ -280,7 +280,7 @@ function Welcome({ setStep, setIntent, profile, returning, cust, reviews }) {
           <Stars value={avg ? Math.round(avg) : 5} size={15} /> {reviews && reviews.length ? `${avg.toFixed(1)} · ${reviews.length} avis — donner le mien` : "Donner votre avis"}
         </button>
         <InstallBanner />
-        <button onClick={() => { if (returning && cust && cust.email) { setStep("contact"); } else { setIntent("contact"); setStep("coords"); } }} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
+        <button onClick={() => { if (returning && cust && cust.prenom) { setStep("contact"); } else { setIntent("contact"); setStep("coords"); } }} className="ca-tap" style={{ width: "100%", marginTop: 12, background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "underline", textUnderlineOffset: 3 }}><Smartphone size={14} /> Enregistrer nos coordonnées</button>
       </div>
     </div>
   );
@@ -593,7 +593,8 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
-  const NAV = [["caisse", "Caisse", CreditCard], ["stats", "Tableau de bord", TrendingUp], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["gestion", "Production", Percent], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
+  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -923,6 +924,20 @@ const FAMILLES = [
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 const isPissaFam = (famille) => famille === "pissaladiere" || famille === "grande_fournee";
+// Une fournée ne doit pas nourrir les statistiques (recettes, stock d'oignons cuits) si :
+//  - elle est explicitement exclue à la main (case « Ne pas compter dans les statistiques »),
+//  - elle est marquée « estimation » (simulation, pas une vraie production),
+//  - son rendement est impossible : la cuisson fait perdre du poids, un poids fini supérieur
+//    au poids cru signale une fournée d'exemple ou une saisie erronée.
+const fourneeComptee = (d) => {
+  if (!d) return false;
+  if (d.exclu_stats) return false;
+  if (d.estimation) return false;
+  const cru = Number(d.oignon_kg) || 0;
+  const fini = Number(d.poids_fini_kg) || 0;
+  if (isPissaFam(d.famille || "") && cru > 0 && fini > cru) return false;
+  return true;
+};
 // pour une fournée Pissaladière, chaque format de contenant peut être un "pot" classique ou un "kit" (pot + sac + accompagnements groupés)
 const POT_TYPE_LABELS = { pot: ["Bocal", "Capuchon", "Étiquette"], kit: ["Pot", "Sac", "Accompagnements (huile+anchois+olive)"] };
 // unités disponibles pour les ingrédients libres : g/kg/ml/cl/L convertis automatiquement vers un prix au kg ou au litre, "pièce" = prix direct
@@ -1249,7 +1264,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
     } catch (e) {}
   };
   const change = (patch) => { setCur((c) => { const nf = { ...c, ...patch }; clearTimeout(timer.current); timer.current = setTimeout(() => persist(nf), 600); return nf; }); };
-  const openNew = () => { setCur(pfBlank(famille)); setEtab("mat"); setView("edit"); };
+  const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("mat"); setView("edit"); };
   const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("mat"); setView("edit"); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
@@ -1336,7 +1351,11 @@ function ProProduction({ pass, products, setProducts, sales }) {
   // ================= VUE LISTE =================
   if (view === "list") {
     const isPissa = isPissaFam(famille);
-    const famBatches = batches.filter((b) => (b.famille || "pissaladiere") === famille);
+    // fournées dont la clé de famille n'existe plus (ex. « pissaladiere_volume ») : sans cet onglet
+    // elles restaient invisibles et impossibles à rouvrir dans l'app
+    const estConnue = (b) => FAMILLES.some((fm) => fm.key === (b.famille || "pissaladiere"));
+    const nbNonClassees = batches.filter((b) => !estConnue(b)).length;
+    const famBatches = famille === "__autres__" ? batches.filter((b) => !estConnue(b)) : batches.filter((b) => (b.famille || "pissaladiere") === famille);
     const cols = isPissa ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
     // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
     const batchesPeriode = isPissa ? famBatches.filter((b) => {
@@ -1358,7 +1377,8 @@ function ProProduction({ pass, products, setProducts, sales }) {
     const cumulNbFormat = (cumulCuit > 0 && pfNum(cumulFormat) > 0) ? Math.floor((cumulCuit * 1000) / pfNum(cumulFormat)) : null;
     const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
     // stock oignons cuits = produit par toutes les fournées pissaladière - consommé par les ventes de pissaladière
-    const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere")).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
+    const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere") && fourneeComptee(b)).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
+    const fourneesExclues = batches.filter((b) => isPissaFam(b.famille || "pissaladiere") && !fourneeComptee(b)).length;
     const oignonsCuitsConsommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
       const n = (it.name || "").toLowerCase();
       if (!n.includes("pissalad") && !n.includes("oignon")) return si;
@@ -1398,6 +1418,9 @@ function ProProduction({ pass, products, setProducts, sales }) {
           {FAMILLES.map((fm) => (
             <button key={fm.key} onClick={() => setFamille(fm.key)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${famille === fm.key ? C.jam : C.line}`, background: famille === fm.key ? C.jam : "#fff", color: famille === fm.key ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{fm.label}</button>
           ))}
+          {nbNonClassees > 0 && (
+            <button onClick={() => setFamille("__autres__")} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${famille === "__autres__" ? C.jam : PF.warn}`, background: famille === "__autres__" ? C.jam : "#faece5", color: famille === "__autres__" ? "#fff" : PF.warn, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Non classées ({nbNonClassees})</button>
+          )}
         </div>
 
         {isPissa && (
@@ -1459,7 +1482,12 @@ function ProProduction({ pass, products, setProducts, sales }) {
           </div>
         )}
 
-        {famBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : `Aucune fournée « ${famOf(famille).label} ». Créez la première avec le bouton « Fournée ».`}</div> : (
+        {famille === "__autres__" && famBatches.length > 0 && (
+          <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+            Ces fournées portent une famille qui n'existe plus dans l'app. Elles sont conservées telles quelles et n'entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
+          </div>
+        )}
+        {famBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : (famille === "__autres__" ? "Aucune fournée non classée." : `Aucune fournée « ${famOf(famille).label} ». Créez la première avec le bouton « Fournée ».`)}</div> : (
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
@@ -1471,7 +1499,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
                     <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
                       {isPissa && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
                       <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
-                      <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}{f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}</td>
+                      <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}{f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}{!f.estimation && !fourneeComptee(f) && <span title="Non comptée dans la consommation matières et le stock d'oignons cuits" style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.warn, borderRadius: 5, padding: "1px 5px" }}>HORS STATS</span>}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
                       <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
@@ -1485,7 +1513,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
             </div>
           </div>
         )}
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{isPissa ? "* rendement estimé (poids non pesé). " : ""}Touchez une ligne pour ouvrir la fournée.</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{isPissa ? "* rendement estimé (poids non pesé). " : ""}Touchez une ligne pour ouvrir la fournée.{isPissa && fourneesExclues > 0 ? ` ${fourneesExclues} fournée(s) marquée(s) « hors stats » ou « estimation » ne sont pas comptées dans la consommation matières ni dans le stock d'oignons cuits.` : ""}</div>
       </div>
     );
   }
@@ -1563,6 +1591,13 @@ function ProProduction({ pass, products, setProducts, sales }) {
               <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée hypothétique (ex. simulation grande capacité) — n'affecte pas tes vraies statistiques de production.</span>
             </span>
           </button>
+          <button onClick={() => change({ exclu_stats: !f.exclu_stats })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.exclu_stats ? "#faece5" : "#f7f4ec", border: `1.5px solid ${f.exclu_stats ? PF.warn : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
+            <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.exclu_stats ? PF.warn : C.soft}`, background: f.exclu_stats ? PF.warn : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.exclu_stats && <Check size={13} color="#fff" />}</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Ne pas compter dans les statistiques</span>
+              <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée d'essai ou de démonstration : conservée ici, mais retirée de la consommation matières et du stock d'oignons cuits.</span>
+            </span>
+          </button>
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
@@ -1570,6 +1605,13 @@ function ProProduction({ pass, products, setProducts, sales }) {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. 3AD Kitchen, Carros" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ flex: "1 1 160px" }}>
+              <Lbl>Famille</Lbl>
+              <select value={FAMILLES.some((x) => x.key === f.famille) ? f.famille : ""} onChange={(e) => { if (e.target.value) change({ famille: e.target.value }); }} style={{ ...inp(), marginTop: 4, cursor: "pointer" }}>
+                {!FAMILLES.some((x) => x.key === f.famille) && <option value="">Non classée ({f.famille || "—"})</option>}
+                {FAMILLES.map((fm) => <option key={fm.key} value={fm.key}>{fm.label}</option>)}
+              </select>
+            </div>
           </div>
           <div style={{ ...h2 }}>{FAM.ingLabel}</div>
           {FAM.key === "confiture" && (
@@ -2002,7 +2044,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
                 {NF("Prix de vente / plaque", "pissa_px_vente", "€", "0", f, (k, v) => change({ [k]: v }))}
               </div>
               <div style={{ marginTop: 10 }}>
-                <Lbl>Produit lié (stock)</Lbl>
+                <Lbl>Les plaques alimentent le produit</Lbl>
                 <select value={f.pissa_plaque_pid || ""} onChange={(e) => change({ pissa_plaque_pid: e.target.value || null })} style={{ ...inp(), marginTop: 3 }}>
                   <option value="">— non lié —</option>
                   {(products || []).map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.unit ? " · " + pr.unit : ""}</option>)}
@@ -2061,7 +2103,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
                 </div>
               </div>
               <div style={{ marginTop: 9 }}>
-                <Lbl>Produit lié (stock)</Lbl>
+                <Lbl>Ce format alimente le produit</Lbl>
                 <select value={p.pid || ""} onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], pid: ev.target.value || null }; change({ pots }); }} style={{ ...inp(), marginTop: 3 }}>
                   <option value="">— non lié —</option>
                   {(products || []).map((pr) => <option key={pr.id} value={pr.id}>{pr.name}{pr.unit ? " · " + pr.unit : ""}</option>)}
@@ -2232,7 +2274,7 @@ function ProProduction({ pass, products, setProducts, sales }) {
               <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock et le prix d'achat de ces produits vont être mis à jour. Un prix de vente déjà fixé n'est jamais modifié.</p>
             </div>
             {confirmValide.lignes.length === 0 ? (
-              <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Reliez vos formats à un produit du catalogue (menu « Produit lié ») avant de valider.</div>
+              <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Dans l'onglet « Contenants & vente », choisissez « Ce format alimente le produit » pour chaque format avant de valider.</div>
             ) : confirmValide.lignes.map((l, i) => {
               const delta = l.nb - (l.dejaApplique || 0);
               return (
@@ -2298,6 +2340,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     const acc = {};
     (batches || []).forEach((b) => {
       const d = b.data || b;
+      if (!fourneeComptee(d)) return;   // fournées d'exemple / simulations exclues
       const estPissa = isPissaFam(d.famille || "");
       // poids fini : champ direct, sinon estimé depuis oignons crus x rendement (pissaladière)
       let fini = Number(d.poids_fini_kg) * 1000;
@@ -2329,6 +2372,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     const acc = {}; // label -> { g, euros }
     (batches || []).forEach((b) => {
       const d = b.data || b;
+      if (!fourneeComptee(d)) return;
       (d.extra || []).forEach((e) => {
         const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1);
         const px = Number(e.price) || 0; // prix au kg/L saisi
@@ -2768,9 +2812,9 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
   const addItem = (p) => setEdit((e) => {
-    const idx = e.items.findIndex((i) => i.name === p.name && i.unit === p.unit);
+    const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : (i.name === p.name && i.unit === p.unit));
     if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
-    return { ...e, items: [...e.items, { name: p.name, unit: p.unit, price: p.price, qty: 1 }] };
+    return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] };
   });
   const persistStatus = async (o, s) => {
     setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: s } : x));
@@ -2950,13 +2994,24 @@ function ProProducts({ products, setProducts, pass }) {
     setNw(blank); setCreating(false);
   };
   const swatch = (active) => ({ width: 40, height: 40, borderRadius: 10, border: `1.5px solid ${active ? C.jam : C.line}`, background: C.cream, display: "grid", placeItems: "center", cursor: "pointer" });
-  const extra = [...new Set(products.map((p) => p.cat))].filter((c) => !CAT_ORDER.includes(c));
-  const cats = [...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.cat === c));
+  // filtre de saisie rapide : les prix d'achat manquants bloquent tout le calcul de marge
+  const [filtreSansAchat, setFiltreSansAchat] = useState(false);
+  const sansAchatP = (p) => !p.cost || +p.cost === 0;
+  const totalSansAchat = products.filter(sansAchatP).length;
+  const visibles = filtreSansAchat ? products.filter(sansAchatP) : products;
+  const extra = [...new Set(visibles.map((p) => p.cat))].filter((c) => !CAT_ORDER.includes(c));
+  const cats = [...CAT_ORDER, ...extra].filter((c) => visibles.some((p) => p.cat === c));
 
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div></div>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div>
+          {totalSansAchat > 0 && (
+            <button onClick={() => setFiltreSansAchat((v) => !v)} className="ca-tap" style={{ marginTop: 8, border: `1.5px solid ${filtreSansAchat ? PF.warn : PF.warn + "66"}`, background: filtreSansAchat ? PF.warn : "#faece5", color: filtreSansAchat ? "#fff" : PF.warn, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              {filtreSansAchat ? `✕ Voir tous les produits` : `⚠ ${totalSansAchat} sans prix d'achat — les afficher`}
+            </button>
+          )}
+        </div>
         <button onClick={() => { setCreating((v) => !v); setNw(blank); }} className="ca-tap" style={{ background: creating ? "transparent" : C.jam, color: creating ? C.soft : "#fff", border: creating ? `1px solid ${C.line}` : "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, whiteSpace: "nowrap" }}>{creating ? <X size={15} /> : <Plus size={15} />} {creating ? "Fermer" : "Nouveau produit"}</button>
       </div>
 
@@ -2986,9 +3041,9 @@ function ProProducts({ products, setProducts, pass }) {
       )}
 
       {cats.map((cat) => {
-        const items = products.filter((p) => p.cat === cat);
-        const isOpen = !!openCat[cat];
-        const sansAchat = items.filter((p) => !p.cost || +p.cost === 0).length;
+        const items = visibles.filter((p) => p.cat === cat);
+        const isOpen = filtreSansAchat || !!openCat[cat];   // en mode filtre, tout est déplié : on vient pour saisir
+        const sansAchat = items.filter(sansAchatP).length;
         return (
           <div key={cat} style={{ marginBottom: 10 }}>
             <button onClick={() => setOpenCat((o) => ({ ...o, [cat]: !o[cat] }))} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 15px", borderRadius: 12, border: `1px solid ${C.line}`, background: isOpen ? "#7A2B3308" : C.paper, cursor: "pointer" }}>
@@ -3671,6 +3726,7 @@ function ProLogin({ pin, onOk }) {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rester, setRester] = useState(false);
   const submit = async () => {
     if (!code || busy) return;
     setBusy(true); setErr("");
@@ -3678,10 +3734,10 @@ function ProLogin({ pin, onOk }) {
       if (supabase) {
         const { data, error } = await supabase.rpc("admin_check", { pass: code });
         if (error) throw error;
-        if (data === true) { onOk(code); return; }
+        if (data === true) { onOk(code, rester); return; }
         setErr("Mot de passe incorrect"); setCode("");
       } else {
-        if (code === pin) onOk(code); else { setErr("Mot de passe incorrect"); setCode(""); }
+        if (code === pin) onOk(code, rester); else { setErr("Mot de passe incorrect"); setCode(""); }
       }
     } catch (e) { setErr("Connexion impossible, réessayez"); }
     finally { setBusy(false); }
@@ -3694,6 +3750,10 @@ function ProLogin({ pin, onOk }) {
         <p style={{ fontSize: 13, color: C.soft, lineHeight: 1.5, margin: "0 0 18px" }}>Réservé à l'enseigne. Les clients qui scannent le QR code n'y ont pas accès.</p>
         <input type="password" value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Mot de passe" style={{ ...inp(), textAlign: "center", letterSpacing: ".12em" }} />
         {err && <div style={{ fontSize: 12.5, color: C.jam, fontWeight: 600, margin: "8px 0 0" }}>{err}</div>}
+        <button onClick={() => setRester((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "center", gap: 9, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}>
+          <span style={{ width: 19, height: 19, borderRadius: 6, border: `2px solid ${rester ? C.jam : C.soft}`, background: rester ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{rester && <Check size={12} color="#fff" />}</span>
+          <span style={{ fontSize: 12.5, color: C.ink, fontWeight: 600 }}>Rester connecté sur cet appareil<span style={{ display: "block", fontSize: 11, color: C.soft, fontWeight: 400 }}>À n'activer que sur votre téléphone ou tablette. « Se déconnecter » (onglet Enseigne) annule.</span></span>
+        </button>
         <div style={{ marginTop: 12 }}><BigBtn onClick={submit}>{busy ? "Connexion…" : <>Entrer <ChevronRight size={16} /></>}</BigBtn></div>
       </div>
     </div>
@@ -3983,9 +4043,10 @@ export function BoutiquePublique() {
     try { localStorage.setItem("ca_cust", JSON.stringify(c)); } catch (e) {}
     setReturning(true);
     setClients((list) => list.find((x) => x.email === c.email) ? list : [{ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: 0, spent: 0, optin: !!c.optin }, ...list]);
-    if (supabase && c.email) {
+    // le formulaire ne demande que prenom + nom + telephone : la fiche est enregistrée même sans email (RPC save_lead)
+    if (supabase && (c.email || (c.tel || "").replace(/\D/g, "").length >= 6)) {
       try {
-        const { error } = await supabase.rpc("save_customer", { p_prenom: c.prenom || "", p_nom: c.nom || "", p_tel: c.tel || "", p_email: c.email, p_opt_in: !!c.optin });
+        const { error } = await supabase.rpc("save_lead", { p_prenom: c.prenom || "", p_nom: c.nom || "", p_tel: c.tel || "", p_email: c.email || "", p_opt_in: !!c.optin });
         if (error) { try { localStorage.setItem("ca_cust_pending", JSON.stringify(c)); } catch (e2) {} return false; }
         try { localStorage.removeItem("ca_cust_pending"); } catch (e3) {}
         return true;
@@ -4003,17 +4064,18 @@ export function BoutiquePublique() {
     if (placing) return;
     const id = "C-" + (1043 + orders.length);
     const oid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2));
-    const o = { id, oid, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
+    const o = { id, oid, name: `${cust.prenom} ${cust.nom}`.trim(), email: cust.email, tel: cust.tel, items: count, total, mode: "retrait", pickup: pickupDay, date: "Auj.", status: "À préparer", paid: false, lines: cartLines.map((l) => ({ pid: l.id, name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
     setOrders((l) => [o, ...l]);
     setLastOrder({ ...o, lines: cartLines });
     setPlacing(true);
     if (supabase) {
       try {
-        await supabase.rpc("save_customer", { p_prenom: cust.prenom || "", p_nom: cust.nom || "", p_tel: cust.tel || "", p_email: cust.email, p_opt_in: !!cust.optin });
+        await supabase.rpc("save_lead", { p_prenom: cust.prenom || "", p_nom: cust.nom || "", p_tel: cust.tel || "", p_email: cust.email || "", p_opt_in: !!cust.optin });
         const recapTxt = `COMMANDE ${o.id}\n${o.name} · ${o.tel} · ${o.email}\n${cartLines.map((l) => `${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n")}\nTotal : ${eur(total)}\nRetrait : ${pickupDay || "à convenir"}`;
         const { error } = await supabase.from("orders").insert({ id: oid, name: o.name, email: o.email, tel: o.tel, items_count: count, total, mode: "retrait", pickup: pickupDay, status: "À préparer", paid: false, parrain: parrain || "", recap: recapTxt, wa_sent: false });
         if (!error) {
-          await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
+          // on enregistre l'identifiant du produit : c'est lui qui permettra de sortir le bon article du stock à la remise
+          await supabase.from("order_items").insert(cartLines.map((l) => ({ order_id: oid, product_id: l.id || null, product_name: l.name, unit: l.unit, qty: l.qty, unit_price: l.price })));
         } else {
           try { localStorage.setItem("ca_order_pending", JSON.stringify({ o, lines: cartLines, pickupDay, parrain })); } catch (e5) {}
         }
@@ -4040,7 +4102,7 @@ const mapOrderRow = (o) => {
   const d = new Date(o.created_at);
   const sameDay = d.toDateString() === new Date().toDateString();
   const date = sameDay ? "Auj." : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
-  return { id: o.ref, oid: o.id, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", waSent: !!o.wa_sent, recap: o.recap || "", lines: (o.items || []).map((i) => ({ name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
+  return { id: o.ref, oid: o.id, name: o.name, email: o.email, tel: o.tel, items: o.items_count, total: Number(o.total) || 0, pickup: o.pickup, date, ts: new Date(o.created_at).getTime(), status: o.status, paid: o.paid, parrain: o.parrain || "", waSent: !!o.wa_sent, recap: o.recap || "", lines: (o.items || []).map((i) => ({ pid: i.pid || null, name: i.name, unit: i.unit, qty: i.qty, price: Number(i.price) || 0 })) };
 };
 
 export function EspacePro() {
@@ -4084,7 +4146,18 @@ export function EspacePro() {
     } catch (e) {}
     finally { setLoading(false); }
   };
-  const onAuth = (p) => { setPass(p); setProAuth(true); refresh(p); };
+  const onAuth = (p, rester) => {
+    if (rester) { try { localStorage.setItem("ca_admin_pass", p); } catch (e) {} }
+    setPass(p); setProAuth(true); refresh(p);
+  };
+  const logout = () => { try { localStorage.removeItem("ca_admin_pass"); } catch (e) {} setProAuth(false); setPass(null); };
+  // reconnexion silencieuse si « rester connecté » a été coché sur cet appareil
+  useEffect(() => {
+    let p = null;
+    try { p = localStorage.getItem("ca_admin_pass"); } catch (e) {}
+    if (!p || !supabase) return;
+    supabase.rpc("admin_check", { pass: p }).then(({ data }) => { if (data === true) onAuth(p); else { try { localStorage.removeItem("ca_admin_pass"); } catch (e) {} } }, () => {});
+  }, []);
   useEffect(() => {
     if (!proAuth || !pass) return;
     const onFocus = () => refresh(pass);
@@ -4099,7 +4172,7 @@ export function EspacePro() {
       <style>{FONT}</style>
       <Header profile={profile} badge="Espace commerçant" />
       {proAuth
-        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: () => { setProAuth(false); setPass(null); }, onRefresh: () => refresh(), loading, pass, visits, batches, rendement }} />
+        ? <ProView {...{ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout: logout, onRefresh: () => refresh(), loading, pass, visits, batches, rendement }} />
         : <ProLogin pin={profile.pin} onOk={onAuth} />}
       <InstallBanner admin />
     </div>
@@ -4318,6 +4391,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
+  const [calOuvert, setCalOuvert] = useState(false);
   const [retro, setRetro] = useState(false);
   const [saleDate, setSaleDate] = useState("");
   const [saleTime, setSaleTime] = useState("10:00");
@@ -4392,7 +4466,8 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
     closingRef.current = true;
-    const items = lines.map(([pid, l]) => ({ pid, name: l.name, qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
+    // on fige le conditionnement et le prix d'achat du jour sur la ligne : les fiches produit évoluent, pas l'historique
+    const items = lines.map(([pid, l]) => ({ pid, name: l.name, unit: l.unit || "", qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
     const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
     const ts = tsFor();
     setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
@@ -4415,7 +4490,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const eTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
   const eQty = (k, d) => setEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + d) } : i) }));
   const eRm = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
-  const eAdd = (p) => setEdit((e) => { const idx = e.items.findIndex((i) => i.name === p.name); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, qty: 1, price: p.price, cost: p.cost || 0 }] }; });
+  const eAdd = (p) => setEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : i.name === p.name); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, qty: 1, price: p.price, cost: p.cost || 0 }] }; });
   const eSave = async () => {
     if (ebusy) return; setEbusy(true);
     const items = edit.items.filter((i) => i.qty > 0);
@@ -4451,7 +4526,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const oTotal = oEdit ? oEdit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
   const oQ = (k, d) => setOEdit((e) => ({ ...e, items: e.items.map((i, idx) => idx === k ? { ...i, qty: Math.max(0, i.qty + d) } : i) }));
   const oRm = (k) => setOEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
-  const oAdd = (p) => setOEdit((e) => { const idx = e.items.findIndex((i) => i.name === p.name && i.unit === p.unit); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { name: p.name, unit: p.unit, price: p.price, qty: 1 }] }; });
+  const oAdd = (p) => setOEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : (i.name === p.name && i.unit === p.unit)); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] }; });
   const oSave = async () => {
     if (obusy) return; setObusy(true);
     const items = oEdit.items.filter((i) => i.qty > 0);
@@ -4493,11 +4568,15 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
       <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
 
       <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente</div>
-          <button onClick={() => { setRetro(false); setSaleDate(""); }} className="ca-tap" style={{ border: `1px solid ${!retro ? C.jam : C.line}`, background: !retro ? C.jam : "#fff", color: !retro ? "#fff" : C.ink, borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente · <span style={{ color: retro ? C.jam : C.ok }}>{retro && saleDate ? new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "aujourd'hui"}</span></div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {retro && <button onClick={() => { setRetro(false); setSaleDate(""); setCalOuvert(false); }} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: C.jam, color: "#fff", borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>}
+            <button onClick={() => setCalOuvert((v) => !v)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{calOuvert ? "Fermer" : "Choisir un autre jour"}</button>
+          </div>
         </div>
-        <CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} />
+        {/* calendrier replié par défaut : en marché, on encaisse au jour même et la grille produits doit rester à portée de pouce */}
+        {calOuvert && <div style={{ marginTop: 12 }}><CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} /></div>}
         {retro && saleDate && (
           <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
