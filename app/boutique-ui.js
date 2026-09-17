@@ -158,9 +158,94 @@ function Illu({ k, col, s = 46 }) {
   if (k === "miel") return wrap(<><g transform="rotate(20 38 14)"><rect x="36.4" y="5" width="2.4" height="20" rx="1.2" fill="#B07E3A" /><ellipse cx="37.6" cy="21.5" rx="3.5" ry="4.2" fill="#C9912F" /><path d="M34.6 18.8 h6 M34.4 21.5 h6.2 M34.8 24.2 h5.4" stroke="#8a5e22" strokeWidth="0.9" strokeLinecap="round" /></g><rect x="12" y="17" width="22" height="23" rx="6" fill="#F7F1E2" stroke="#E2D6BC" strokeWidth="1" /><path d="M13 23 h20 v11 q0 5 -5 5 h-10 q-5 0 -5 -5 z" fill={col} /><rect x="15" y="24" width="3" height="12" rx="1.5" fill={hl} /><rect x="11" y="13" width="24" height="6" rx="2.5" fill="#A9742E" /><rect x="11" y="13" width="24" height="2.4" rx="1.2" fill="#C08A3C" /><path d="M23 27 l3 1.7 v3.4 l-3 1.7 l-3 -1.7 v-3.4 z" fill="none" stroke="#9A6A1E" strokeWidth="1.4" /><g transform="translate(9 12)"><ellipse cx="-2" cy="-3.6" rx="3.3" ry="2" fill="#e6f3f6" stroke="#c4dde2" strokeWidth=".6" transform="rotate(-25 -2 -3.6)" /><ellipse cx="3" cy="-3.6" rx="3.3" ry="2" fill="#e6f3f6" stroke="#c4dde2" strokeWidth=".6" transform="rotate(25 3 -3.6)" /><ellipse cx="0.5" cy="0.6" rx="4.4" ry="3.3" fill="#F2C53D" stroke="#d9a82f" strokeWidth=".5" /><path d="M-1 -2.1 v5.5 M1.7 -2.4 v6" stroke="#3a2a12" strokeWidth="1.4" /><circle cx="-3.7" cy="-0.5" r="2" fill="#2a1f10" /><path d="M-4.8 -2.1 q-1 -1.6 -2.3 -1.7 M-3.6 -2.3 q-0.6 -1.8 -1.5 -2.4" stroke="#2a1f10" strokeWidth=".7" fill="none" strokeLinecap="round" /></g></>);
   if (k === "marron") return wrap(<><rect x="11" y="15" width="24" height="5" rx="2.5" fill="#5A3A22" /><rect x="11" y="15" width="24" height="2" rx="1" fill="#6E4A2E" /><path d="M13 20 h20 v12 q0 4 -4 4 h-12 q-4 0 -4 -4 z" fill={col} /><rect x="16" y="22" width="3" height="11" rx="1.5" fill={hl} /><g transform="translate(15 34)"><path d="M-1 -8 q2 -2 0 -4" stroke="#4a2a12" strokeWidth="1.2" strokeLinecap="round" fill="none" /><path d="M-6 -2 q0 -7 6 -7 q6 0 6 7 q0 5 -6 6 q-6 -1 -6 -6 z" fill="#6B3F1E" /><path d="M-6 -2 q0 -7 6 -7" stroke="#9a6a3e" strokeWidth="1" fill="none" opacity=".55" /><ellipse cx="0" cy="4.4" rx="3.6" ry="1.5" fill="#E7C98F" /></g><g transform="translate(27 36) scale(.82)"><path d="M-1 -8 q2 -2 0 -4" stroke="#4a2a12" strokeWidth="1.4" strokeLinecap="round" fill="none" /><path d="M-6 -2 q0 -7 6 -7 q6 0 6 7 q0 5 -6 6 q-6 -1 -6 -6 z" fill="#7A4A26" /><path d="M-6 -2 q0 -7 6 -7" stroke="#a87a4a" strokeWidth="1" fill="none" opacity=".55" /><ellipse cx="0" cy="4.4" rx="3.6" ry="1.5" fill="#E7C98F" /></g></>);
   if (k === "berry") return wrap(<><path d="M23 9 Q19 6 16 8 M23 9 Q27 6 30 8" stroke="#6f8f3a" strokeWidth="2" fill="none" strokeLinecap="round" /><path d="M14 18 Q23 12 32 18 Q30 34 23 38 Q16 34 14 18 Z" fill={col} /><g fill="#ffe9a8">{[[19, 21], [26, 21], [22, 25], [18, 28], [27, 28], [23, 31]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1" />)}</g></>);
-  // round fruits: orange, plum, apple, quince, apricot
+  // Fraise : corps en coeur, collerette verte, akenes clairs.
+  if (k === "fraise") return wrap(<>
+    <path d="M23 10 L20 6 M23 10 L26 6" stroke="#6f8f3a" strokeWidth="1.6" strokeLinecap="round" />
+    <path d="M14 13 L23 10 L32 13 L27 16 L23 14 L19 16 Z" fill="#5d8a33" />
+    <path d="M13 19 Q23 13 33 19 Q33 31 23 39 Q13 31 13 19 Z" fill={col} />
+    <g fill="#ffe9a8">{[[19, 22], [27, 22], [23, 25], [17, 27], [29, 27], [23, 31], [20, 34], [26, 34]].map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx=".9" ry="1.3" />)}</g>
+  </>);
+  // Peche : joue fendue, duvet clair.
+  if (k === "peche") return wrap(<>{leaf}<circle cx="23" cy="26" r="13" fill={col} /><path d="M23 14 Q19 26 23 38" stroke="#00000024" strokeWidth="1.8" fill="none" /><ellipse cx="18" cy="21" rx="3.6" ry="2.6" fill={hl} /></>);
+  // Abricot : plus petit, sillon marque, pointe de rouge.
+  if (k === "apricot") return wrap(<>{leaf}<circle cx="23" cy="27" r="11.5" fill={col} /><path d="M23 16 Q20 27 23 38" stroke="#00000028" strokeWidth="1.6" fill="none" /><circle cx="29" cy="22" r="3.4" fill="#d65a2a" opacity=".35" /><ellipse cx="18.5" cy="22.5" rx="3" ry="2.2" fill={hl} /></>);
+  // Figue : goutte renversee, col vert, chair ouverte.
+  if (k === "figue") return wrap(<>
+    <path d="M23 9 L21 5 M23 9 L26 6" stroke="#6f8f3a" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M23 11 Q17 11 15 15 Q11 22 14 30 Q17 39 23 39 Q29 39 32 30 Q35 22 31 15 Q29 11 23 11 Z" fill={col} />
+    <ellipse cx="23" cy="28" rx="6" ry="7" fill="#C2405A" opacity=".5" />
+    <g stroke="#ffd9e0" strokeWidth=".8" opacity=".8">{[0, 1, 2, 3, 4].map((i) => <line key={i} x1="23" y1="28" x2={23 + 5 * Math.cos((i * 72 - 90) * Math.PI / 180)} y2={28 + 6 * Math.sin((i * 72 - 90) * Math.PI / 180)} />)}</g>
+  </>);
+  // Melon : quartier raye, chair et ecorce.
+  if (k === "melon") return wrap(<>
+    <circle cx="23" cy="26" r="13" fill={col} />
+    <g stroke="#00000022" strokeWidth="1.4" fill="none"><path d="M23 13 Q16 26 23 39" /><path d="M23 13 Q30 26 23 39" /><path d="M11 24 q12 -4 24 0" /></g>
+    <ellipse cx="18" cy="21" rx="3.4" ry="2.4" fill={hl} />
+  </>);
+  // Cerises : deux fruits sur une meme queue.
+  if (k === "cerise") return wrap(<>
+    <path d="M24 9 Q17 14 16 25 M24 9 Q31 15 31 26" stroke="#6f8f3a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <path d="M24 9 Q28 5 33 7" stroke="#6f8f3a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <circle cx="16" cy="30" r="7" fill={col} />
+    <circle cx="31" cy="31" r="6" fill={col} />
+    <ellipse cx="13.6" cy="27.6" rx="1.9" ry="1.3" fill={hl} />
+    <ellipse cx="29" cy="29" rx="1.6" ry="1.1" fill={hl} />
+  </>);
+  // Oignon : bulbe raye avec tige.
+  if (k === "oignon") return wrap(<>
+    <path d="M23 13 q-2 -6 -5 -8 M23 13 q2 -6 5 -7" stroke="#7d9a46" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+    <path d="M23 12 q11 6 11 16 q0 11 -11 11 q-11 0 -11 -11 q0 -10 11 -16 z" fill={col} />
+    <g stroke="#00000020" strokeWidth="1.2" fill="none"><path d="M23 13 q-5 12 -3 25" /><path d="M23 13 q5 12 3 25" /></g>
+    <ellipse cx="18" cy="24" rx="2.4" ry="3.4" fill={hl} transform="rotate(-18 18 24)" />
+  </>);
+  // Prune / quetsche : ovale fendu.
+  if (k === "plum") return wrap(<>{leaf}<ellipse cx="23" cy="27" rx="11" ry="12.5" fill={col} /><path d="M23 15 Q19 27 23 39" stroke="#00000030" strokeWidth="1.8" fill="none" /><ellipse cx="18" cy="22" rx="2.8" ry="3.4" fill={hl} transform="rotate(-20 18 22)" /></>);
+  // Pomme : creux sur le dessus, deux lobes.
+  if (k === "apple") return wrap(<>
+    <path d="M23 13 q1 -5 5 -7" stroke="#6b4a26" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <path d="M28 10 q5 -3 8 0 q-3 4 -8 2 z" fill="#6f8f3a" />
+    <path d="M23 15 q-5 -3 -9 1 q-4 5 -1 13 q3 9 10 10 q7 -1 10 -10 q3 -8 -1 -13 q-4 -4 -9 -1 z" fill={col} />
+    <ellipse cx="17.5" cy="22" rx="2.6" ry="3.6" fill={hl} transform="rotate(-20 17.5 22)" />
+  </>);
+  // Coing : silhouette de poire, duvet.
+  if (k === "quince") return wrap(<>
+    <path d="M23 11 q1 -4 4 -6" stroke="#6b4a26" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    <path d="M27 7 q5 -2 7 1 q-3 3 -7 1 z" fill="#6f8f3a" />
+    <path d="M23 13 q-4 0 -5 5 q-1 4 -4 7 q-3 4 -1 9 q2 5 10 5 q8 0 10 -5 q2 -5 -1 -9 q-3 -3 -4 -7 q-1 -5 -5 -5 z" fill={col} />
+    <ellipse cx="18.5" cy="27" rx="2.4" ry="3.4" fill={hl} transform="rotate(-15 18.5 27)" />
+  </>);
+  // Orange : quartiers visibles.
+  if (k === "orange") return wrap(<>{leaf}
+    <circle cx="23" cy="26" r="13" fill={col} />
+    <g stroke="#ffffff55" strokeWidth="1.1" fill="none">{[0, 1, 2, 3, 4, 5].map((i) => <line key={i} x1="23" y1="26" x2={23 + 12 * Math.cos((i * 60 - 90) * Math.PI / 180)} y2={26 + 12 * Math.sin((i * 60 - 90) * Math.PI / 180)} />)}</g>
+    <circle cx="23" cy="26" r="2.4" fill="#ffffff44" />
+    <ellipse cx="17.5" cy="20.5" rx="3" ry="2.1" fill={hl} />
+  </>);
+  // fruit rond generique (dernier recours)
   return wrap(<>{leaf}<circle cx="23" cy="26" r="13" fill={col} /><ellipse cx="18" cy="21" rx="3.4" ry="2.4" fill={hl} /></>);
 }
+
+// L'icone suit le NOM du produit tant que le commercant n'a pas choisi autre chose.
+// 25 produits sur 60 portaient l'illustration "orange" par defaut (valeur de seed, jamais choisie) :
+// fraises, peche, figues, prunes, melon, cerises et oignons s'affichaient tous en rond orange identique.
+const ILLU_PAR_NOM = [
+  [/pissalad/, "pissa"], [/oignon/, "oignon"],
+  [/clafouti|cake/, "cake"], [/pain\s*d.?\s*[ée]pice/, "loaf"],
+  [/caramel/, "caramel"], [/miel/, "miel"], [/marron|ch[aâ]taigne/, "marron"],
+  [/fraise/, "fraise"], [/m[uû]re/, "mure"], [/framboise|cassis|myrtille/, "berry"],
+  [/cerise|griotte/, "cerise"], [/figue/, "figue"], [/melon|past[èe]que/, "melon"],
+  [/p[êe]che|brugnon|nectarine/, "peche"], [/abricot|n[èe]fle/, "apricot"],
+  [/prune|quetsche|mirabelle|reine.?claude/, "plum"],
+  [/orange|clementine|mandarine/, "orange"], [/citron|bergamot|lime/, "lemon"],
+  [/pomme/, "apple"], [/coing/, "quince"], [/poire/, "quince"],
+];
+const illuAuto = (nom) => {
+  const n = (nom || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const hit = ILLU_PAR_NOM.find(([re]) => re.test(n));
+  return hit ? hit[1] : null;
+};
+// "orange" et "" sont les valeurs par defaut jamais choisies : le nom prime. Tout autre choix est respecte.
+const illuDe = (p) => ((!p || !p.illu || p.illu === "orange") && illuAuto(p && p.name)) || (p && p.illu) || "";
 
 /* ---------------- CLIENT ---------------- */
 function ClientView(props) {
@@ -415,7 +500,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
               const q = cart[p.id] || 0; const out = p.stock === 0 && !p.soon;
               return (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderTop: `1px solid ${C.line}`, opacity: p.soon ? .6 : 1 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={p.illu} col={p.col} /></div>
+                  <div style={{ width: 46, height: 46, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(p)} col={p.col} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: C.soft }}>
@@ -460,7 +545,7 @@ function Cart({ cartLines, add, sub1, sub, discount, total, promoInput, setPromo
       <StepHead onBack={() => setStep("shop")} title="Votre panier" sub={`${cartLines.length} article${cartLines.length > 1 ? "s" : ""}`} />
       {cartLines.map((l) => (
         <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${C.line}` }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={l.illu} col={l.col} s={32} /></div>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(l)} col={l.col} s={32} /></div>
           <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5 }}>{l.name}</div><div style={{ fontSize: 12, color: C.soft }}>{eur(l.price)} · {l.unit}</div></div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, border: `1px solid ${C.line}`, borderRadius: 9, padding: 2 }}>
             <Sq onClick={() => sub1(l.id)}><Minus size={14} color={C.ink} /></Sq>
@@ -619,7 +704,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -3602,13 +3687,83 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
     </div>
   );
 }
-function ProProducts({ products, setProducts, pass }) {
-  const ILLUS = ["berry", "lemon", "mure", "caramel", "cake", "loaf", "pissa", "potpissa", "miel", "marron"];
-  // illu par défaut prise dans ILLUS : "orange" n'a pas de dessin propre et retombait sur le fruit générique (CLAUDE.md 7)
+// Prix d'achat déduits des fournées, sans rien saisir à la main.
+// Même définition que « Valider la fournée » (CLAUDE.md 5.2) : coût de revient =
+// (matières + main d'œuvre + local + transport + frais) ÷ poids fini, puis × le grammage du
+// conditionnement, plus l'emballage du format correspondant. Le prix de VENTE n'est jamais touché.
+function coutsDepuisFournees(batches, products, rendement) {
+  const acc = {};   // clé de recette -> cumuls sur toutes les fournées comptées
+  (batches || []).forEach((b) => {
+    const f = b.data || b;
+    if (!fourneeComptee(f)) return;
+    const estPissa = isPissaFam(f.famille || "");
+    const cle = estPissa ? "pissaladiere" : normNom(f.titre || "");
+    if (!cle) return;
+    let matieres = 0, poidsTotal = 0, poidsSansPrix = 0;
+    const sansPrix = [];
+    PF_ING.forEach((ing) => {
+      const q = pfNum(f[ing.qf]), px = pfNum(f[ing.pf]), kgEq = q / ing.div;
+      poidsTotal += kgEq;
+      if (q > 0 && px <= 0) { sansPrix.push(ing.label); poidsSansPrix += kgEq; }
+      matieres += kgEq * px;
+    });
+    (f.extra || []).forEach((e) => {
+      if (estProduitFini(e.label)) return;   // produit déjà fabriqué, pas une matière (CLAUDE.md 5.5)
+      const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+      const q = pfNum(e.qty), px = pfNum(e.price);
+      const kgEq = e.unit === "piece" ? 0 : q / div;   // les pièces n'ont pas de poids connu
+      poidsTotal += kgEq;
+      if (q > 0 && px <= 0) { sansPrix.push(String(e.label || "").trim()); poidsSansPrix += kgEq; }
+      matieres += (q / div) * px;
+    });
+    const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
+    const frais = tempsTotal * (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0)
+      + tempsTotal * pfNum(f.taux_local) + pfNum(f.transport)
+      + (f.frais_extra || []).reduce((s, x) => s + pfNum(x.montant), 0);
+    let fini = pfNum(f.poids_fini_kg);
+    if (!fini && estPissa && pfNum(f.oignon_kg)) fini = pfNum(f.oignon_kg) * ((Number(rendement) || 64.3) / 100);
+    if (!fini) return;
+    if (!acc[cle]) acc[cle] = { revient: 0, matieres: 0, frais: 0, finiKg: 0, nb: 0, poidsTotal: 0, poidsSansPrix: 0, sansPrix: new Set(), pots: [] };
+    const a = acc[cle];
+    a.revient += matieres + frais; a.matieres += matieres; a.frais += frais;
+    a.finiKg += fini; a.nb += 1; a.poidsTotal += poidsTotal; a.poidsSansPrix += poidsSansPrix;
+    sansPrix.forEach((s) => { if (s) a.sansPrix.add(s); });
+    (f.pots || []).forEach((p) => { const g = pfNum(p.format_g); if (g > 0) a.pots.push({ g, emb: pfNum(p.px_bocal) + pfNum(p.px_capuchon) + pfNum(p.px_etiquette) }); });
+  });
+
+  // Un ingrédient sans prix qui pèse lourd fausse tout : on refuse plutôt que d'annoncer un coût trop bas.
+  // Sous 5 % du poids (citron, vanille, menthe), on calcule et on dit ce qui est exclu.
+  const SEUIL_SANS_PRIX = 0.05;
+  const out = [];
+  (products || []).forEach((p) => {
+    const nom = (p.name || "").toLowerCase();
+    const estPissa = nom.includes("pissalad") || nom.includes("oignon");
+    const cle = estPissa ? "pissaladiere" : normNom(p.name);
+    const a = acc[cle];
+    const g = grammesUnite(p.unit, estPissa);
+    if (!a || !a.finiKg || !g) { out.push({ p, etat: "sans_recette" }); return; }
+    const part = a.poidsTotal > 0 ? a.poidsSansPrix / a.poidsTotal : 0;
+    const manquants = [...a.sansPrix];
+    if (part > SEUIL_SANS_PRIX) { out.push({ p, etat: "bloque", manquants, part, nb: a.nb }); return; }
+    const coutKg = a.revient / a.finiKg;
+    const proche = a.pots.length ? a.pots.reduce((best, x) => Math.abs(x.g - g) < Math.abs(best.g - g) ? x : best) : null;
+    const emb = (proche && Math.abs(proche.g - g) <= Math.max(10, g * 0.05)) ? proche.emb : 0;
+    const cost = Math.round(((coutKg * g) / 1000 + emb) * 100) / 100;
+    out.push({ p, etat: "ok", cost, coutKg, emb, g, manquants, part, nb: a.nb, matieresKg: a.matieres / a.finiKg, fraisKg: a.frais / a.finiKg });
+  });
+  return out;
+}
+
+function ProProducts({ products, setProducts, pass, batches, rendement }) {
+  // Toutes ces clés ont un dessin propre. Tant que le commerçant n'en choisit pas une,
+  // l'icône suit le nom du produit (illuAuto) — voir CLAUDE.md 7.
+  const ILLUS = ["fraise", "berry", "mure", "cerise", "figue", "peche", "apricot", "plum", "melon",
+    "orange", "lemon", "apple", "quince", "oignon", "pissa", "potpissa", "caramel", "miel", "marron", "cake", "loaf"];
   const blank = { name: "", cat: "Confitures", unit: "pot 250g", price: "", cost: "", coef: "", stock: "", illu: "berry", col: "#C25E1E" };
   const [creating, setCreating] = useState(false);
   const [nw, setNw] = useState(blank);
   const [openId, setOpenId] = useState(null);
+  const [panneauCouts, setPanneauCouts] = useState(false);
   const [openCat, setOpenCat] = useState({});
 
   // une seule ecriture par produit apres 500 ms de pause : evite un appel RPC a chaque frappe
@@ -3667,6 +3822,22 @@ function ProProducts({ products, setProducts, pass }) {
   const extra = [...new Set(visibles.map((p) => p.cat))].filter((c) => !CAT_ORDER.includes(c));
   const cats = [...CAT_ORDER, ...extra].filter((c) => visibles.some((p) => p.cat === c));
 
+  // ---- prix d'achat déduits des fournées ----
+  const couts = useMemo(() => coutsDepuisFournees(batches, products, rendement), [batches, products, rendement]);
+  // on ne propose que ce qui change réellement quelque chose : coût calculé, différent de l'actuel
+  const aAppliquer = couts.filter((c) => c.etat === "ok" && c.cost > 0 && Math.abs(c.cost - (Number(c.p.cost) || 0)) >= 0.01);
+  const nbCalculables = aAppliquer.length;
+  const bloques = couts.filter((c) => c.etat === "bloque");
+  // un même ingrédient manque souvent dans plusieurs recettes : on regroupe pour dire quoi saisir
+  const prixASaisir = [...new Set(bloques.flatMap((b) => b.manquants))].sort();
+  const appliquerCouts = () => {
+    if (!window.confirm(`Renseigner le prix d'achat de ${nbCalculables} produit${nbCalculables > 1 ? "s" : ""} d'après vos fournées ?\n\nLe prix de vente n'est pas touché. Le coefficient est recalculé.`)) return;
+    aAppliquer.forEach(({ p, cost }) => {
+      apply(p.id, (x) => ({ ...x, cost, coef: (cost > 0 && Number(x.price) > 0) ? +(Number(x.price) / cost).toFixed(2) : x.coef }));
+    });
+    setPanneauCouts(false);
+  };
+
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
@@ -3682,10 +3853,60 @@ function ProProducts({ products, setProducts, pass }) {
                 {filtreSansAchat ? "✕ Voir tout le catalogue" : `⚠ ${totalSansAchat} sans prix d'achat`}
               </button>
             )}
+            {nbCalculables > 0 && (
+              <button onClick={() => setPanneauCouts((v) => !v)} className="ca-tap" style={{ border: `1.5px solid ${panneauCouts ? PF.navy : PF.navy + "66"}`, background: panneauCouts ? PF.navy : "#123a5212", color: panneauCouts ? "#fff" : PF.navy, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                {panneauCouts ? "✕ Fermer" : `⚙ Calculer ${nbCalculables} prix d'achat depuis les fournées`}
+              </button>
+            )}
           </div>
         </div>
         <button onClick={() => { setCreating((v) => !v); setNw(blank); }} className="ca-tap" style={{ background: creating ? "transparent" : C.jam, color: creating ? C.soft : "#fff", border: creating ? `1px solid ${C.line}` : "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, whiteSpace: "nowrap" }}>{creating ? <X size={15} /> : <Plus size={15} />} {creating ? "Fermer" : "Nouveau produit"}</button>
       </div>
+
+      {panneauCouts && (
+        <div style={{ ...card(), background: C.paper, border: `1.5px solid ${PF.navy}33` }}>
+          <div style={{ ...h2 }}>Prix d&apos;achat déduits des fournées</div>
+          <div style={{ fontSize: 12.5, color: C.soft, marginTop: -6, marginBottom: 12, lineHeight: 1.5 }}>
+            Rien à saisir : le coût de revient vient de vos recettes — matières, main d&apos;œuvre, local, transport et frais divisés par le poids fini, plus l&apos;emballage du format. C&apos;est le même calcul que « Valider la fournée ».
+            <b style={{ color: C.ink }}> Le prix de vente n&apos;est pas touché</b> ; seul le coefficient est recalculé.
+          </div>
+          {aAppliquer.map(({ p, cost, coutKg, emb, matieresKg, fraisKg, manquants, nb }, i) => {
+            const pv = Number(p.price) || 0;
+            return (
+              <div key={p.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 4 }}>
+                  <div style={{ flex: "1 1 170px", minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}<span style={{ color: C.soft, fontWeight: 500 }}> · {p.unit}</span></div>
+                  {Number(p.cost) > 0 && <span style={{ fontSize: 11.5, color: C.soft, textDecoration: "line-through", flexShrink: 0 }}>{eur2(Number(p.cost))}</span>}
+                  <b style={{ fontSize: 14, color: PF.navy, flexShrink: 0 }}>{eur2(cost)}</b>
+                  {pv > 0 && <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>vente {eur(pv)} · coef <b style={{ color: pv / cost >= 2 ? PF.good : PF.warn }}>{(pv / cost).toFixed(1)}</b></span>}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>matières {eur2(matieresKg)}/kg</span>
+                  {fraisKg > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>main d&apos;œuvre + frais {eur2(fraisKg)}/kg</span>}
+                  {emb > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>emballage {eur2(emb)}</span>}
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.soft }}>{nb} fournée{nb > 1 ? "s" : ""}</span>
+                  {manquants.length > 0 && <span title="Ingrédients sans prix saisi, trop légers pour fausser le calcul" style={{ background: "#faece5", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: PF.warn }}>hors {manquants.join(", ")}</span>}
+                </div>
+              </div>
+            );
+          })}
+          <button onClick={appliquerCouts} className="ca-tap" style={{ width: "100%", marginTop: 14, background: PF.navy, color: "#fff", border: "none", borderRadius: 12, padding: "13px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            Appliquer les {nbCalculables} prix d&apos;achat
+          </button>
+
+          {bloques.length > 0 && (
+            <div style={{ marginTop: 16, background: "#faece5", border: `1px solid ${PF.warn}44`, borderRadius: 12, padding: "12px 13px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: PF.warn, marginBottom: 5 }}>{bloques.length} produit{bloques.length > 1 ? "s" : ""} impossible{bloques.length > 1 ? "s" : ""} à chiffrer</div>
+              <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5 }}>
+                Dans leurs fournées, l&apos;ingrédient principal n&apos;a pas de prix au kilo — il pèse trop lourd pour être ignoré, un coût calculé sans lui serait faux. Saisissez ces prix dans l&apos;onglet Production et ils se débloqueront tous seuls :
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {prixASaisir.map((m, i) => <span key={i} style={{ background: "#fff", borderRadius: 7, padding: "4px 9px", fontSize: 11.5, fontWeight: 700, color: PF.warn, border: `1px solid ${PF.warn}33` }}>{m}</span>)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {creating && (
         <div style={{ ...card(), background: C.paper, border: `1.5px solid #7A2B3333` }}>
@@ -3733,7 +3954,7 @@ function ProProducts({ products, setProducts, pass }) {
                 {items.map((p) => (
                   <div key={p.id} style={{ ...card(), opacity: p.active === false ? .55 : 1 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
-                      <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={p.illu} col={p.col} s={32} /></button>
+                      <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={p.col} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>

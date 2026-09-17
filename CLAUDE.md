@@ -253,8 +253,15 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 - Encarts de calcul : texte **en gras uniforme**, une seule couleur — pas de mélange gras/normal.
 - Récap chiffrés : **vignettes** (pastilles fond crème), pas de lignes de texte brut.
 - Formatage : `eur()`, `eur2()`, `eur3()` pour les montants ; virgule française.
-- **Illustrations produit** (`Illu`, clés valides) : `berry, lemon, mure, caramel, cake, loaf, pissa,
-  potpissa, miel, marron`. Ne PAS proposer de clé sans dessin (elles retombaient sur "orange" = doublons).
+- **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,
+  peche, apricot, plum, melon, orange, lemon, apple, quince, oignon, pissa, potpissa, caramel, miel,
+  marron, cake, loaf`. Ne PAS proposer de clé sans dessin (elle retombe sur le rond générique).
+- **L'icône suit le nom du produit** : `illuAuto(name)` (table `ILLU_PAR_NOM`, du plus spécifique au
+  plus général) et `illuDe(p)`. La valeur stockée ne l'emporte que si le commerçant l'a réellement
+  choisie : `""` et `"orange"` sont les défauts de seed, jamais choisis. Au 17/09/2026, **25 produits
+  sur 60 portaient `illu = "orange"`** avec la même couleur `#C25E1E` — fraises, pêche, figues, prunes,
+  melon, cerises et oignons s'affichaient en rond orange identique. La règle en requalifie 22.
+  Les icônes encore partagées (6 pots d'oignons, 8 prunes) sont des doublons de nom, pas d'icône.
 
 ---
 
@@ -298,8 +305,15 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 ## 10. Idées / chantiers en cours (backlog)
 
 - Kit Apéro (confit d'oignons + biscuits + tapenade + anchois) — à monter via le type "Kit" en Production.
-- Prix d'achat manquants : **ne pas les saisir à la main**, relier les formats de fournée aux produits
-  (§5.2 bis) et valider les fournées — ils descendent tout seuls.
+- Prix d'achat manquants : **ne pas les saisir à la main**. Deux chemins, tous deux automatiques :
+  relier les formats de fournée aux produits (§5.2 bis) puis valider la fournée, **ou** le bouton
+  « Calculer N prix d'achat depuis les fournées » de l'onglet Produits (`coutsDepuisFournees`), qui
+  applique la même définition sans passer par la validation. Au 17/09/2026 : **21 applicables**,
+  **12 bloqués** (le fruit lui-même n'a pas de prix au kilo dans sa fournée — 67 % du poids : CERISES,
+  FIGUES BLANCHES, PÊCHES, PRUNES ROUGES/JAUNES, ORANGES AMÈRES/DOUCES), 27 sans recette.
+  Un ingrédient sans prix pesant **plus de 5 % du poids bloque le calcul** : un coût amputé du fruit
+  principal serait faux et gonflerait les marges. Sous ce seuil (citron, vanille, menthe) on calcule
+  et on affiche ce qui est exclu. Saisir ces 7 prix en Production débloque les 12 produits.
 - Formulaire de contact : améliorer encore la capture (10 % de conversion scan→contact au départ).
 - **Emballages en matières suivies** (bocaux, capuchons, étiquettes) : la quantité consommée se déduit
   du nb de pots produits par fournée, le prix est déjà dans les formats. À brancher sur `materials`.
