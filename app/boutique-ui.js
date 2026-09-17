@@ -2925,6 +2925,13 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return r;
   };
   const A = agg(cur.start, cur.end);
+  // commandes en ligne de la période qui ne sont pas encore passées en « Remise »
+  const attente = (orders || []).reduce((acc, o) => {
+    if (o.status === "Remise") return acc;
+    const t = new Date(o.ts);
+    if (t < cur.start || t >= cur.end) return acc;
+    return { nb: acc.nb + 1, total: acc.total + (Number(o.total) || 0) };
+  }, { nb: 0, total: 0 });
   const consoPeriode = useMemo(() => {
     const items = [];
     flux.forEach((f) => { const t = new Date(f.ts); if (t >= cur.start && t < cur.end) (f.items || []).forEach((i) => items.push(i)); });
@@ -2984,12 +2991,22 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return { d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}`, col: DONUT[i % DONUT.length], ing, g, pct: Math.round(frac * 1000) / 10 };
   });
 
+  // Vue « Total » : une barre par ANNÉE. En 12 barres de mois, janvier 2025 et janvier 2026
+  // tombaient dans la même barre alors que le détail au clic n'ouvrait qu'une seule année :
+  // la barre annonçait un montant que le détail ne retrouvait jamais.
+  const anneeMin = useMemo(() => {
+    let min = new Date().getFullYear();
+    flux.forEach((f) => { const y = new Date(f.ts).getFullYear(); if (y < min) min = y; });
+    return min;
+  }, [flux]);
+
   // ---- courbe d'évolution (sous-périodes de la période courante) ----
   const subs = useMemo(() => {
     const out = [];
     if (gran === "jour") { for (let h = 0; h < 24; h++) out.push({ lab: String(h).padStart(2,"0"), ca: 0 }); }
     else if (gran === "semaine") { for (let i = 0; i < 7; i++) { const d = new Date(cur.start); d.setDate(cur.start.getDate() + i); out.push({ lab: JN[d.getDay()], ca: 0 }); } }
     else if (gran === "mois") { const n = new Date(cur.start.getFullYear(), cur.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0, dow: new Date(cur.start.getFullYear(), cur.start.getMonth(), i).getDay() }); }
+    else if (gran === "total") { for (let y = anneeMin; y <= new Date().getFullYear(); y++) out.push({ lab: String(y), ca: 0 }); }
     else { for (let i = 0; i < 12; i++) out.push({ lab: M3[i], ca: 0 }); }
     flux.forEach((f) => {
       const t = new Date(f.ts); if (t < cur.start || t >= cur.end) return;
@@ -2997,11 +3014,12 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       if (gran === "jour") idx = t.getHours();
       else if (gran === "semaine") idx = Math.floor((t - cur.start) / 86400000);
       else if (gran === "mois") idx = t.getDate() - 1;
+      else if (gran === "total") idx = t.getFullYear() - anneeMin;
       else idx = t.getMonth();
       if (out[idx]) out[idx].ca += f.total;
     });
     return out;
-  }, [flux, gran, off, products]);
+  }, [flux, gran, off, products, anneeMin]);
   const sMax = Math.max(1, ...subs.map((s) => s.ca));
 
   const kpi = (l, v, sub, accent) => (
@@ -3046,7 +3064,8 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
 
       <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
         {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
-        {kpi("Marge", A.caAvecCout > 0 ? eur(A.marge) : "—", A.caAvecCout > 0 ? `${Math.round((A.marge / A.caAvecCout) * 100)}% · calculée sur ${Math.round((A.caAvecCout / A.ca) * 100)}% du CA (coût connu)` : "prix d'achat non renseignés")}
+        {/* le "% du CA" n'a de sens que si le CA est > 0 : sinon la division affichait "Infinity%" */}
+        {kpi("Marge", A.caAvecCout > 0 ? eur(A.marge) : "—", A.caAvecCout > 0 ? `${Math.round((A.marge / A.caAvecCout) * 100)}%${A.ca > 0 ? ` · calculée sur ${Math.round((A.caAvecCout / A.ca) * 100)}% du CA (coût connu)` : ""}` : "prix d'achat non renseignés")}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
         {(() => {
           const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
@@ -3055,6 +3074,16 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           return kpi("Valeur du stock", valeurStock > 0 ? eur(valeurStock) : "—", prodsAvecStock.length > 0 ? `${prodsAvecCoutConnu}/${prodsAvecStock.length} produits avec coût connu` : "aucun stock renseigné");
         })()}
       </div>
+
+      {/* Une commande en ligne entre dans le chiffre d'affaires dès qu'elle est passée, pas au retrait
+          (cf. CLAUDE.md 5.3). Tant qu'il n'existe pas de statut « Annulée », un client qui ne vient
+          jamais gonfle le CA en silence : on affiche le montant concerné au lieu de le masquer. */}
+      {attente.nb > 0 && (
+        <div style={{ background: "#7A2B3310", border: `1px solid ${C.jam}44`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
+          <b>{attente.nb} commande{attente.nb > 1 ? "s" : ""} pas encore retirée{attente.nb > 1 ? "s" : ""}</b> sur cette période — <b>{eur(attente.total)}</b> déjà comptés dans le chiffre d'affaires ci-dessus.
+          <div style={{ marginTop: 3, color: C.soft }}>Passez-les en « Remise » depuis l'onglet Commandes une fois le retrait fait.</div>
+        </div>
+      )}
 
       {enCours && gran !== "total" && (
         <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
@@ -3066,7 +3095,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       )}
 
       <div style={card()}>
-        <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : "mois par mois"}</div>
+        <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : gran === "total" ? "année par année" : "mois par mois"}</div>
         {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (<>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: -6, marginBottom: 8 }}>Touchez une barre pour voir le détail des produits vendus.</div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
@@ -3103,9 +3132,11 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
           else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
           else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
-          else { const yy = gran === "total" ? new Date().getFullYear() : cur.start.getFullYear(); a = new Date(yy, drill, 1); b = new Date(yy, drill + 1, 1); }
+          else if (gran === "total") { const yy = anneeMin + drill; a = new Date(yy, 0, 1); b = new Date(yy + 1, 0, 1); }
+          else { const yy = cur.start.getFullYear(); a = new Date(yy, drill, 1); b = new Date(yy, drill + 1, 1); }
           titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
-            : (gran === "annee" || gran === "total") ? `${MOIS[drill]} ${a.getFullYear()}`
+            : gran === "total" ? `année ${anneeMin + drill}`
+            : gran === "annee" ? `${MOIS[drill]} ${a.getFullYear()}`
             : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
         }
         const D = agg(a, b);
