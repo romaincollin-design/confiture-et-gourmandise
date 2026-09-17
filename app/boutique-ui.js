@@ -2339,28 +2339,35 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
   const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
   const EXU = { g: 1, kg: 1000, ml: 1, cl: 10, L: 1000, piece: 0 };
   const recettes = useMemo(() => {
-    // map: nomNormalisé -> { ing: {label -> g par g fini}, finiTotal }
+    // map: cle -> { ing: {label -> g par g fini}, fini }
     const acc = {};
     (batches || []).forEach((b) => {
-      const d = b.data || b; const fini = Number(d.poids_fini_kg) * 1000; if (!fini || fini <= 0) return;
-      const cle = normNom(d.titre || ""); if (!cle) return;
+      const d = b.data || b;
+      const estPissa = isPissaFam(d.famille || "");
+      // poids fini : champ direct, sinon estimé depuis oignons crus x rendement (pissaladière)
+      let fini = Number(d.poids_fini_kg) * 1000;
+      if ((!fini || fini <= 0) && estPissa) { const og = Number(d.oignon_kg) || 0; if (og > 0) fini = og * 1000 * ((Number(rendementEstime) || 64.3) / 100); }
+      if (!fini || fini <= 0) return;
+      // pissaladière : toujours indexée sous une clé fixe (le titre est souvent vide)
+      const cle = estPissa ? "pissaladiere" : normNom(d.titre || "");
+      if (!cle) return;
       const ings = {};
       (d.extra || []).forEach((e) => { const g = (Number(e.qty) || 0) * (EXU[e.unit] != null ? EXU[e.unit] : 1); if (g > 0 && e.label) ings[e.label.trim()] = (ings[e.label.trim()] || 0) + g; });
-      // pissaladière : oignons/sel/huile/anchois portés par champs dédiés
-      const dm = (k, mult) => { const v = Number(d[k]) || 0; if (v > 0) return v * (mult || 1); return 0; };
+      const dm = (k, mult) => { const v = Number(d[k]) || 0; return v > 0 ? v * (mult || 1) : 0; };
       const og = dm("oignon_kg", 1000); if (og) ings["Oignons"] = (ings["Oignons"] || 0) + og;
       const sl = dm("sel_g", 1); if (sl) ings["Sel"] = (ings["Sel"] || 0) + sl;
       const hu = dm("huile_cl", 10); if (hu) ings["Huile d'olive"] = (ings["Huile d'olive"] || 0) + hu;
       const an = dm("anchois_g", 1); if (an) ings["Anchois"] = (ings["Anchois"] || 0) + an;
+      const th = dm("thym_g", 1); if (th) ings["Thym"] = (ings["Thym"] || 0) + th;
+      const al = dm("ail_g", 1); if (al) ings["Ail"] = (ings["Ail"] || 0) + al;
       if (!acc[cle]) acc[cle] = { ing: {}, fini: 0 };
       Object.entries(ings).forEach(([k, g]) => { acc[cle].ing[k] = (acc[cle].ing[k] || 0) + g; });
       acc[cle].fini += fini;
     });
-    // normaliser en g/g fini
     const out = {};
     Object.entries(acc).forEach(([cle, v]) => { if (v.fini > 0) { out[cle] = {}; Object.entries(v.ing).forEach(([k, g]) => { out[cle][k] = g / v.fini; }); } });
     return out;
-  }, [batches]);
+  }, [batches, rendementEstime]);
 
   const prixMatiere = useMemo(() => {
     // prix moyen au kg par matière, pondéré par les quantités des fournées
@@ -2377,6 +2384,8 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
       addDm("Sel", "sel_g", 1, "px_sel");
       addDm("Huile d'olive", "huile_cl", 10, "px_huile");
       addDm("Anchois", "anchois_g", 1, "px_anchois");
+      addDm("Thym", "thym_g", 1, "px_thym");
+      addDm("Ail", "ail_g", 1, "px_ail");
     });
     const out = {};
     Object.entries(acc).forEach(([k, v]) => { if (v.g > 0) out[k] = v.euros / (v.g / 1000); });
@@ -2387,11 +2396,16 @@ function ProStats({ sales, orders, visits, clients, products, batches, onRefresh
   const consoDe = (items) => {
     const res = {};
     (items || []).forEach((it) => {
-      const cle = normNom(it.name); const rec = recettes[cle]; if (!rec) return;
-      const prod = (products || []).find((p) => normNom(p.name) === cle && p.unit) || (products || []).find((p) => p.name === it.name);
-      const gParUnit = prod && prod.unit ? (parseFloat(String(prod.unit).replace(/[^0-9.]/g, "")) || 0) : 0;
-      if (!gParUnit) return;
-      const gFini = gParUnit * (it.qty || 0);
+      const nom = (it.name || "").toLowerCase();
+      const estPissa = nom.includes("pissalad") || nom.includes("oignon");
+      const cle = estPissa ? "pissaladiere" : normNom(it.name);
+      const rec = recettes[cle]; if (!rec) return;
+      const prod = (products || []).find((p) => p.name === it.name) || (products || []).find((p) => normNom(p.name) === cle && p.unit);
+      const gUnit = prod && prod.unit ? (parseFloat(String(prod.unit).replace(/[^0-9.]/g, "")) || 0) : 0;
+      // plaque de pissaladière = 750 g de produit fini si pas de grammage dans l'unité
+      const gFiniUnit = gUnit || (estPissa ? 750 : 0);
+      if (!gFiniUnit) return;
+      const gFini = gFiniUnit * (it.qty || 0);
       Object.entries(rec).forEach(([ing, r]) => { res[ing] = (res[ing] || 0) + r * gFini; });
     });
     return res;
