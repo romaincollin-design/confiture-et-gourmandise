@@ -70,6 +70,13 @@ Après push, vérifier le déploiement Vercel (statut "success") avant d'annonce
 - `orders` + `order_items` — commandes en ligne (retrait à préparer, système séparé des ventes caisse).
 - `customers` — clients CRM.
 - `promos`, `reviews`, `visits` (compteur QR anonyme), `suppliers`, `supplier_invoices`.
+- `materials` — référentiel des matières premières : `nom`, `unite` (kg/L/piece), `categorie`,
+  `seuil` (alerte), `actif`, `alias[]` (libellés de fournée rattachés à cette matière).
+- `material_purchases` — achats de matières : `material_id`, `date_achat`, `qte`, `prix_total`,
+  `supplier_id` (facultatif). **C'est la seule donnée que l'app ne pouvait pas déduire.**
+- Vues : `v_material_usage` (consommation dépliée depuis les fournées, tout ramené en kg/L/pièce)
+  et `v_material_stock` (= achats − consommation). Fonction `norm_matiere()` pour le rattachement
+  par nom (minuscules, sans accents, ligatures œ/æ développées, pluriel ignoré).
 - `production_batches` — fournées. Colonnes : `id` (uuid), `data` (jsonb = toute la fournée),
   `batch_date`, `created_at`, `updated_at`.
 
@@ -154,6 +161,27 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
 - **Rythme** (Tableau de bord) = unités vendues sur les **8 dernières semaines ÷ 8**, indépendant de la
   période affichée. La couverture (`stock ÷ rythme`) dit combien de temps le stock tient — c'est ce
   chiffre qui déclenche une fournée, pas le CA.
+
+### 5.6 bis — Matières premières (onglet « Matières & achats »)
+**Le stock de matières ne se saisit pas, il se déduit : `stock = achats − consommé par les fournées`.**
+La consommation était déjà entièrement connue (chaque fournée porte ses ingrédients et leurs prix,
+champs dédiés pissaladière + `data.extra`) ; seuls les **achats** manquaient.
+- Le référentiel a été amorcé automatiquement depuis les 36 fournées existantes (40 matières).
+- Une matière au stock **négatif** = elle a servi sans qu'aucun achat soit enregistré. Ce n'est pas
+  une erreur, c'est l'historique d'achats qui manque.
+- Les ingrédients de fournée qui ne correspondent à aucune matière apparaissent dans
+  « non rattachés » — souvent une unité différente (pièce vs kg) ou un libellé écrit autrement.
+  On les rattache via `alias`, jamais en supprimant.
+- ⚠️ Les **emballages** (bocaux, capuchons, étiquettes) ne sont pas encore suivis : leurs prix sont
+  dans les formats de fournée (`px_bocal`…) mais sans quantité achetée. Chantier suivant.
+
+### 5.2 bis — Relier un format à un produit (sans ça, rien ne descend)
+La chaîne §5.2 ne s'amorce que si le format porte un `pid`. **Au 17/09/2026, aucun des 40 formats
+n'était relié** : c'est la seule raison pour laquelle 59 produits sur 60 n'avaient pas de prix
+d'achat. Le prix d'achat n'est PAS à saisir à la main, il descend de la fournée.
+L'onglet « Contenants & vente » propose désormais l'appariement automatique (nom réduit via
+`normNom` + grammage via `grammesUnite`, tolérance 2 %). En cas d'ambiguïté — plusieurs produits au
+même grammage, ou plusieurs homonymes — **aucune suggestion n'est faite** : on ne devine pas.
 
 ### 5.7 Boucle production → clients
 Après « Valider la fournée », un écran propose un **message d'annonce prêt à copier** listant les
@@ -245,5 +273,13 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 ## 10. Idées / chantiers en cours (backlog)
 
 - Kit Apéro (confit d'oignons + biscuits + tapenade + anchois) — à monter via le type "Kit" en Production.
-- 28 confitures sans prix d'achat renseigné → à saisir (badge "⚠ N sans prix d'achat" dans Produits).
+- Prix d'achat manquants : **ne pas les saisir à la main**, relier les formats de fournée aux produits
+  (§5.2 bis) et valider les fournées — ils descendent tout seuls.
 - Formulaire de contact : améliorer encore la capture (10 % de conversion scan→contact au départ).
+- **Emballages en matières suivies** (bocaux, capuchons, étiquettes) : la quantité consommée se déduit
+  du nb de pots produits par fournée, le prix est déjà dans les formats. À brancher sur `materials`.
+- **WhatsApp** : envoi groupé à la main pour l'instant (liste de diffusion). Pistes évoquées par le
+  propriétaire : brancher l'app sur WhatsApp pour dialoguer avec les clients, un chat, puis un envoi
+  automatique. Nécessiterait l'API WhatsApp Business (compte + coût) — à décider ensemble.
+- Doublons de noms de produits (15 noms partagés) : gênent l'appariement automatique format → produit.
+  À fusionner ou différencier (le grammage dans le nom suffirait).

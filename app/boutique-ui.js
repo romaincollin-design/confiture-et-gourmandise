@@ -601,7 +601,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
   // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
-  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["matieres", "Matières & achats", Database], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -612,6 +612,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }} />}
+        {tab === "matieres" && <ProMatieres {...{ pass }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
@@ -675,6 +676,215 @@ function CalGrid({ sales, selected, onPick }) {
     </div>
   );
 }
+/* ---------------- Matières premières ----------------
+   Ce qui SORT était déjà connu : chaque fournée porte ses ingrédients et leurs prix.
+   Ce qui manquait, c'est ce qui ENTRE. Stock = achats saisis ici − consommé par les fournées. */
+function ProMatieres({ pass }) {
+  const [data, setData] = useState({ materials: [], orphelins: [] });
+  const [busy, setBusy] = useState(false);
+  const [filtre, setFiltre] = useState("acheter");   // acheter | toutes | inactives
+  const [achat, setAchat] = useState(null);          // formulaire d'achat en cours
+  const [edit, setEdit] = useState(null);            // fiche matière en cours
+  const [fournisseurs, setFournisseurs] = useState([]);
+
+  const load = async () => {
+    if (!supabase || !pass) return;
+    setBusy(true);
+    try {
+      const { data: d } = await supabase.rpc("admin_materials", { pass });
+      if (d) setData({ materials: d.materials || [], orphelins: d.orphelins || [] });
+      const { data: f } = await supabase.rpc("admin_suppliers", { pass });
+      if (Array.isArray(f)) setFournisseurs(f);
+    } catch (e) {}
+    setBusy(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const nb = (x) => Number(x) || 0;
+  const fmtQ = (q, u) => `${nb(q).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${u === "piece" ? (Math.abs(nb(q)) > 1 ? "pièces" : "pièce") : u}`;
+  // une matière est "à acheter" si son stock est sous le seuil, ou s'il est négatif
+  // (négatif = elle a servi en fournée sans qu'aucun achat ait été enregistré)
+  const aAcheter = (m) => m.actif && (nb(m.stock) < nb(m.seuil) || nb(m.stock) < 0);
+  const listeBase = (data.materials || []).filter((m) => filtre === "inactives" ? !m.actif : m.actif);
+  const liste = filtre === "acheter" ? listeBase.filter(aAcheter) : listeBase;
+  const nbAcheter = (data.materials || []).filter(aAcheter).length;
+  const jamaisAchetee = (data.materials || []).filter((m) => m.actif && nb(m.achete) === 0 && nb(m.consomme) > 0).length;
+
+  const saveAchat = async () => {
+    if (!achat || !achat.material_id) return;
+    setBusy(true);
+    try {
+      await supabase.rpc("admin_save_purchase", { pass, p_id: achat.id || null, p_material: achat.material_id,
+        p_date: achat.date || null, p_qte: pfNum(achat.qte), p_prix: pfNum(achat.prix),
+        p_supplier: achat.supplier_id || null, p_notes: achat.notes || null });
+      setAchat(null); await load();
+    } catch (e) {}
+    setBusy(false);
+  };
+  const delAchat = async (id, nomMat) => {
+    if (!window.confirm(`Supprimer cet achat de ${nomMat} ?\n\nLe stock sera recalculé.`)) return;
+    try { await supabase.rpc("admin_delete_purchase", { pass, p_id: id }); await load(); } catch (e) {}
+  };
+  const saveMat = async () => {
+    if (!edit || !edit.nom) return;
+    setBusy(true);
+    try {
+      await supabase.rpc("admin_save_material", { pass, p_id: edit.id || null, p_nom: edit.nom,
+        p_unite: edit.unite || "kg", p_categorie: edit.categorie || "ingredient",
+        p_seuil: pfNum(edit.seuil), p_actif: edit.actif !== false,
+        p_alias: edit.alias || [], p_notes: edit.notes || null });
+      setEdit(null); await load();
+    } catch (e) {}
+    setBusy(false);
+  };
+
+  const CATS = [["fruit", "Fruit"], ["sucre", "Sucre & miel"], ["ingredient", "Ingrédient"], ["emballage", "Emballage"], ["autre", "Autre"]];
+  const UNITES = [["kg", "kilos"], ["L", "litres"], ["piece", "pièces"]];
+
+  return (
+    <div className="ca-anim">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Matières & achats</h2>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 3, lineHeight: 1.45 }}>Ce qui est parti en fournée est déjà compté. Saisissez ce que vous achetez : le reste se déduit.</div>
+        </div>
+        <button onClick={() => setEdit({ id: null, nom: "", unite: "kg", categorie: "ingredient", seuil: "", actif: true, alias: [] })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><Plus size={14} /> Matière</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 }}>
+        {[["acheter", `À acheter${nbAcheter ? ` (${nbAcheter})` : ""}`], ["toutes", "Toutes"], ["inactives", "Masquées"]].map(([k, l]) => (
+          <button key={k} onClick={() => setFiltre(k)} className="ca-tap" style={{ border: `1.5px solid ${filtre === k ? C.jam : C.line}`, background: filtre === k ? C.jam : "#fff", color: filtre === k ? "#fff" : C.ink, borderRadius: 999, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+        ))}
+      </div>
+
+      {jamaisAchetee > 0 && filtre === "acheter" && (
+        <div style={{ ...card(), background: "#f6efdd", borderColor: PF.yellow + "66", fontSize: 12.5, color: C.ink, lineHeight: 1.55 }}>
+          <b>{jamaisAchetee} matière(s) ont servi en fournée sans achat enregistré.</b> Leur stock s'affiche en négatif : c'est la quantité déjà utilisée. Saisissez vos achats (même approximatifs, même anciens) pour repartir d'un stock juste.
+        </div>
+      )}
+
+      {liste.length === 0 ? (
+        <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : filtre === "acheter" ? "Rien à racheter : tous les stocks sont au-dessus de leur seuil." : "Aucune matière."}</div>
+      ) : liste.map((m) => {
+        const stock = nb(m.stock), seuil = nb(m.seuil);
+        const alerte = stock < 0 ? "vide" : stock < seuil ? "bas" : "ok";
+        const col = alerte === "vide" ? C.jam : alerte === "bas" ? C.caramel : PF.good;
+        return (
+          <div key={m.id} style={{ ...card(), background: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: "1 1 180px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>{m.nom}</div>
+                <div style={{ fontSize: 11.5, color: C.soft, marginTop: 2 }}>{(CATS.find((c) => c[0] === m.categorie) || ["", m.categorie])[1]} · en {(UNITES.find((u) => u[0] === m.unite) || ["", m.unite])[1]}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: col, lineHeight: 1.1 }}>{fmtQ(stock, m.unite)}</div>
+                <div style={{ fontSize: 11, color: C.soft }}>{alerte === "vide" ? "déjà utilisé, aucun achat saisi" : alerte === "bas" ? `sous le seuil de ${fmtQ(seuil, m.unite)}` : "en stock"}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10, fontSize: 12, fontWeight: 700 }}>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Acheté <span style={{ color: PF.navy }}>{fmtQ(m.achete, m.unite)}</span></span>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Utilisé <span style={{ color: PF.navy }}>{fmtQ(m.consomme, m.unite)}</span></span>
+              {m.prix_moyen != null && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.ink }}>Prix moyen <span style={{ color: PF.navy }}>{eur2(nb(m.prix_moyen))}/{m.unite}</span></span>}
+              {m.dernier_achat && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "5px 9px", color: C.soft }}>Dernier achat {new Date(m.dernier_achat).toLocaleDateString("fr-FR")}</span>}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
+              <button onClick={() => setAchat({ id: null, material_id: m.id, nom: m.nom, unite: m.unite, date: new Date().toISOString().slice(0, 10), qte: "", prix: "", supplier_id: "", notes: "" })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> J'ai acheté</button>
+              <button onClick={() => setEdit({ ...m, seuil: m.seuil })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "9px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Settings size={13} /> Réglages</button>
+            </div>
+            {(m.achats || []).length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
+                {(m.achats || []).slice(0, 4).map((a) => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", fontSize: 12.5 }}>
+                    <span style={{ color: C.soft, width: 74, flexShrink: 0 }}>{new Date(a.date).toLocaleDateString("fr-FR")}</span>
+                    <span style={{ flex: 1, color: C.ink, fontWeight: 600 }}>{fmtQ(a.qte, m.unite)}</span>
+                    <span style={{ color: C.jam, fontWeight: 700 }}>{eur2(nb(a.prix))}</span>
+                    <button onClick={() => setAchat({ id: a.id, material_id: m.id, nom: m.nom, unite: m.unite, date: a.date, qte: a.qte, prix: a.prix, supplier_id: a.supplier_id || "", notes: a.notes || "" })} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0, padding: 4 }}><Settings size={13} /></button>
+                    <button onClick={() => delAchat(a.id, m.nom)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0, padding: 4 }}><Trash2 size={13} /></button>
+                  </div>
+                ))}
+                {(m.achats || []).length > 4 && <div style={{ fontSize: 11.5, color: C.soft, paddingTop: 4 }}>+ {(m.achats || []).length - 4} achat(s) plus ancien(s)</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {(data.orphelins || []).length > 0 && (
+        <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55" }}>
+          <div style={{ ...h2, color: PF.warn }}>Ingrédients de fournée non rattachés</div>
+          <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginBottom: 10 }}>Ces ingrédients apparaissent dans vos fournées mais ne correspondent à aucune matière suivie — souvent une unité différente (pièce au lieu de kilos) ou un libellé écrit autrement. Créez la matière, ou ajoutez le libellé en « autre nom » sur une matière existante.</div>
+          {(data.orphelins || []).map((o, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderTop: i ? `1px solid ${C.line}` : "none", fontSize: 12.5 }}>
+              <span style={{ flex: 1, minWidth: 0, color: C.ink, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{o.libelle}</span>
+              <span style={{ color: C.soft, flexShrink: 0 }}>{fmtQ(o.qte_totale, o.unite)}</span>
+              <button onClick={() => setEdit({ id: null, nom: o.libelle, unite: o.unite, categorie: "ingredient", seuil: "", actif: true, alias: [] })} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Créer</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {achat && (
+        <div onClick={() => !busy && setAchat(null)} style={{ position: "fixed", inset: 0, zIndex: 120, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: C.paper, borderRadius: 20, padding: "20px 18px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: SCRIPT, fontSize: 23, color: C.jam, marginBottom: 2 }}>{achat.id ? "Modifier l'achat" : "Nouvel achat"}</div>
+            <div style={{ fontSize: 13, color: C.soft, marginBottom: 14 }}>{achat.nom}</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 130px" }}><Lbl>Date</Lbl><input type="date" value={achat.date || ""} onChange={(e) => setAchat({ ...achat, date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+              <div style={{ flex: "1 1 110px" }}><Lbl>Quantité ({achat.unite === "piece" ? "pièces" : achat.unite})</Lbl><input inputMode="decimal" value={achat.qte == null ? "" : String(achat.qte).replace(".", ",")} placeholder="0" onChange={(e) => setAchat({ ...achat, qte: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+              <div style={{ flex: "1 1 110px" }}><Lbl>Prix payé (€)</Lbl><input inputMode="decimal" value={achat.prix == null ? "" : String(achat.prix).replace(".", ",")} placeholder="0" onChange={(e) => setAchat({ ...achat, prix: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+            </div>
+            {pfNum(achat.qte) > 0 && pfNum(achat.prix) > 0 && (
+              <div style={{ marginTop: 10, background: "#f6efdd", borderRadius: 9, padding: "9px 12px", fontSize: 13, fontWeight: 700, color: C.ink }}>Soit <span style={{ color: PF.navy }}>{eur2(pfNum(achat.prix) / pfNum(achat.qte))}</span> par {achat.unite === "piece" ? "pièce" : achat.unite}</div>
+            )}
+            <div style={{ marginTop: 12 }}>
+              <Lbl>Fournisseur (facultatif)</Lbl>
+              <select value={achat.supplier_id || ""} onChange={(e) => setAchat({ ...achat, supplier_id: e.target.value })} style={{ ...inp(), marginTop: 4, cursor: "pointer" }}>
+                <option value="">— non précisé —</option>
+                {fournisseurs.map((f) => <option key={f.id} value={f.id}>{f.societe}</option>)}
+              </select>
+              {fournisseurs.length === 0 && <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5 }}>Aucun fournisseur enregistré pour l'instant — l'onglet Fournisseurs permet d'en créer.</div>}
+            </div>
+            <div style={{ marginTop: 12 }}><Lbl>Note (facultatif)</Lbl><input value={achat.notes || ""} placeholder="ex. marché de gros, promo" onChange={(e) => setAchat({ ...achat, notes: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            <button onClick={saveAchat} disabled={busy || !pfNum(achat.qte)} className="ca-tap" style={{ width: "100%", marginTop: 16, background: pfNum(achat.qte) ? C.jam : C.line, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: pfNum(achat.qte) ? "pointer" : "default" }}>{busy ? "Enregistrement…" : "Enregistrer l'achat"}</button>
+            <button onClick={() => setAchat(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {edit && (
+        <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 120, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+          <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: C.paper, borderRadius: 20, padding: "20px 18px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: SCRIPT, fontSize: 23, color: C.jam, marginBottom: 14 }}>{edit.id ? "Réglages de la matière" : "Nouvelle matière"}</div>
+            <div><Lbl>Nom</Lbl><input value={edit.nom || ""} placeholder="ex. Oignons" onChange={(e) => setEdit({ ...edit, nom: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 120px" }}><Lbl>S'achète en</Lbl><select value={edit.unite || "kg"} onChange={(e) => setEdit({ ...edit, unite: e.target.value })} style={{ ...inp(), marginTop: 4, cursor: "pointer" }}>{UNITES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+              <div style={{ flex: "1 1 120px" }}><Lbl>Famille</Lbl><select value={edit.categorie || "ingredient"} onChange={(e) => setEdit({ ...edit, categorie: e.target.value })} style={{ ...inp(), marginTop: 4, cursor: "pointer" }}>{CATS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Lbl>Me prévenir sous ({edit.unite === "piece" ? "pièces" : edit.unite || "kg"})</Lbl>
+              <input inputMode="decimal" value={edit.seuil == null ? "" : String(edit.seuil).replace(".", ",")} placeholder="0" onChange={(e) => setEdit({ ...edit, seuil: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700, maxWidth: 140 }} />
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5 }}>La matière remonte dans « À acheter » dès que le stock passe sous ce chiffre.</div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Lbl>Autres noms utilisés dans les fournées</Lbl>
+              <input value={(edit.alias || []).join(", ")} placeholder="ex. sel fin, gros sel" onChange={(e) => setEdit({ ...edit, alias: e.target.value.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) })} style={{ ...inp(), marginTop: 4 }} />
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5 }}>Séparés par des virgules. Sert à rattacher un ingrédient écrit autrement dans une recette.</div>
+            </div>
+            {edit.id && (
+              <button onClick={() => setEdit({ ...edit, actif: edit.actif === false })} className="ca-tap" style={{ width: "100%", marginTop: 14, display: "flex", alignItems: "center", gap: 10, background: edit.actif === false ? "#faece5" : C.cream, border: `1.5px solid ${edit.actif === false ? PF.warn : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
+                <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${edit.actif === false ? PF.warn : C.soft}`, background: edit.actif === false ? PF.warn : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{edit.actif === false && <Check size={13} color="#fff" />}</span>
+                <span style={{ fontSize: 13, color: C.ink, fontWeight: 600 }}>Masquer cette matière<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400 }}>Elle reste en base avec son historique, mais sort des listes.</span></span>
+              </button>
+            )}
+            <button onClick={saveMat} disabled={busy || !edit.nom} className="ca-tap" style={{ width: "100%", marginTop: 16, background: edit.nom ? C.jam : C.line, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: edit.nom ? "pointer" : "default" }}>{busy ? "Enregistrement…" : "Enregistrer"}</button>
+            <button onClick={() => setEdit(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProFournisseurs({ pass }) {
   const [list, setList] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -1153,6 +1363,10 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
   return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes, poidsCuitTotalRondes, ratioMoyenJour };
 }
+// Nom réduit à son noyau comparable : minuscules, sans accents, sans "confiture/de/la/les",
+// singulier et pluriel confondus. Sert à relier une vente, une fournée et une fiche produit.
+const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
+
 // Grammage de produit fini contenu dans UNE unité de vente, déduit du conditionnement.
 // On lit le premier nombre réellement suivi d'une unité de poids : "part ≈ 272 g · 35 €/kg" = 272 g
 // (et non 27235 comme le donnerait une simple extraction de tous les chiffres).
@@ -1209,6 +1423,37 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     o.famille = f.famille || "pissaladiere";
     return o;
   };
+  // Trouve le produit du catalogue qui correspond à un format de fournée : même nom
+  // (une fois réduit à son noyau) et même grammage. Sans cette liaison, la fournée ne
+  // pousse ni prix d'achat ni stock — c'est ce qui manquait sur la totalité des fournées.
+  const produitPourFormat = (f, formatG) => {
+    const estPissa = isPissaFam(f.famille || "pissaladiere");
+    const cle = estPissa ? "pissaladiere" : normNom(f.titre || "");
+    if (!cle) return null;
+    const memeNom = (products || []).filter((p) => {
+      const n = normNom(p.name);
+      return n === cle || (estPissa && ((p.name || "").toLowerCase().includes("pissalad") || (p.name || "").toLowerCase().includes("oignon")));
+    });
+    if (!memeNom.length) return null;
+    const g = pfNum(formatG);
+    if (g > 0) {
+      // plusieurs produits au même grammage = ambigu, on ne devine pas
+      const exacts = memeNom.filter((p) => Math.abs(grammesUnite(p.unit, estPissa) - g) <= Math.max(2, g * 0.02));
+      if (exacts.length === 1) return exacts[0];
+      if (exacts.length > 1) return null;
+    }
+    return memeNom.length === 1 ? memeNom[0] : null;
+  };
+  const suggestionsLiaison = (f) => {
+    const out = [];
+    (f.pots || []).forEach((p, i) => {
+      if (p.pid) return;
+      const prod = produitPourFormat(f, p.format_g);
+      if (prod) out.push({ i, pid: prod.id, nom: prod.name, unit: prod.unit, format_g: p.format_g });
+    });
+    return out;
+  };
+
   const pousserVersStock = async (pid, deltaStock, nouveauCout, extra = {}) => {
     if (!pid || !supabase || !pass) return;
     const prod = (products || []).find((x) => x.id === pid);
@@ -2080,6 +2325,31 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             </div>
           )}
 
+          {(() => {
+            const nonRelies = (f.pots || []).filter((p) => !p.pid).length;
+            if (!nonRelies) return null;
+            const sugg = suggestionsLiaison(f);
+            return (
+              <div style={{ ...card(), background: sugg.length ? "#eef3f6" : "#faece5", borderColor: (sugg.length ? PF.navy : PF.warn) + "44" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+                  {nonRelies} format{nonRelies > 1 ? "s" : ""} ne {nonRelies > 1 ? "sont" : "est"} relié{nonRelies > 1 ? "s" : ""} à aucun produit
+                </div>
+                <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginBottom: sugg.length ? 10 : 0 }}>
+                  Tant qu'un format n'est pas relié, valider la fournée ne remplit ni le stock ni le prix d'achat du produit correspondant.
+                  {!sugg.length && " Aucun produit du catalogue ne correspond au titre de cette fournée : choisissez-le à la main dans chaque format."}
+                </div>
+                {sugg.length > 0 && (
+                  <>
+                    {sugg.map((s) => (
+                      <div key={s.i} style={{ fontSize: 12.5, color: C.ink, padding: "3px 0" }}>Format {s.i + 1} ({pfNum(s.format_g)} g) → <b style={{ color: PF.navy }}>{s.nom}</b> <span style={{ color: C.soft }}>· {s.unit}</span></div>
+                    ))}
+                    <button onClick={() => { const pots = [...f.pots]; sugg.forEach((s) => { pots[s.i] = { ...pots[s.i], pid: s.pid }; }); change({ pots }); }} className="ca-tap" style={{ marginTop: 10, background: PF.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><Check size={14} /> Relier {sugg.length > 1 ? `ces ${sugg.length} formats` : "ce format"}</button>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
           {(f.pots || []).map((p, i) => { const pl = R.potLines[i] || {}; const cTot = pl.coutUnitaireTotal; const labels = isPissa ? POT_TYPE_LABELS[p.type || "pot"] : FAM.packLabels; const unitWord = isPissa && p.type === "kit" ? "kit" : FAM.unitWord; return (
             <div key={i} style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
@@ -2375,7 +2645,6 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const costOf = (i) => { if (Number(i.cost) > 0) return Number(i.cost); const p = prodDe(i); return p ? Number(p.cost) || 0 : 0; };
 
   // ---- recettes par produit (g d'ingrédient cru par g de produit fini), déduites des fournées ----
-  const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
   const EXU = { g: 1, kg: 1000, ml: 1, cl: 10, L: 1000, piece: 0 };
   const recettes = useMemo(() => {
     // map: cle -> { ing: {label -> g par g fini}, fini }
