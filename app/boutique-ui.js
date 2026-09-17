@@ -329,7 +329,8 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
   const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6;
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
-  const valider = async (next) => { await upsertClient({ ...cust, optin }); setStep(next); };
+  // on garde le consentement dans cust : sinon la commande repartait avec optin absent et écrasait l'accord donné ici
+  const valider = async (next) => { const c = { ...cust, optin }; setCust(c); await upsertClient(c); setStep(next); };
   return (
     <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
@@ -351,7 +352,13 @@ function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
         </div>
         <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
       </form>
-      <div style={{ marginTop: 6 }}>
+      {/* Le consentement était stocké mais jamais demandé : sans cette case, aucun nouveau contact
+          n'était joignable pour annoncer une fournée, et l'audience « Consentement » de Publimail restait vide. */}
+      <button onClick={() => setOptin((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "flex-start", gap: 10, background: optin ? "#7A2B330d" : C.cream, border: `1.5px solid ${optin ? C.jam : C.line}`, borderRadius: 13, padding: "12px 13px", cursor: "pointer", textAlign: "left" }}>
+        <span style={{ width: 21, height: 21, borderRadius: 7, border: `2px solid ${optin ? C.jam : C.soft}`, background: optin ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{optin && <Check size={13} color="#fff" />}</span>
+        <span style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.45, fontWeight: 600 }}>Prévenez-moi des nouvelles fournées 🍓<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400, marginTop: 2 }}>Un message quand les confitures de saison sortent du chaudron. Sans engagement.</span></span>
+      </button>
+      <div style={{ marginTop: 10 }}>
         {lead
           ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>C'est parti <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
           : intent === "contact"
@@ -606,7 +613,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }} />}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
-        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales }} />}
+        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
@@ -1165,7 +1172,7 @@ const grammesUnite = (unit, estPissa) => {
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
-function ProProduction({ pass, products, setProducts, sales }) {
+function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
@@ -1173,6 +1180,8 @@ function ProProduction({ pass, products, setProducts, sales }) {
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmValide, setConfirmValide] = useState(null); // lignes du pop-up de validation
+  const [annonce, setAnnonce] = useState(null);             // message prêt à envoyer après une fournée validée
+  const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
   const [etab, setEtab] = useState("mat");
   const [dateDebut, setDateDebut] = useState("");
@@ -2298,14 +2307,47 @@ function ProProduction({ pass, products, setProducts, sales }) {
             })}
             <button disabled={confirmValide.lignes.length === 0} onClick={async () => {
               clearTimeout(timer.current);
+              const lignes = confirmValide.lignes;
               const snap = await validerEtPousserStock(cur, R);
               await persist({ ...cur, stock_applique: snap });
-              setConfirmValide(null); setView("list");
+              // on ne propose l'annonce que pour ce qui vient réellement d'entrer en stock
+              const nouveaux = lignes.filter((l) => (l.nb - (l.dejaApplique || 0)) > 0);
+              setConfirmValide(null);
+              if (nouveaux.length) { setAnnonce({ lignes: nouveaux }); setAnnonceCopiee(false); } else { setView("list"); }
             }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: confirmValide.lignes.length === 0 ? C.line : C.jam, color: confirmValide.lignes.length === 0 ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: confirmValide.lignes.length === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Confirmer et mettre à jour</button>
             <button onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
           </div>
         </div>
       )}
+
+      {/* Boucle production → clients : une fournée validée, ce sont des produits de nouveau disponibles.
+          Message prêt à coller dans la liste de diffusion WhatsApp (WhatsApp interdit l'envoi groupé par lien). */}
+      {annonce && (() => {
+        const abonnes = (clients || []).filter((c) => c.optin);
+        const nom = (profile && profile.name) || "Comme Avant";
+        const msg = `🍓 Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message 🙂`;
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ background: C.paper, borderRadius: 18, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: "22px 20px 18px" }}>
+              <div style={{ textAlign: "center", marginBottom: 14 }}>
+                <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#3F7A4B18", display: "grid", placeItems: "center", margin: "0 auto 8px" }}><Check size={26} color={C.ok} /></div>
+                <h2 style={{ fontFamily: SCRIPT, fontSize: 26, margin: 0, color: C.jam }}>Fournée enregistrée</h2>
+                <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock est à jour. Prévenez les clients qui ont demandé à l'être.</p>
+              </div>
+              <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", fontSize: 13, color: C.ink, lineHeight: 1.55, whiteSpace: "pre-wrap", marginBottom: 12 }}>{msg}</div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 12, lineHeight: 1.5 }}>
+                {abonnes.length > 0
+                  ? <><b style={{ color: C.ink }}>{abonnes.length} client{abonnes.length > 1 ? "s" : ""}</b> {abonnes.length > 1 ? "ont" : "a"} demandé à être prévenu. Copiez le message, puis collez-le dans votre <b>liste de diffusion WhatsApp</b> (ou utilisez l'onglet Publimail pour envoyer un par un).</>
+                  : <>Aucun client n'a encore coché « Prévenez-moi des nouvelles fournées » sur la boutique. Le message reste copiable pour vos réseaux.</>}
+              </div>
+              <button onClick={() => { copyText(msg); setAnnonceCopiee(true); setTimeout(() => setAnnonceCopiee(false), 1800); }} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {annonceCopiee ? <><Check size={18} /> Message copié</> : <><Copy size={17} /> Copier le message</>}
+              </button>
+              <button onClick={() => { setAnnonce(null); setView("list"); }} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Plus tard</button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2470,6 +2512,16 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
   }, [flux, cur.start, cur.end, recettes, products]);
   const fmtQty = (g) => g >= 1000 ? `${(g / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString("fr-FR")} g`;
+  // Rythme de vente sur les 8 dernières semaines, indépendant de la période affichée :
+  // c'est lui qui dit combien de temps le stock actuel va tenir, donc quand relancer une fournée.
+  const JOURS_RYTHME = 56;
+  const rythme = useMemo(() => {
+    const depuis = Date.now() - JOURS_RYTHME * 86400000;
+    const acc = {};
+    flux.forEach((f) => { if (f.ts < depuis) return; (f.items || []).forEach((i) => { const k = i.pid || i.name; acc[k] = (acc[k] || 0) + (i.qty || 0); }); });
+    Object.keys(acc).forEach((k) => { acc[k] = acc[k] / (JOURS_RYTHME / 7); });   // unités par semaine
+    return acc;
+  }, [flux]);
   // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
   const B = agg(prv.start, prv.end, enCours ? ecoule : null);
   const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
@@ -2760,6 +2812,14 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
               <span><b style={{ color: C.ink }}>{p.qty}</b> vendus</span>
               <span>marge <b style={{ color: p.coutConnu ? (p.marge > 0 ? C.ok : C.soft) : C.soft }}>{p.coutConnu ? eur(p.marge) : "coût inconnu"}</b></span>
               <span><b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA</span>
+              {catalogue && (() => {
+                const stockNow = Number(catalogue.stock) || 0;
+                const parSem = rythme[p.pid || p.name] || 0;
+                if (!parSem) return <span>stock <b style={{ color: C.ink }}>{stockNow}</b></span>;
+                const sem = stockNow / parSem;
+                const col = sem < 1 ? C.jam : sem < 3 ? C.caramel : C.ok;
+                return <span>stock <b style={{ color: C.ink }}>{stockNow}</b> · tient <b style={{ color: col }}>{sem < 1 ? "moins d'une semaine" : `~${sem.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} sem.`}</b></span>;
+              })()}
             </div>
           </div>
           );
@@ -2994,11 +3054,17 @@ function ProProducts({ products, setProducts, pass }) {
     setNw(blank); setCreating(false);
   };
   const swatch = (active) => ({ width: 40, height: 40, borderRadius: 10, border: `1.5px solid ${active ? C.jam : C.line}`, background: C.cream, display: "grid", placeItems: "center", cursor: "pointer" });
-  // filtre de saisie rapide : les prix d'achat manquants bloquent tout le calcul de marge
-  const [filtreSansAchat, setFiltreSansAchat] = useState(false);
+  // filtres de travail : deux listes que le commerçant doit pouvoir sortir en un geste
+  const [filtre, setFiltre] = useState(null);   // null | "sansAchat" | "reappro"
+  const filtreSansAchat = filtre === "sansAchat";
   const sansAchatP = (p) => !p.cost || +p.cost === 0;
+  // « à réapprovisionner » = en vente, pas annoncé « bientôt », et 5 unités ou moins
+  const reapproP = (p) => p.active !== false && !p.soon && (Number(p.stock) || 0) <= 5;
   const totalSansAchat = products.filter(sansAchatP).length;
-  const visibles = filtreSansAchat ? products.filter(sansAchatP) : products;
+  const totalReappro = products.filter(reapproP).length;
+  const enRupture = products.filter((p) => reapproP(p) && (Number(p.stock) || 0) === 0).length;
+  const testFiltre = filtre === "sansAchat" ? sansAchatP : filtre === "reappro" ? reapproP : null;
+  const visibles = testFiltre ? products.filter(testFiltre) : products;
   const extra = [...new Set(visibles.map((p) => p.cat))].filter((c) => !CAT_ORDER.includes(c));
   const cats = [...CAT_ORDER, ...extra].filter((c) => visibles.some((p) => p.cat === c));
 
@@ -3006,11 +3072,18 @@ function ProProducts({ products, setProducts, pass }) {
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div>
-          {totalSansAchat > 0 && (
-            <button onClick={() => setFiltreSansAchat((v) => !v)} className="ca-tap" style={{ marginTop: 8, border: `1.5px solid ${filtreSansAchat ? PF.warn : PF.warn + "66"}`, background: filtreSansAchat ? PF.warn : "#faece5", color: filtreSansAchat ? "#fff" : PF.warn, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              {filtreSansAchat ? `✕ Voir tous les produits` : `⚠ ${totalSansAchat} sans prix d'achat — les afficher`}
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
+            {totalReappro > 0 && (
+              <button onClick={() => setFiltre((v) => v === "reappro" ? null : "reappro")} className="ca-tap" style={{ border: `1.5px solid ${filtre === "reappro" ? C.jam : C.jam + "66"}`, background: filtre === "reappro" ? C.jam : "#7A2B3312", color: filtre === "reappro" ? "#fff" : C.jam, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                {filtre === "reappro" ? "✕ Voir tout le catalogue" : `📦 ${totalReappro} à refaire${enRupture > 0 ? ` · ${enRupture} épuisé${enRupture > 1 ? "s" : ""}` : ""}`}
+              </button>
+            )}
+            {totalSansAchat > 0 && (
+              <button onClick={() => setFiltre((v) => v === "sansAchat" ? null : "sansAchat")} className="ca-tap" style={{ border: `1.5px solid ${filtreSansAchat ? PF.warn : PF.warn + "66"}`, background: filtreSansAchat ? PF.warn : "#faece5", color: filtreSansAchat ? "#fff" : PF.warn, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                {filtreSansAchat ? "✕ Voir tout le catalogue" : `⚠ ${totalSansAchat} sans prix d'achat`}
+              </button>
+            )}
+          </div>
         </div>
         <button onClick={() => { setCreating((v) => !v); setNw(blank); }} className="ca-tap" style={{ background: creating ? "transparent" : C.jam, color: creating ? C.soft : "#fff", border: creating ? `1px solid ${C.line}` : "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, whiteSpace: "nowrap" }}>{creating ? <X size={15} /> : <Plus size={15} />} {creating ? "Fermer" : "Nouveau produit"}</button>
       </div>
@@ -3041,8 +3114,10 @@ function ProProducts({ products, setProducts, pass }) {
       )}
 
       {cats.map((cat) => {
+        // en mode « à refaire », le plus urgent d'abord : ce qui est épuisé, puis le plus bas
         const items = visibles.filter((p) => p.cat === cat);
-        const isOpen = filtreSansAchat || !!openCat[cat];   // en mode filtre, tout est déplié : on vient pour saisir
+        if (filtre === "reappro") items.sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+        const isOpen = !!filtre || !!openCat[cat];   // en mode filtre, tout est déplié : on vient pour agir
         const sansAchat = items.filter(sansAchatP).length;
         return (
           <div key={cat} style={{ marginBottom: 10 }}>
@@ -4391,6 +4466,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
+  const [reapproOuvert, setReapproOuvert] = useState(false);
   const [calOuvert, setCalOuvert] = useState(false);
   const [retro, setRetro] = useState(false);
   const [saleDate, setSaleDate] = useState("");
@@ -4420,6 +4496,9 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
     return isNaN(d.getTime()) ? Date.now() : d.getTime();
   };
   const sellable = products.filter((p) => !p.soon && p.active !== false);
+  // réassort : mêmes règles que l'onglet Produits (en vente, pas « bientôt », 5 ou moins), le plus bas d'abord
+  const aRefaire = sellable.filter((p) => (Number(p.stock) || 0) <= 5).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+  const epuises = aRefaire.filter((p) => (Number(p.stock) || 0) === 0);
   const cats = CAT_ORDER.filter((c) => sellable.some((p) => p.cat === c));
   const activeCat = cat && cats.includes(cat) ? cat : cats[0];
   const catItems = sellable.filter((p) => p.cat === activeCat);
@@ -4597,6 +4676,31 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
           <div style={{ fontSize: 11, opacity: .65 }}>vente{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
         </div>
       </div>
+
+      {/* Rappel de réassort : 1 ligne repliée, pour ne pas encombrer la caisse mais ne plus découvrir
+          une rupture devant le client. Onglet Produits > « à refaire » pour la liste complète. */}
+      {aRefaire.length > 0 && (
+        <div style={{ ...card, border: `1px solid ${epuises.length ? C.jam + "55" : C.line}`, padding: 0, overflow: "hidden" }}>
+          <button onClick={() => setReapproOuvert((v) => !v)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Package size={16} color={epuises.length ? C.jam : C.caramel} />
+              {epuises.length > 0 ? <>À refaire : <span style={{ color: C.jam }}>{epuises.length} épuisé{epuises.length > 1 ? "s" : ""}</span>{aRefaire.length > epuises.length && <span style={{ color: C.soft, fontWeight: 600 }}> · {aRefaire.length - epuises.length} bientôt</span>}</> : <>À refaire bientôt : <span style={{ color: C.caramel }}>{aRefaire.length} produit{aRefaire.length > 1 ? "s" : ""}</span></>}
+            </span>
+            <ChevronDown size={17} color={C.soft} style={{ transform: reapproOuvert ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
+          </button>
+          {reapproOuvert && (
+            <div style={{ padding: "0 14px 12px" }}>
+              {aRefaire.slice(0, 12).map((p) => (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: `1px solid ${C.line}` }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} <span style={{ color: C.soft }}>· {p.unit}</span></span>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#fff", background: (Number(p.stock) || 0) === 0 ? C.jam : C.caramel, borderRadius: 6, padding: "3px 8px", flexShrink: 0 }}>{(Number(p.stock) || 0) === 0 ? "épuisé" : `reste ${p.stock}`}</span>
+                </div>
+              ))}
+              {aRefaire.length > 12 && <div style={{ fontSize: 11.5, color: C.soft, paddingTop: 8 }}>+ {aRefaire.length - 12} autre(s) — voir l'onglet Produits.</div>}
+            </div>
+          )}
+        </div>
+      )}
 
       {pending.length > 0 && (
         <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>

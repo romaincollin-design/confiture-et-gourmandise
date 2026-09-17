@@ -148,6 +148,20 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
 - Affichage : donut par matière + prix d'achat moyen au kg (pondéré par les fournées), même sélecteur
   de période (jour/semaine/mois/année) que les ventes.
 
+### 5.5 bis — Réassort & rythme de vente
+- **« À refaire »** = produit en vente (`active`), non `soon`, stock ≤ 5. Même règle partout :
+  chip dans Produits (liste triée du plus urgent au moins urgent) et bandeau repliable en Caisse.
+- **Rythme** (Tableau de bord) = unités vendues sur les **8 dernières semaines ÷ 8**, indépendant de la
+  période affichée. La couverture (`stock ÷ rythme`) dit combien de temps le stock tient — c'est ce
+  chiffre qui déclenche une fournée, pas le CA.
+
+### 5.7 Boucle production → clients
+Après « Valider la fournée », un écran propose un **message d'annonce prêt à copier** listant les
+produits réellement entrés en stock (delta > 0 seulement). Il compte les clients ayant coché le
+consentement. WhatsApp interdisant l'envoi groupé par lien, le geste est : copier → coller dans la
+liste de diffusion. **Le consentement se récolte via la case du formulaire client** (§6.1) : sans
+elle, aucune annonce n'est possible.
+
 ### 5.6 Stock oignons cuits (Production)
 Compteur = (oignons cuits produits par toutes les fournées pissaladière) − (consommés par les ventes de
 pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consommé. Purement dérivé, non stocké.
@@ -161,6 +175,10 @@ pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consom
    ⚠️ **Aucun écran ne doit exiger d'email** : la commande part par **WhatsApp**, pas par mail.
    Trois verrous email (commande, avis, enregistrement du contact) ont bloqué toute commande
    du 16/09 au 17/09/2026 — ne pas les réintroduire.
+   **Case « Prévenez-moi des nouvelles fournées »** : c'est la seule source de `opt_in`, donc la seule
+   source d'audience pour Publimail et les annonces de fournée. Elle était absente du formulaire alors
+   que le champ existait en base — ne pas la retirer. `save_lead` ne **rétrograde jamais** un
+   consentement (`opt_in = opt_in or excluded`) : passer commande effaçait l'accord donné à l'inscription.
 2. **Verrouillage strict** : impossible de voir la carte, le panier ou de commander sans coordonnées valides.
    Garde-fou dans `ClientView` : tout accès à `shop/cart/checkout/done` sans `coordsOk` renvoie à `coords`.
    Le bandeau promo ("Announce") ne s'affiche pas sur l'écran `coords`.
