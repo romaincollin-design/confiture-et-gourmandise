@@ -40,12 +40,20 @@ URL prod : https://confiture-et-gourmandise.vercel.app
 Ne jamais committer le token GitHub en clair (repo public, GitHub bloque le push).
 Build **obligatoire** avant tout push :
 ```bash
-npm run build          # doit finir sans erreur
+npm run lint           # no-undef : attrape les variables hors de portée
+npm run build          # doit finir sans erreur (lance aussi ESLint)
 git add -A
 git commit -m "..."
 git push origin main   # Vercel déploie automatiquement
 ```
 Après push, vérifier le déploiement Vercel (statut "success") avant d'annoncer que c'est en ligne.
+
+⚠️ **Le build vert ne prouve pas que l'app tourne.** Le 17/09/2026, `/admin` affichait
+« Application error: a client-side exception has occurred » en production alors que le build
+passait : `ProStats` lisait une variable d'un autre composant. C'est pourquoi `no-undef` est
+désormais une **erreur** bloquante (`.eslintrc.json`), et pourquoi `next build` lance ESLint.
+Pour un changement d'interface, charger réellement `/` et `/admin` (`npx next start` + navigateur)
+et vérifier qu'aucune exception n'apparaît : une erreur de render remplace **toute la page**.
 
 ---
 

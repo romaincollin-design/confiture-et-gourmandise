@@ -601,7 +601,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
   // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
-  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["matieres", "Matières & achats", Database], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -612,7 +612,10 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
       <div className="ca-scroll pro-content">
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }} />}
-        {tab === "matieres" && <ProMatieres {...{ pass }} />}
+        {/* Onglet Matières retiré de la navigation : la fournée EST déjà la déclaration d'achat
+            (quantité + prix au kilo saisis dans la recette). Faire ressaisir les achats à part
+            doublonnait la saisie. Les achats cumulés et le prévisionnel doivent se déduire des
+            fournées, dans l'onglet Production. Composant et tables conservés le temps de la refonte. */}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
@@ -1610,7 +1613,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const estConnue = (b) => FAMILLES.some((fm) => fm.key === (b.famille || "pissaladiere"));
     const nbNonClassees = batches.filter((b) => !estConnue(b)).length;
     const famBatches = famille === "__autres__" ? batches.filter((b) => !estConnue(b)) : batches.filter((b) => (b.famille || "pissaladiere") === famille);
-    const cols = isPissa ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/kg", "Coef", "Marge/pot"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coef", "Marge/unité"];
+    // Le prix de vente manquait : sans lui, coef et marge ne se relisent pas (marge = PV − coût).
+    const cols = isPissa ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/pot", "PV/pot", "Marge/pot", "Coef"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef"];
     // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
     const batchesPeriode = isPissa ? famBatches.filter((b) => {
       if (selectionManuelle) return selectionManuelle.has(b.id);
@@ -1757,9 +1761,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
                       <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
                       {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutKg)}</td>
+                      {!isPissa && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutKg)}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutPotMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap" }}>{eur2(r.prixVenteMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap" }}>{eur2(r.margeMoyenne)}</td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap" }}>{eur3(r.margeMoyenne)}</td>
                     </tr>
                   ); })}
                 </tbody>
