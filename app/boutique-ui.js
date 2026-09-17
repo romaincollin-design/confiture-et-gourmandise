@@ -1782,6 +1782,81 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   if (view === "dash") {
     const isPissa = isPissaFam(famille);
     const rows = batches.filter((b) => (b.famille || "pissaladiere") === famille).map((f) => ({ f, r: pfCalc(f, rendementEstime) })).filter((x) => x.r.coutKg != null).reverse();
+
+    // ---- Ce qui est entré : les ingrédients d'une fournée, ramenés en kg / L / pièce ----
+    const ingredientsDe = (b) => {
+      const out = [];
+      PF_ING.forEach((ing) => {
+        const q = pfNum(b[ing.qf]);
+        if (q > 0) out.push({ label: ing.label, qte: q / ing.div, unite: ing.family === "volume" ? "L" : "kg", px: pfNum(b[ing.pf]) });
+      });
+      (b.extra || []).forEach((e) => {
+        const q = pfNum(e.qty);
+        if (!(q > 0) || !e.label) return;
+        const u = EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece;
+        out.push({ label: String(e.label).trim(), qte: q / u.div, unite: e.unit === "piece" ? "piece" : (["ml", "cl", "L"].includes(e.unit) ? "L" : "kg"), px: pfNum(e.price) });
+      });
+      return out;
+    };
+    // on descend d'unité sous le kilo ou le litre : « 4 g » se lit, « 0,004 kg » non
+    const qte = (q, u) => {
+      const n = (v, d) => v.toLocaleString("fr-FR", { maximumFractionDigits: d });
+      if (u === "piece") return `${n(q, 1)} ${q > 1 ? "pièces" : "pièce"}`;
+      if (u === "kg") return q < 1 ? `${n(q * 1000, 0)} g` : `${n(q, 1)} kg`;
+      return q < 1 ? `${n(q * 100, 1)} cl` : `${n(q, 2)} L`;
+    };
+
+    // ---- Cumul de la famille affichée : entrées par matière, sorties en poids fini et en pots ----
+    const comptees = batches.filter((b) => (b.famille || "pissaladiere") === famille && fourneeComptee(b));
+    const cumul = {};
+    let finiTotal = 0, potsTotal = 0, coutTotal = 0;
+    comptees.forEach((b) => {
+      const r = pfCalc(b, rendementEstime);
+      finiTotal += r.poidsFini || 0; potsTotal += r.nbPotsTotal || 0; coutTotal += r.revientHE || 0;
+      ingredientsDe(b).forEach((x) => {
+        const k = normNom(x.label) + "|" + x.unite;
+        if (!cumul[k]) cumul[k] = { label: x.label, unite: x.unite, qte: 0, euros: 0, n: 0 };
+        cumul[k].qte += x.qte; cumul[k].euros += x.qte * x.px; cumul[k].n++;
+      });
+    });
+    const matieres = Object.values(cumul).sort((a, b) => b.euros - a.euros);
+
+    // ---- Rythme de vente : unités écoulées par semaine sur 8 semaines glissantes ----
+    const depuis = Date.now() - 56 * 86400000;
+    const rythme = {};
+    (sales || []).forEach((s) => { if (s.ts < depuis) return; (s.items || []).forEach((i) => { const k = i.pid || i.name; rythme[k] = (rythme[k] || 0) + (i.qty || 0); }); });
+    Object.keys(rythme).forEach((k) => { rythme[k] = rythme[k] / 8; });
+
+    // ---- Prévisionnel : par recette, ce qu'il reste en rayon et ce qu'il faudrait racheter ----
+    const derniereParRecette = {};
+    comptees.forEach((b) => {
+      const cle = isPissa ? "pissaladiere" : normNom(b.titre || "");
+      if (!cle) return;
+      if (!derniereParRecette[cle] || String(b.date || "") > String(derniereParRecette[cle].date || "")) derniereParRecette[cle] = b;
+    });
+    const SEM_CIBLE = 8;   // on vise deux mois de stock : le temps d'une saison de marché
+    const prev = Object.values(derniereParRecette).map((b) => {
+      const r = pfCalc(b, rendementEstime);
+      const nbProduits = r.nbPotsTotal || 0;
+      if (!nbProduits) return null;
+      // on suit le format le plus produit de cette fournée : c'est lui qui porte la recette
+      let meilleur = null;
+      (b.pots || []).forEach((p, i) => { const pl = r.potLines[i]; if (pl && pl.nb > 0 && (!meilleur || pl.nb > meilleur.pl.nb)) meilleur = { p, pl }; });
+      if (!meilleur) return null;
+      const prod = (meilleur.p.pid && (products || []).find((x) => x.id === meilleur.p.pid)) || produitPourFormat(b, meilleur.p.format_g);
+      const stock = prod ? Number(prod.stock) || 0 : null;
+      const parSem = prod ? (rythme[prod.id] || rythme[prod.name] || 0) : 0;
+      const semaines = (stock != null && parSem > 0) ? stock / parSem : null;
+      const cible = parSem > 0 ? Math.ceil(parSem * SEM_CIBLE) : nbProduits;
+      const aRefaire = Math.max(0, cible - (stock || 0));
+      const ratio = aRefaire / nbProduits;   // la recette de la dernière fournée, mise à l'échelle
+      return {
+        b, r, prod, stock, parSem, semaines, aRefaire, nbProduits,
+        titre: b.titre || famOf(famille).label,
+        besoins: ingredientsDe(b).map((x) => ({ ...x, qte: x.qte * ratio, cout: x.qte * ratio * x.px })),
+      };
+    }).filter(Boolean).sort((a, b) => (a.semaines == null ? 99 : a.semaines) - (b.semaines == null ? 99 : b.semaines));
+    const urgents = prev.filter((x) => x.aRefaire > 0 && (x.semaines == null || x.semaines < SEM_CIBLE));
     const bar = (title, get, fmt, col) => {
       const vals = rows.map((x) => get(x)).filter((v) => v != null && !isNaN(v));
       const mx = Math.max(1, ...vals);
@@ -1808,6 +1883,76 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam }}><ChevronLeft size={18} /></button>
           <div><h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam }}>Analyse — {famOf(famille).label}</h2><div style={{ fontSize: 12.5, color: C.soft }}>{rows.length} fournée(s) exploitable(s)</div></div>
         </div>
+
+        {/* CE QU'IL FAUT RACHETER — on part du besoin de production, pas d'un inventaire :
+            rythme de vente → autonomie → nb à refaire → quantités, via la recette de la dernière fournée. */}
+        {urgents.length > 0 && (
+          <div style={{ ...card(), background: "#fff", borderColor: C.jam + "44" }}>
+            <div style={{ ...h2, color: C.jam }}>À refaire — et ce qu'il faut acheter</div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginTop: -6, marginBottom: 12, lineHeight: 1.5 }}>
+              Calculé sur la recette de votre dernière fournée, pour tenir {SEM_CIBLE} semaines au rythme de vente actuel.
+            </div>
+            {urgents.map((x, i) => (
+              <div key={i} style={{ padding: "12px 0", borderTop: i ? `1px solid ${C.line}` : "none" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: C.ink, textTransform: "capitalize" }}>{x.titre}</span>
+                  <span style={{ fontSize: 12.5, color: C.soft }}>
+                    {x.stock != null ? <>reste <b style={{ color: C.ink }}>{x.stock}</b></> : "produit non relié"}
+                    {x.parSem > 0 && <> · ~{x.parSem.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}/sem · tient <b style={{ color: x.semaines < 2 ? C.jam : x.semaines < 4 ? C.caramel : PF.good }}>{x.semaines < 1 ? "moins d'une semaine" : `~${x.semaines.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} sem.`}</b></>}
+                    {x.parSem === 0 && x.stock != null && " · pas encore de ventes"}
+                  </span>
+                </div>
+                <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+                    Refaire <span style={{ color: C.jam }}>{x.aRefaire} {famOf(famille).unitWord}{x.aRefaire > 1 ? "s" : ""}</span> — il faut :
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {x.besoins.filter((b2) => b2.qte > 0).map((b2, k) => (
+                      <span key={k} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 9px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>
+                        {b2.label} <span style={{ color: PF.navy }}>{qte(b2.qte, b2.unite)}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: C.soft, marginTop: 8, fontWeight: 700 }}>
+                    Matières ≈ <span style={{ color: PF.navy }}>{eur2(x.besoins.reduce((s, b2) => s + b2.cout, 0))}</span>
+                    {x.r.coutPotMoyen != null && <> · coût de revient estimé <span style={{ color: PF.navy }}>{eur2(x.r.coutPotMoyen * x.aRefaire)}</span> pour les {x.aRefaire}</>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* CE QUI EST ENTRÉ / CE QUI EST SORTI — cumul lu directement dans les fournées */}
+        {matieres.length > 0 && (
+          <div style={card()}>
+            <div style={{ ...h2 }}>Achats cumulés — {famOf(famille).label}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: -4, marginBottom: 12 }}>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>{comptees.length} fournée{comptees.length > 1 ? "s" : ""}</span>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Produit <span style={{ color: PF.navy }}>{finiTotal.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</span></span>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Soit <span style={{ color: PF.navy }}>{potsTotal} {famOf(famille).unitWord}(s)</span></span>
+              <span style={{ background: "#f6efdd", borderRadius: 7, padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: C.ink }}>Coût total <span style={{ color: PF.navy }}>{eur2(coutTotal)}</span></span>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 380 }}>
+                <thead><tr>
+                  {["Matière", "Quantité", "Prix moyen", "Dépensé"].map((t, i) => <th key={i} style={{ padding: "8px", textAlign: i ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
+                </tr></thead>
+                <tbody>
+                  {matieres.map((m, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.line}`, background: i % 2 ? "#ffffff66" : "transparent" }}>
+                      <td style={{ padding: "9px 8px", fontWeight: 600, color: C.ink }}>{m.label}</td>
+                      <td style={{ padding: "9px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{qte(m.qte, m.unite)}</td>
+                      <td style={{ padding: "9px 8px", textAlign: "right", whiteSpace: "nowrap", color: C.soft }}>{m.qte > 0 && m.euros > 0 ? eur2(m.euros / m.qte) + "/" + m.unite : "—"}</td>
+                      <td style={{ padding: "9px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap" }}>{eur2(m.euros)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Lu directement dans les recettes de vos fournées — rien à ressaisir.</div>
+          </div>
+        )}
         {bar("Transformation par fournée — cru → cuit (%)", (x) => isPissa ? (x.r.rendement ? x.r.rendement * 100 : null) : (x.r.rendementGeneric != null ? x.r.rendementGeneric * 100 : null), (v) => v.toFixed(0) + "%", PF.navy)}
         {bar("Coût de revient / kg", (x) => x.r.coutKg, (v) => eur2(v), PF.ochre)}
         {bar("Coefficient multiplicateur moyen", (x) => x.r.coefMoyen, (v) => "×" + v.toFixed(2), PF.good)}
