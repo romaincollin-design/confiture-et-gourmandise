@@ -274,6 +274,15 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
   sur 60 portaient `illu = "orange"`** avec la même couleur `#C25E1E` — fraises, pêche, figues, prunes,
   melon, cerises et oignons s'affichaient en rond orange identique. La règle en requalifie 22.
   Les icônes encore partagées (6 pots d'oignons, 8 prunes) sont des doublons de nom, pas d'icône.
+- **La couleur suit le fruit aussi** : `COUL_PAR_ILLU` + `couleurDe(p)`. Le dessin ne suffit pas —
+  rempli de la même teinte, une fraise ressemble à une pêche. 25 produits portaient exactement
+  `#C25E1E` (couleur de seed). La teinte n'est remplacée que si la valeur stockée est vide ou
+  vaut cette couleur de seed ; un choix manuel est toujours respecté. 29 confitures → **18
+  apparences distinctes** au lieu d'une.
+- ⚠️ **La Caisse n'affichait aucun dessin** : juste un carré de 14 px rempli de `p.col`. Avec 25
+  produits de la même couleur, la grille était uniformément orange. Elle rend désormais `<Illu>`
+  comme la boutique et l'onglet Produits. Dans les **sélecteurs** d'illustration, la pastille prend
+  la couleur de SA clé (`COUL_PAR_ILLU[k]`), pas celle du produit, sinon l'aperçu ment.
 
 ---
 

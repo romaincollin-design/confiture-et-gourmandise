@@ -247,6 +247,21 @@ const illuAuto = (nom) => {
 // "orange" et "" sont les valeurs par defaut jamais choisies : le nom prime. Tout autre choix est respecte.
 const illuDe = (p) => ((!p || !p.illu || p.illu === "orange") && illuAuto(p && p.name)) || (p && p.illu) || "";
 
+// Le dessin ne suffit pas : rempli de la même couleur, une fraise ressemble à une pêche.
+// 25 produits portaient exactement #C25E1E (la couleur de seed), d'où une grille toute orange.
+// La teinte suit donc le fruit — sauf si le commerçant en a choisi une lui-même.
+const COUL_PAR_ILLU = {
+  fraise: "#C0392B", berry: "#8E2749", mure: "#5B2150", cerise: "#A4243B", figue: "#6B3B6E",
+  peche: "#E08A5B", apricot: "#E0922E", plum: "#5B2A4A", melon: "#E4A23B", orange: "#E07A1F",
+  lemon: "#E3B100", apple: "#B23A2E", quince: "#D8A93A", oignon: "#C08A5A",
+};
+const COUL_SEED = "#c25e1e";
+const couleurDe = (p) => {
+  const col = (p && p.col) || "";
+  if (col && col.toLowerCase() !== COUL_SEED) return col;   // teinte choisie à la main : on la respecte
+  return COUL_PAR_ILLU[illuDe(p)] || col || C.caramel;
+};
+
 /* ---------------- CLIENT ---------------- */
 function ClientView(props) {
   const { step, cust, setStep } = props;
@@ -500,7 +515,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
               const q = cart[p.id] || 0; const out = p.stock === 0 && !p.soon;
               return (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 22px", borderTop: `1px solid ${C.line}`, opacity: p.soon ? .6 : 1 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(p)} col={p.col} /></div>
+                  <div style={{ width: 46, height: 46, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(p)} col={couleurDe(p)} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: C.soft }}>
@@ -545,7 +560,7 @@ function Cart({ cartLines, add, sub1, sub, discount, total, promoInput, setPromo
       <StepHead onBack={() => setStep("shop")} title="Votre panier" sub={`${cartLines.length} article${cartLines.length > 1 ? "s" : ""}`} />
       {cartLines.map((l) => (
         <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${C.line}` }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(l)} col={l.col} s={32} /></div>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={illuDe(l)} col={couleurDe(l)} s={32} /></div>
           <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600, fontSize: 13.5 }}>{l.name}</div><div style={{ fontSize: 12, color: C.soft }}>{eur(l.price)} · {l.unit}</div></div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, border: `1px solid ${C.line}`, borderRadius: 9, padding: 2 }}>
             <Sq onClick={() => sub1(l.id)}><Minus size={14} color={C.ink} /></Sq>
@@ -3984,7 +3999,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
           </div>
           <div style={{ margin: "12px 0 0" }}><MiniLabel>Illustration & couleur</MiniLabel>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" }}>
-              {ILLUS.map((k) => (<button key={k} onClick={() => setNw({ ...nw, illu: k })} className="ca-tap" style={swatch(nw.illu === k)}><Illu k={k} col={nw.col} s={30} /></button>))}
+              {ILLUS.map((k) => (<button key={k} onClick={() => setNw({ ...nw, illu: k })} className="ca-tap" style={swatch(nw.illu === k)}><Illu k={k} col={COUL_PAR_ILLU[k] || nw.col} s={30} /></button>))}
               <input type="color" value={nw.col} onChange={(e) => setNw({ ...nw, col: e.target.value })} title="Couleur" style={{ width: 40, height: 40, border: `1px solid ${C.line}`, borderRadius: 10, background: C.cream, cursor: "pointer", marginLeft: 4 }} />
             </div>
           </div>
@@ -4016,7 +4031,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                 {items.map((p) => (
                   <div key={p.id} style={{ ...card(), opacity: p.active === false ? .55 : 1 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
-                      <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={p.col} s={32} /></button>
+                      <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
@@ -4048,7 +4063,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                         </div>
                         <MiniLabel>Illustration</MiniLabel>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                          {ILLUS.map((k) => (<button key={k} onClick={() => updField(p.id, "illu", k)} className="ca-tap" style={{ ...swatch(p.illu === k), width: 38, height: 38 }}><Illu k={k} col={p.col} s={28} /></button>))}
+                          {ILLUS.map((k) => (<button key={k} onClick={() => updField(p.id, "illu", k)} className="ca-tap" style={{ ...swatch(p.illu === k), width: 38, height: 38 }}><Illu k={k} col={COUL_PAR_ILLU[k] || p.col} s={28} /></button>))}
                         </div>
                       </div>
                     )}
@@ -5634,7 +5649,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
               return (
               <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : (epuise ? C.jam : C.line)}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78, opacity: epuise ? 0.6 : 1 }}>
                 <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ width: 14, height: 14, borderRadius: 5, background: p.col, display: "inline-block" }} />
+                  <span style={{ display: "inline-flex" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={30} /></span>
                   {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
                 </span>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
