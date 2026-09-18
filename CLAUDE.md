@@ -265,6 +265,14 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 - Encarts de calcul : texte **en gras uniforme**, une seule couleur — pas de mélange gras/normal.
 - Récap chiffrés : **vignettes** (pastilles fond crème), pas de lignes de texte brut.
 - Formatage : `eur()`, `eur2()`, `eur3()` pour les montants ; virgule française.
+- **Téléphones** : toujours via `formatTel()`. Les numéros sont saisis comme ils viennent
+  (`0609908489`, `+33660871748`, `06 16 94 44 70`, `+393348101516`) et empilés dans une colonne
+  c'était illisible. Un numéro français, écrit `+33` / `0033` ou `0`, se lit **`06 09 90 84 89`** ;
+  un étranger garde son indicatif : **`+39 33 48 10 15 16`**. Affichage seul — la valeur saisie
+  n'est jamais réécrite en base (c'est elle qui sert de clé dans `save_lead`, §4).
+- **Noms** : `capNom()` à l'affichage (« croci » → « Croci », « Dettori-campus » → « Dettori-Campus »).
+- **Colonnes de chiffres** : `fontVariantNumeric: "tabular-nums"`, sinon les chiffres ne s'alignent
+  pas d'une ligne à l'autre. Une valeur à zéro se met en gris (`#C9C0AE`), pas en noir.
 - **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,
   peche, apricot, plum, melon, orange, lemon, apple, quince, oignon, pissa, potpissa, caramel, miel,
   marron, cake, loaf`. Ne PAS proposer de clé sans dessin (elle retombe sur le rond générique).

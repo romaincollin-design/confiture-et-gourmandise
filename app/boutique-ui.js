@@ -1513,6 +1513,26 @@ const grammesUnite = (unit, estPissa) => {
   if (/\bparts?\b/.test(u)) return G_PAR_PLAQUE / PARTS_PAR_PLAQUE;
   return G_PAR_PLAQUE;
 };
+// Les numéros sont saisis comme ils viennent : "0609908489", "+33660871748", "06 16 94 44 70",
+// "+393348101516". Empilés dans une colonne, c'est illisible. On les affiche tous de la même façon.
+// L'affichage seul est normalisé — la valeur saisie n'est jamais réécrite en base.
+const formatTel = (tel) => {
+  const brut = String(tel || "").trim();
+  if (!brut) return "";
+  const plus = brut.startsWith("+") || brut.startsWith("00");
+  let d = brut.replace(/\D/g, "");
+  if (brut.startsWith("00")) d = d.slice(2);
+  const paires = (s) => s.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+  // un numéro français, écrit +33 / 0033 ou 0, se lit en 0X XX XX XX XX
+  if (d.startsWith("33") && (plus || d.length === 11)) { const n = d.slice(2); if (n.length === 9) return paires("0" + n); }
+  if (!plus && d.length === 10 && d.startsWith("0")) return paires(d);
+  if (plus) { const ind = d.startsWith("1") ? 1 : 2; return "+" + d.slice(0, ind) + " " + paires(d.slice(ind)); }
+  return paires(d) || brut;
+};
+// "michele croci" et "Dettori-campus" à côté de "Robert Acouri" : on uniformise l'affichage.
+const capNom = (s) => String(s || "").trim().toLowerCase()
+  .replace(/(^|[\s'’-])([a-zà-ÿ])/g, (m, sep, c) => sep + c.toUpperCase());
+
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
@@ -3742,7 +3762,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
                       )) : <div style={{ fontSize: 12.5, color: C.soft }}>{o.items} article(s) — le détail produit par produit est enregistré pour les nouvelles commandes.</div>}
                       {o.parrain && <div style={{ fontSize: 12, color: C.caramel, fontWeight: 600, marginTop: 8 }}>Parrainé par : {o.parrain}</div>}
                       <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {o.tel && <a href={`tel:${o.tel.replace(/\s/g, "")}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Phone size={14} /> {o.tel}</a>}
+                        {o.tel && <a href={`tel:${o.tel.replace(/\s/g, "")}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Phone size={14} /> {formatTel(o.tel)}</a>}
                         {o.tel && <a href={`https://wa.me/${waNum(o.tel)}`} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#1FA855", textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><MessageCircle size={14} /> WhatsApp</a>}
                         {o.email && <a href={`mailto:${o.email}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Mail size={14} /> {o.email}</a>}
                       </div>
@@ -4164,14 +4184,15 @@ function ProClients({ clients, orders, pass }) {
               {rows.length === 0 ? <tr><td colSpan={8} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
                 : rows.map((c, i) => (
                   <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
-                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{c.prenom || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.ink }}>{c.nom || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap" }}>{c.tel || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</td>
-                    <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{c.ville || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600 }}>{c.orders || 0}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: C.jam, whiteSpace: "nowrap" }}>{eur(c.spent || 0)}</td>
+                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
+                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
+                    {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
+                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{capNom(c.ville) || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{c.orders || 0}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur(c.spent || 0)}</td>
                   </tr>
                 ))}
             </tbody>
@@ -4324,7 +4345,7 @@ function ProMail({ clients }) {
             <div style={{ display: "grid", gap: 6, maxHeight: 220, overflowY: "auto" }}>
               {withTel.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun contact avec téléphone.</div> : withTel.map((c) => (
                 <a key={c.email || c.tel} href={msg ? waLink(c) : undefined} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${C.line}`, background: C.cream, borderRadius: 10, padding: "9px 12px", textDecoration: "none", color: C.ink, pointerEvents: msg ? "auto" : "none", opacity: msg ? 1 : .5 }}>
-                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft }}>{c.tel}</span></span>
+                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft, fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel)}</span></span>
                   <span style={{ display: "flex", alignItems: "center", gap: 5, color: "#1FA855", fontWeight: 600, fontSize: 12, flexShrink: 0 }}><MessageCircle size={14} /> Envoyer</span>
                 </a>
               ))}
