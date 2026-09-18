@@ -12,7 +12,7 @@ const FONT = `
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&display=swap');
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 input, textarea, select { font-family: 'Raleway', sans-serif; }
-input::placeholder, textarea::placeholder { color: #A89E89; }
+input::placeholder, textarea::placeholder { color: #A89E89; font-weight: 400; }
 input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outline-offset: 0; }
 .ca-scroll::-webkit-scrollbar { width: 8px; }
 .ca-scroll::-webkit-scrollbar-thumb { background: #00000018; border-radius: 8px; }
@@ -1329,9 +1329,9 @@ const pfBlank = (famille = "pissaladiere") => {
   const d = FAM_DEFAULTS[famille] || FAM_DEFAULTS.pissaladiere;
   const isPissa = isPissaFam(famille);
   return {
-    id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "3AD Kitchen, Carros", famille, estimation: false,
+    id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "Casa Mama", famille, estimation: false,
     oignon_kg: "", temps_h: isPissa ? 2 : "", temps_min: isPissa ? 10 : "",
-    personnel: [{ nom: "", taux: 20 }], taux_local: 15, transport: 0,
+    personnel: [{ nom: "", taux: 20 }], part_temps: 100, taux_local: 15, transport: 0,
     huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 5 : 0, poivre_g: isPissa ? 3 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
     px_oignon: 1.39, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 12,
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
@@ -1368,8 +1368,13 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   (f.extra || []).forEach((e) => { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; totalMatieres += (pfNum(e.qty) / div) * pfNum(e.price) * nbRondesTotal; });
   const tempsCuissonRondesMin = nbRondesTotal * pfNum(f.temps_par_ronde_min);
   const tauxSum = (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0);
-  const coutMO = tempsTotal * tauxSum;
-  const coutLocal = tempsTotal * pfNum(f.taux_local);
+  // Une heure en cuisine ne fabrique pas qu'un seul produit. `part_temps` (0-100, 100 par défaut)
+  // dit quelle part du temps saisi revient A CETTE fournée ; le reste appartient aux autres
+  // produits faits dans la même heure. Sans ça, 1 h entière tombait sur 866 g de caramel.
+  const partTemps = (f.part_temps === "" || f.part_temps == null) ? 100 : Math.max(0, Math.min(100, pfNum(f.part_temps)));
+  const facteurTemps = partTemps / 100;
+  const coutMO = tempsTotal * tauxSum * facteurTemps;
+  const coutLocal = tempsTotal * pfNum(f.taux_local) * facteurTemps;
   const coutTransport = pfNum(f.transport);
   const coutFraisExtra = (f.frais_extra || []).reduce((sum, x) => sum + pfNum(x.montant), 0);
   const revientHE = totalMatieres + coutMO + coutLocal + coutTransport + coutFraisExtra;
@@ -1380,6 +1385,10 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   const oignonBaseRendement = hasRondes ? oignonTotalRondes : pfNum(f.oignon_kg);
   const rendement = (poidsFini && oignonBaseRendement) ? poidsFini / oignonBaseRendement : null;
   const coutKg = poidsFini ? revientHE / poidsFini : null;
+  // Deux lectures du coût : ce qui sort de la caisse (matières) et ce que la fournée coûte
+  // vraiment une fois le temps compté. Les afficher séparément évite le « 48 €/kg ?! ».
+  const coutMatieresKg = poidsFini ? totalMatieres / poidsFini : null;
+  const coutTempsKg = poidsFini ? (coutMO + coutLocal + coutTransport + coutFraisExtra) / poidsFini : null;
   // rendement générique (hors pissaladière) : poids brut = somme des ingrédients pesables (g/kg/ml/cl/L), les ingrédients "à la pièce" (œufs, citrons…) sont exclus faute de poids connu
   let poidsBrut = 0;
   (f.extra || []).forEach((e) => { if (e.unit !== "piece") { const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div; poidsBrut += pfNum(e.qty) / div; } });
@@ -1449,7 +1458,7 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
   const margePlaquesTotal = margePlaqueUnit != null ? margePlaqueUnit * nbPlaques : 0;
   const revenuTotalGlobal = revenuTotal + revenuPlaques;
   const margeTotaleGlobal = margeTotale + margePlaquesTotal;
-  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes, poidsCuitTotalRondes, ratioMoyenJour };
+  return { tempsTotal, totalMatieres, coutMO, coutLocal, coutTransport, coutFraisExtra, revientHE, poidsFini, partTemps, coutMatieresKg, coutTempsKg, poidsBrut, rendementGeneric, poidsPissa, poidsDispoPots, isEstimated, rendement, coutKg, potLines, poidsAlloue, ecartPoids, coutEmballageTotal, nbPotsTotal, coutProduitTotal, margeTotale, revenuTotal, coutPotMoyen, margeMoyenne, coefMoyen, prixVenteMoyen, nbPlaques, coutPlaque, pxVentePlaque, margePlaqueUnit, revenuPlaques, margePlaquesTotal, revenuTotalGlobal, margeTotaleGlobal, nbFeux, kgParFeu, tempsCycleMin, cyclesParFeu, cyclesTotal, tempsCuissonUtiliseMin, quantiteBruteProcess, tempsEpluchageTotalMin, tempsEpluchageParPersonneMin, nbPersonnelEpluchage, capaciteParTournee, tourneesNecessaires, tempsNecessaireMin, nbRondesTotal, tempsCuissonRondesMin, oignonTotalRondes, poidsCuitTotalRondes, ratioMoyenJour };
 }
 // Nom réduit à son noyau comparable : minuscules, sans accents, sans "confiture/de/la/les",
 // singulier et pluriel confondus. Sert à relier une vente, une fournée et une fiche produit.
@@ -1518,7 +1527,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   };
   useEffect(() => { load(); }, []);
 
-  const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "taux_local", "transport", "poids_fini_kg", "pissa_poids_plaque", "pissa_nb_plaques", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
+  const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "part_temps", "taux_local", "transport", "poids_fini_kg", "pissa_poids_plaque", "pissa_nb_plaques", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
   const pfNorm = (f) => {
     const o = { ...f };
     NUM_KEYS.forEach((k) => { if (o[k] === "" || o[k] == null) { if (k === "poids_fini_kg") o[k] = ""; else o[k] = 0; } else o[k] = pfNum(o[k]); });
@@ -1688,7 +1697,16 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{eur2(r.coutKg)}<span style={{ fontSize: 13, opacity: .8 }}>/kg</span></div>
-        <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>coût total fournée {eur2(r.revientHE)}</div>
+        {/* Les deux lectures séparées : sans ça, « 48,60 €/kg » sur une petite fournée est
+            incompréhensible alors que les matières n'en font que 8,18. */}
+        {r.coutMatieresKg != null && r.coutTempsKg > 0 ? (
+          <div style={{ fontSize: 11.5, opacity: .85, marginTop: 5, lineHeight: 1.5 }}>
+            dont <b>{eur2(r.coutMatieresKg)}/kg</b> de matières et <b>{eur2(r.coutTempsKg)}/kg</b> de temps &amp; frais
+            <div style={{ opacity: .75, marginTop: 2 }}>coût total fournée {eur2(r.revientHE)}</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>coût total fournée {eur2(r.revientHE)}</div>
+        )}
       </div>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / {fam.unitWord} moyen</div>
@@ -2112,7 +2130,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
-            <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. 3AD Kitchen, Carros" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. Casa Mama" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "1 1 160px" }}>
               <Lbl>Famille</Lbl>
               <select value={FAMILLES.some((x) => x.key === f.famille) ? f.famille : ""} onChange={(e) => { if (e.target.value) change({ famille: e.target.value }); }} style={{ ...inp(), marginTop: 4, cursor: "pointer" }}>
@@ -2417,9 +2435,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       {etab === "mo" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Temps de production</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("dont", "temps_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+            {NF("Pour cette fournée", "part_temps", "%", "100", f, (k, v) => change({ [k]: v }))}
+          </div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 14, lineHeight: 1.45, background: "#f7f4ec", borderRadius: 9, padding: "8px 11px" }}>
+            Pendant cette heure, on ne fabrique pas que ce produit. <b style={{ color: C.ink }}>« Pour cette fournée »</b> dit quelle part du temps lui revient — le reste appartient aux autres produits faits en même temps. À 100 %, toute l&apos;heure tombe sur cette seule fournée.
           </div>
           <div style={{ ...h2 }}>Personnel (€/h par personne)</div>
           {(f.personnel || []).map((p, i) => (
@@ -2434,6 +2456,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {NF("Location du local", "taux_local", "€/h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Transport", "transport", "€", "0", f, (k, v) => change({ [k]: v }))}
+          </div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8, lineHeight: 1.45 }}>
+            La production se fait à la maison : ce tarif de local est un <b style={{ color: C.ink }}>loyer fictif</b>, utile pour savoir si le produit tiendrait dans un vrai atelier. Mettez 0 pour ne compter que les dépenses réelles.
           </div>
           {(f.frais_extra || []).map((fr, i) => (
             <div key={"fr" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
@@ -2450,8 +2475,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             return (
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Matières</span><span style={{ color: C.ink }}>{eur2(R.totalMatieres)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Main d'œuvre <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h)</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutMO)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Local <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h)</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutLocal)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Main d'œuvre <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutMO)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Local <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutLocal)}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
                 {tempsManquant && (
@@ -4695,7 +4720,9 @@ function ProLogin({ pin, onOk }) {
 /* ---------------- Helpers ---------------- */
 const card = () => ({ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 11 });
 const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 12 };
-const inp = () => ({ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.jam}22`, background: "#ffffff", fontSize: 14, color: C.ink, boxShadow: "inset 0 1px 2px #241f1708" });
+// Une valeur saisie doit se lire d'un coup d'oeil : noir, gras. Le gris est reserve aux
+// placeholders (::placeholder reste gris et maigre), sinon on ne distingue plus rempli et vide.
+const inp = () => ({ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.jam}22`, background: "#ffffff", fontSize: 14, color: C.ink, fontWeight: 600, boxShadow: "inset 0 1px 2px #241f1708" });
 const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid ${C.line}`, background: s === "Livrée" || s === "Retirée" ? "#3F7A4B14" : C.cream, fontSize: 12.5, fontWeight: 600, color: C.ink, cursor: "pointer" });
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }

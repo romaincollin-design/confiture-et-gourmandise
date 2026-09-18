@@ -140,6 +140,18 @@ pas à repasser en caisse — elle compte déjà dans le chiffre d'affaires).
 - Coef et marge se déduisent tout seuls : `marge = prix_vente − prix_achat`, `coef = prix_vente / prix_achat`.
 - Arrondi des prix de vente suggérés en Production : **euro supérieur** (`Math.ceil`) — ex. 170 g × 42 €/kg = 7,14 € → **8 €**.
 
+### 5.1 bis — Répartition du temps et loyer fictif (coût de revient)
+Une heure en cuisine ne fabrique pas qu'un seul produit. Le champ **`part_temps`** (0-100, **100 par
+défaut**) dit quelle part du temps saisi revient à CETTE fournée ; `coutMO` et `coutLocal` sont
+multipliés par ce facteur. Sans lui, une heure entière tombait sur 866 g de caramel : **48,60 €/kg**
+alors que les matières n'en font que **8,18**. À 25 %, le même pot passe de 5,55 € à 2,34 € et le
+coefficient de 1,1 à 2,6.
+- La production se fait **chez Mama, pas dans un atelier loué** : `taux_local` est un **loyer fictif**
+  qui sert à savoir si le produit tiendrait dans un vrai atelier. À 0, on ne compte que les dépenses
+  réelles. Lieu par défaut d'une nouvelle fournée : **« Casa Mama »**.
+- La tuile « Coût de revient » affiche les **deux lectures** : `coutMatieresKg` (ce qui sort de la
+  caisse) et `coutTempsKg` (temps + frais). Un seul chiffre global était illisible.
+
 ### 5.4 bis — Ce qui peut / ne peut pas bouger un prix de vente
 - Validation de fournée : pousse `cost`, `unit`, `stock`, `coef`. **N'écrase jamais un `price` > 0.**
 - Onglet Produits, champ **Prix d'achat** : recalcule le **coef** seulement.
@@ -274,6 +286,17 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 - **Vue "Total" du dashboard** : ancre interne année 2020 → utiliser `new Date().getFullYear()` au drill-down.
 - **Agrégation produits par `pid`** (identifiant stable), pas par nom : des produits différents partagent
   le même nom (doublons "pot d'oignons", "Pissaladière de ma mère" 250 g / 500 g).
+  ⚠️ Mais `i.pid || i.name` **coupe un même produit en deux lignes** : les ventes saisies avec un pid
+  tombent sous l'identifiant, les anciennes sous le nom. « Pissaladière · à la part » sortait 1re
+  (195 vendus) ET 2e (66 vendus). Toujours passer par **`cleProduit(i)`**, qui résout d'abord la fiche
+  (`prodDe`), et comparer les noms **sans casse ni espaces de bord** (« Pissaladière » ≠ « pissaladière »
+  sinon). Vérifié sur les ventes réelles : 78 lignes → 44.
+- **Libellés de matière en double** : `cleMatiere(label)` regroupe « MELONS »/« Melon »,
+  « Fraises »/« FRAISES », « Œuf »/« Œufs », « vin blanc »/« vin blanc␣ ». Un seul alias explicite :
+  une fournée porte `huile_cl: 75` ET un ingrédient « huile 10 cl » — même huile d'olive comptée deux
+  fois. 56 libellés bruts → 47 matières. L'affichage (`libMat`) ressort l'orthographe la plus fréquente.
+- **Champs de saisie** : une valeur saisie s'affiche en **noir gras** (`inp()` porte `fontWeight: 600`),
+  le gris maigre est réservé aux placeholders. Sans ça on ne distingue pas un champ rempli d'un champ vide.
 - **"Pissaladière" et "Grande fournée"** sont deux onglets séparés (clé de famille `kit_pissaladiere` obsolète).
 - **Décalage de cellules** : un label sur 2 lignes (ex. suffixe "(auto)") désaligne toute la rangée flex.
 - **Champs de saisie** : plafonner la largeur (`maxWidth`) sinon ils s'étirent sur toute la ligne.
