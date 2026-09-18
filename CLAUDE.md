@@ -160,8 +160,25 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
   « Ne pas compter dans les statistiques », et celles au rendement impossible (poids cuit > poids cru).
   Les fournées de démonstration faussaient le ratio oignons/produit fini d'un facteur ~2.
 - Recette exprimée en g d'ingrédient cru **par g de produit fini** (ingrédients ÷ poids fini de la fournée).
-- Affichage : donut par matière + prix d'achat moyen au kg (pondéré par les fournées), même sélecteur
+- **Un ingrédient libellé en contenant n'est pas une matière première** : `estProduitFini(label)`
+  (mots `pot / bocal / plaque / barquette / sachet / boîte`) écarte les lignes qui sont un produit
+  **déjà fabriqué**, réintroduit dans une fournée de type kit. La fournée « Kit Pissaladière » du
+  16/08 porte `Pissaladière (pot 300 g) — d'après ta fournée du 09/08`, 200 kg à 21,09 €/kg :
+  comptée comme matière, elle ajoutait **187,73 kg fantômes sur 402 kg**, soit 47 % du total, et
+  arrivait en tête du donut devant les oignons. Aucune des 56 matières réelles ne porte un de ces
+  mots — la règle est sûre sur les données existantes. Même filtre dans `recettes` et `prixMatiere`.
+- Affichage : donut **cliquable** par matière (→ détail segmenté : quels produits l'ont consommée,
+  part de chacun, coût estimé, rythme semaine/mois/an) + prix d'achat moyen au kg, même sélecteur
   de période (jour/semaine/mois/année) que les ventes.
+- **Consommation par produit** : vue semaine / mois / année, mesurée sur les **8 dernières semaines**
+  glissantes (indépendante de la période affichée), avec les matières de chaque produit et leur coût.
+- **« Vendu sans recette de fournée »** : ce qui s'est vendu sans qu'aucune fournée n'en donne la
+  recette (Miel, Crème de marron, Caramels, Reine Claude…) est estimé **sur les ventes seules**
+  (unités + poids). C'est la marchandise à produire ou racheter pour tenir le même rythme.
+- ⚠️ **Ne jamais rattacher une vente à une recette par préfixe de nom.** Testé sur les données
+  réelles : une fournée au titre `C` (saisie incomplète) captait Citron, Citron Bergamotte, Crème de
+  marron, clafoutis et caramel à tartiner. Rattachement **exact** uniquement (`normNom`) ; ce qui ne
+  matche pas va dans « vendu sans recette », visible, plutôt que deviné.
 
 ### 5.5 bis — Réassort & rythme de vente
 - **« À refaire »** = produit en vente (`active`), non `soon`, stock ≤ 5. Même règle partout :
@@ -236,8 +253,15 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 - Encarts de calcul : texte **en gras uniforme**, une seule couleur — pas de mélange gras/normal.
 - Récap chiffrés : **vignettes** (pastilles fond crème), pas de lignes de texte brut.
 - Formatage : `eur()`, `eur2()`, `eur3()` pour les montants ; virgule française.
-- **Illustrations produit** (`Illu`, clés valides) : `berry, lemon, mure, caramel, cake, loaf, pissa,
-  potpissa, miel, marron`. Ne PAS proposer de clé sans dessin (elles retombaient sur "orange" = doublons).
+- **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,
+  peche, apricot, plum, melon, orange, lemon, apple, quince, oignon, pissa, potpissa, caramel, miel,
+  marron, cake, loaf`. Ne PAS proposer de clé sans dessin (elle retombe sur le rond générique).
+- **L'icône suit le nom du produit** : `illuAuto(name)` (table `ILLU_PAR_NOM`, du plus spécifique au
+  plus général) et `illuDe(p)`. La valeur stockée ne l'emporte que si le commerçant l'a réellement
+  choisie : `""` et `"orange"` sont les défauts de seed, jamais choisis. Au 17/09/2026, **25 produits
+  sur 60 portaient `illu = "orange"`** avec la même couleur `#C25E1E` — fraises, pêche, figues, prunes,
+  melon, cerises et oignons s'affichaient en rond orange identique. La règle en requalifie 22.
+  Les icônes encore partagées (6 pots d'oignons, 8 prunes) sont des doublons de nom, pas d'icône.
 
 ---
 
@@ -281,8 +305,15 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
 ## 10. Idées / chantiers en cours (backlog)
 
 - Kit Apéro (confit d'oignons + biscuits + tapenade + anchois) — à monter via le type "Kit" en Production.
-- Prix d'achat manquants : **ne pas les saisir à la main**, relier les formats de fournée aux produits
-  (§5.2 bis) et valider les fournées — ils descendent tout seuls.
+- Prix d'achat manquants : **ne pas les saisir à la main**. Deux chemins, tous deux automatiques :
+  relier les formats de fournée aux produits (§5.2 bis) puis valider la fournée, **ou** le bouton
+  « Calculer N prix d'achat depuis les fournées » de l'onglet Produits (`coutsDepuisFournees`), qui
+  applique la même définition sans passer par la validation. Au 17/09/2026 : **21 applicables**,
+  **12 bloqués** (le fruit lui-même n'a pas de prix au kilo dans sa fournée — 67 % du poids : CERISES,
+  FIGUES BLANCHES, PÊCHES, PRUNES ROUGES/JAUNES, ORANGES AMÈRES/DOUCES), 27 sans recette.
+  Un ingrédient sans prix pesant **plus de 5 % du poids bloque le calcul** : un coût amputé du fruit
+  principal serait faux et gonflerait les marges. Sous ce seuil (citron, vanille, menthe) on calcule
+  et on affiche ce qui est exclu. Saisir ces 7 prix en Production débloque les 12 produits.
 - Formulaire de contact : améliorer encore la capture (10 % de conversion scan→contact au départ).
 - **Emballages en matières suivies** (bocaux, capuchons, étiquettes) : la quantité consommée se déduit
   du nb de pots produits par fournée, le prix est déjà dans les formats. À brancher sur `materials`.
