@@ -2916,6 +2916,26 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   );
 }
 
+// Le tableau de bord empilait onze cartes dépliées : scroll interminable sur mobile.
+// Seuls la période, les indicateurs et la courbe restent ouverts ; le reste se déplie à la demande,
+// avec un résumé dans l'en-tête pour savoir s'il y a quelque chose dedans sans l'ouvrir.
+// Déclaré au niveau module : défini dans ProStats, React y verrait un type neuf à chaque rendu
+// et remonterait tout le sous-arbre (donuts, listes) sans raison.
+function BlocPliant({ titre, resume, ouvert, onToggle, children }) {
+  return (
+    <div style={{ ...card(), padding: ouvert ? 16 : "13px 16px" }}>
+      <button onClick={onToggle} className="ca-tap" style={{ width: "100%", background: "transparent", border: "none", padding: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, cursor: "pointer", textAlign: "left" }}>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ ...h2, marginBottom: 0, display: "block" }}>{titre}</span>
+          {resume ? <span style={{ display: "block", fontSize: 12, color: C.soft, marginTop: 3 }}>{resume}</span> : null}
+        </span>
+        <ChevronDown size={19} color={C.soft} style={{ flexShrink: 0, transform: ouvert ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+      </button>
+      {ouvert && <div style={{ marginTop: 14 }}>{children}</div>}
+    </div>
+  );
+}
+
 function ProStats({ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }) {
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
@@ -2925,6 +2945,11 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const [calOpen, setCalOpen] = useState(false);
   const [matiere, setMatiere] = useState(null);   // matière ouverte au clic sur le camembert
   const [vueConso, setVueConso] = useState("semaine"); // semaine | mois | annee
+  const [blocs, setBlocs] = useState({});         // sections dépliées (toutes fermées au départ)
+  const [voirTout, setVoirTout] = useState({});   // listes longues : 6 lignes, puis « voir tout »
+  const plus = (cle, total, montres) => total > montres && (
+    <button onClick={() => setVoirTout((v) => ({ ...v, [cle]: true }))} className="ca-tap" style={{ marginTop: 10, background: "transparent", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "8px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Voir les {total - montres} autres</button>
+  );
 
   const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
@@ -3402,6 +3427,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
         );
       })()}
 
+      <BlocPliant ouvert={!!blocs["matieres"]} onToggle={() => setBlocs((b) => ({ ...b, "matieres": !b["matieres"] }))} titre="Matières & consommation" resume={consoPeriode.length ? `${consoPeriode.length} matière${consoPeriode.length > 1 ? "s" : ""} · ${fmtQty(cTot)} sur ${cur.label}` : "aucune consommation calculable sur cette période"}>
       <div style={card()}>
         <div style={{ ...h2 }}>Consommation matières (crues)</div>
         <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Estimée à partir des ventes de la période et des recettes de vos fournées. Touchez une matière pour voir quels produits l&apos;ont consommée.</div>
@@ -3483,7 +3509,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
         </div>
         {consoRythme.produits.length === 0 ? (
           <div style={{ fontSize: 13, color: C.soft }}>Aucune vente reliée à une recette de fournée sur les 8 dernières semaines.</div>
-        ) : consoRythme.produits.map((p, i) => {
+        ) : (voirTout.conso ? consoRythme.produits : consoRythme.produits.slice(0, 6)).map((p, i) => {
           const mult = vueConso === "semaine" ? 1 : vueConso === "mois" ? SEMAINES_PAR_MOIS : 52;
           const cout = p.matieres.reduce((s, m) => s + (prixMatiere[m.ing] > 0 ? (m.gSem * mult / 1000) * prixMatiere[m.ing] : 0), 0);
           // on n'affiche que les matières qui pèsent : sous 1 g la vignette disait « Sel 0 g »
@@ -3504,6 +3530,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
             </div>
           );
         })}
+        {plus("conso", consoRythme.produits.length, 6)}
       </div>
 
       {/* Ce que les fournées ne couvrent pas : estimation à partir des ventes seules. */}
@@ -3511,7 +3538,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
         <div style={card()}>
           <div style={{ ...h2 }}>Vendu sans recette de fournée</div>
           <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Aucune fournée n&apos;en donne la recette : impossible d&apos;en déduire les matières. L&apos;estimation se fait alors sur les ventes seules — c&apos;est ce qu&apos;il faut produire ou racheter pour tenir le même rythme.</div>
-          {consoRythme.sansRecette.map((p, i) => {
+          {(voirTout.sans ? consoRythme.sansRecette : consoRythme.sansRecette.slice(0, 6)).map((p, i) => {
             const mult = vueConso === "semaine" ? 1 : vueConso === "mois" ? SEMAINES_PAR_MOIS : 52;
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", borderBottom: i < consoRythme.sansRecette.length - 1 ? `1px solid ${C.line}` : "none", flexWrap: "wrap" }}>
@@ -3521,9 +3548,12 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
               </div>
             );
           })}
+          {plus("sans", consoRythme.sansRecette.length, 6)}
         </div>
       )}
+      </BlocPliant>
 
+      <BlocPliant ouvert={!!blocs["ventes"]} onToggle={() => setBlocs((b) => ({ ...b, "ventes": !b["ventes"] }))} titre="Ce qui se vend" resume={prods.length ? `${prods.length} produit${prods.length > 1 ? "s" : ""} vendu${prods.length > 1 ? "s" : ""} sur ${cur.label}` : "aucune vente sur cette période"}>
       <div style={card()}>
         <div style={{ ...h2 }}>Répartition des ventes par produit</div>
         {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
@@ -3560,7 +3590,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
 
       <div style={card()}>
         <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
-        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : prods.map((p, i) => {
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (voirTout.prods ? prods : prods.slice(0, 6)).map((p, i) => {
           const catalogue = p.pid ? (products || []).find((x) => x.id === p.pid) : (products || []).find((x) => x.name === p.name);
           // Une seule ligne de contexte : ce qui fait agir, c'est la couverture de stock.
           const parSem = rythme[p.pid || p.name] || 0;
@@ -3585,8 +3615,11 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           </div>
           );
         })}
+        {plus("prods", prods.length, 6)}
       </div>
+      </BlocPliant>
 
+      <BlocPliant ouvert={!!blocs["clients"]} onToggle={() => setBlocs((b) => ({ ...b, "clients": !b["clients"] }))} titre="Clients & fréquentation" resume={`${(clients || []).length} client${(clients || []).length > 1 ? "s" : ""} · ${(visits || []).length} visite${(visits || []).length > 1 ? "s" : ""}`}>
       <div style={card()}>
         <div style={{ ...h2 }}>Zone géographique</div>
         {(() => {
@@ -3622,6 +3655,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           </>;
         })()}
       </div>
+      </BlocPliant>
     </div>
   );
 }
