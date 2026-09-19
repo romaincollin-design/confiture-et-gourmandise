@@ -146,11 +146,33 @@ défaut**) dit quelle part du temps saisi revient à CETTE fournée ; `coutMO` e
 multipliés par ce facteur. Sans lui, une heure entière tombait sur 866 g de caramel : **48,60 €/kg**
 alors que les matières n'en font que **8,18**. À 25 %, le même pot passe de 5,55 € à 2,34 € et le
 coefficient de 1,1 à 2,6.
+- **Une fournée neuve part à 0 € de main d'œuvre et 0 € de local** : la fabrication se fait chez Mama,
+  il n'y a ni salaire ni loyer réels. On remet des valeurs à la main pour **simuler** un atelier.
 - La production se fait **chez Mama, pas dans un atelier loué** : `taux_local` est un **loyer fictif**
   qui sert à savoir si le produit tiendrait dans un vrai atelier. À 0, on ne compte que les dépenses
   réelles. Lieu par défaut d'une nouvelle fournée : **« Casa Mama »**.
 - La tuile « Coût de revient » affiche les **deux lectures** : `coutMatieresKg` (ce qui sort de la
   caisse) et `coutTempsKg` (temps + frais). Un seul chiffre global était illisible.
+
+### 5.8 Contrôle hygiène (fiche séparée, imprimable)
+Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
+document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
+**Parcours en 5 écrans courts** (lot → cuisson → refroidissement → conservation → vérification),
+2 à 4 champs par écran, bouton « maintenant » sur chaque heure.
+- Stocké dans **`production_batches.data.hygiene`** — aucune migration, `admin_save_batch` enregistre
+  déjà tout `data`. L'enregistrement automatique de la fournée s'en occupe.
+- Pré-remplissage depuis la fournée : date, titre, oignons en kg. Le n° de lot est proposé
+  (`AAAAMMJJ-01`). On ne redemande jamais ce que la fournée sait déjà.
+- **Trois contrôles** (constante `HYG`, seuils modifiables) : cuisson à cœur ≥ **63 °C**,
+  refroidissement **63 → 10 °C en moins de 2 h**, conservation ≤ **+4 °C**. Si un point sort des
+  clous, un champ « action corrective » apparaît — obligatoire en HACCP.
+- `dureeMin()` gère le **passage de minuit** (fin de cuisson 23:40 → refroidi 01:10 = 1 h 30).
+- Deux impressions via `imprimer()`, qui ouvre une fenêtre autonome (le poste du marché imprime une
+  étiquette, pas la page) : **étiquette bac gastro** (62 mm : lot, fabrication, DLC, température) et
+  **fiche de fabrication A4** (traçabilité complète + case signature).
+- ⚠️ Les seuils sont des **valeurs par défaut** (arrêté du 21/12/2009, règlement CE 852/2004). C'est
+  le guide de bonnes pratiques de l'atelier et la DDPP qui font foi, pas l'application — le texte
+  le dit à l'écran et sur la fiche imprimée. Ne jamais présenter l'app comme une conformité acquise.
 
 ### 5.4 bis — Ce qui peut / ne peut pas bouger un prix de vente
 - Validation de fournée : pousse `cost`, `unit`, `stock`, `coef`. **N'écrase jamais un `price` > 0.**
@@ -182,6 +204,9 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
 - Affichage : donut **cliquable** par matière (→ détail segmenté : quels produits l'ont consommée,
   part de chacun, coût estimé, rythme semaine/mois/an) + prix d'achat moyen au kg, même sélecteur
   de période (jour/semaine/mois/année) que les ventes.
+- **Achats marchandises** (indicateur du tableau de bord) : matières consommées par les ventes de la
+  période, valorisées au prix d'achat des recettes, et **rapportées au chiffre d'affaires**. C'est le
+  ratio qu'un commerçant regarde en premier.
 - **Consommation par produit** : vue semaine / mois / année, mesurée sur les **8 dernières semaines**
   glissantes (indépendante de la période affichée), avec les matières de chaque produit et leur coût.
 - **« Vendu sans recette de fournée »** : ce qui s'est vendu sans qu'aucune fournée n'en donne la

@@ -1346,7 +1346,9 @@ const pfBlank = (famille = "pissaladiere") => {
   return {
     id: null, titre: "", date: new Date().toISOString().slice(0, 10), lieu: "Casa Mama", famille, estimation: false,
     oignon_kg: "", temps_h: isPissa ? 2 : "", temps_min: isPissa ? 10 : "",
-    personnel: [{ nom: "", taux: 20 }], part_temps: 100, taux_local: 15, transport: 0,
+    // La fabrication se fait chez Mama : ni salaire ni loyer réels. Une fournée neuve part donc à 0
+    // sur les deux. On les remet à la main pour SIMULER un atelier (cf. CLAUDE.md 5.1 bis).
+    personnel: [{ nom: "", taux: 0 }], part_temps: 100, taux_local: 0, transport: 0,
     huile_cl: isPissa ? 50 : 0, sel_g: isPissa ? 5 : 0, poivre_g: isPissa ? 3 : 0, anchois_g: isPissa ? 150 : 0, thym_g: isPissa ? 3 : 0, ail_g: isPissa ? 50 : 0,
     px_oignon: 1.39, px_huile: 8, px_sel: 1.5, px_poivre: 55, px_anchois: 22, px_thym: 65, px_ail: 12,
     poids_fini_kg: d.poids_fini_kg != null ? d.poids_fini_kg : "",
@@ -1536,6 +1538,263 @@ const capNom = (s) => String(s || "").trim().toLowerCase()
 const eur2 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
 
+/* ---------------- Contrôle hygiène (fiche séparée de la fournée) ---------------- */
+// Seuils par défaut : arrêté du 21 décembre 2009 (refroidissement rapide +63 °C → +10 °C en moins
+// de 2 h) et règlement CE 852/2004 (traçabilité du lot). Ce sont des VALEURS PAR DÉFAUT, modifiables :
+// c'est le guide de bonnes pratiques de l'atelier et la DDPP qui font foi, pas cette application.
+const HYG = { cuissonMin: 63, refroidMaxMin: 120, refroidCible: 10, conservMax: 4, dlcJours: 3 };
+
+const hMin = (h) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(h || "").trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+const dureeMin = (a, b) => { const x = hMin(a), y = hMin(b); if (x == null || y == null) return null; return y >= x ? y - x : y + 1440 - x; };
+const fmtDuree = (min) => min == null ? "—" : (min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`);
+const jourPlus = (iso, n) => { const d = new Date(iso || Date.now()); d.setDate(d.getDate() + (Number(n) || 0)); return d.toISOString().slice(0, 10); };
+const frDate = (iso) => { if (!iso) return "—"; const [y, m, j] = String(iso).split("-"); return `${j}/${m}/${y}`; };
+
+// Les trois contrôles que l'inspection regarde. Chacun dit OUI/NON et pourquoi, en français simple.
+function controlesHygiene(h) {
+  const t = Number(h.temp_cuisson);
+  const dRefroid = dureeMin(h.h_fin_cuisson, h.h_refroidi);
+  const tc = Number(h.temp_conservation);
+  return [
+    { cle: "cuisson", titre: "Cuisson à cœur", ok: t >= HYG.cuissonMin, rempli: h.temp_cuisson !== "" && h.temp_cuisson != null,
+      valeur: h.temp_cuisson === "" || h.temp_cuisson == null ? "—" : `${t} °C`, regle: `${HYG.cuissonMin} °C minimum` },
+    { cle: "refroid", titre: "Refroidissement", ok: dRefroid != null && dRefroid <= HYG.refroidMaxMin, rempli: dRefroid != null,
+      valeur: fmtDuree(dRefroid), regle: `${HYG.refroidCible} °C en moins de ${fmtDuree(HYG.refroidMaxMin)}` },
+    { cle: "conserv", titre: "Conservation", ok: tc <= HYG.conservMax, rempli: h.temp_conservation !== "" && h.temp_conservation != null,
+      valeur: h.temp_conservation === "" || h.temp_conservation == null ? "—" : `${tc} °C`, regle: `${HYG.conservMax} °C maximum` },
+  ];
+}
+
+// Impression : on ouvre une fenêtre autonome. Pas de feuille print sur l'app — le poste du marché
+// imprime une étiquette, pas la page entière.
+function imprimer(titre, corps, largeurMm) {
+  const w = window.open("", "_blank", "width=520,height=640");
+  if (!w) { alert("Le navigateur a bloqué la fenêtre d'impression. Autorisez les pop-ups pour ce site."); return; }
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${titre}</title><style>
+    @page { size: ${largeurMm ? `${largeurMm}mm auto` : "A4"}; margin: ${largeurMm ? "4mm" : "14mm"}; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #241F17; margin: 0; ${largeurMm ? `width:${largeurMm}mm;` : ""} }
+    h1 { font-size: ${largeurMm ? "15pt" : "20pt"}; margin: 0 0 2mm; }
+    .sous { font-size: 8pt; color: #6b6355; margin-bottom: 3mm; }
+    .bloc { border: 1.4pt solid #241F17; border-radius: 2mm; padding: 3mm; margin-bottom: 3mm; }
+    .l { display: flex; justify-content: space-between; gap: 4mm; padding: 1.2mm 0; font-size: ${largeurMm ? "9pt" : "10.5pt"}; border-bottom: .4pt solid #ddd6c6; }
+    .l:last-child { border-bottom: none; }
+    .l b { text-align: right; }
+    .gros { font-size: ${largeurMm ? "17pt" : "22pt"}; font-weight: 800; line-height: 1.1; }
+    .cap { font-size: 7.5pt; letter-spacing: .09em; text-transform: uppercase; color: #6b6355; }
+    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    td, th { border: .5pt solid #bdb5a3; padding: 2mm; text-align: left; }
+    th { background: #f2ece0; }
+    .ko { color: #a6482a; font-weight: 700; }
+    .ok { color: #3F7A4B; font-weight: 700; }
+    .sign { margin-top: 8mm; font-size: 9pt; color: #6b6355; }
+  </style></head><body>${corps}</body></html>`);
+  w.document.close(); w.focus();
+  setTimeout(() => { w.print(); }, 250);
+}
+
+function FicheHygiene({ f, change, onClose, profile }) {
+  const h = f.hygiene || {};
+  const set = (k, v) => change({ hygiene: { ...h, [k]: v } });
+  const [etape, setEtape] = useState(0);
+
+  // Pré-remplissage : tout ce que la fournée sait déjà, on ne le redemande pas.
+  useEffect(() => {
+    if (h.initialise) return;
+    const auj = new Date().toISOString().slice(0, 10);
+    const d = f.date || auj;
+    change({ hygiene: {
+      initialise: true, date_fab: d,
+      lot: `${String(d).replace(/-/g, "")}-01`,
+      produit: (f.titre || "").trim() || "Oignons confits",
+      qte_kg: f.oignon_kg || "",
+      origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
+      h_refroidi: "", temp_conservation: "", dlc_jours: HYG.dlcJours, nb_bacs: "",
+      responsable: "", correctif: "",
+    } });
+    // volontairement sur la seule bascule "initialise" : on pré-remplit une fois, pas à chaque frappe
+  }, [h.initialise]);
+
+  const ctrl = controlesHygiene(h);
+  const remplis = ctrl.filter((c) => c.rempli);
+  const nonConformes = remplis.filter((c) => !c.ok);
+  const dlc = jourPlus(h.date_fab, h.dlc_jours == null || h.dlc_jours === "" ? HYG.dlcJours : h.dlc_jours);
+  const enseigne = (profile && profile.name) || "Comme Avant";
+
+  const champ = (label, aide, contenu) => (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 14.5, fontWeight: 700, color: C.ink, marginBottom: aide ? 2 : 7 }}>{label}</div>
+      {aide && <div style={{ fontSize: 12, color: C.soft, marginBottom: 7, lineHeight: 1.4 }}>{aide}</div>}
+      {contenu}
+    </div>
+  );
+  const txt = (k, ph, type) => (
+    <input value={h[k] == null ? "" : h[k]} placeholder={ph} type={type || "text"}
+      inputMode={type === "number" ? "decimal" : undefined}
+      onChange={(e) => set(k, e.target.value)}
+      style={{ ...inp(), fontSize: 17, padding: "13px 14px" }} />
+  );
+  // Une heure se saisit d'un geste : le bouton « maintenant » évite de taper 4 chiffres en cuisine.
+  const heure = (k) => (
+    <div style={{ display: "flex", gap: 8 }}>
+      <input type="time" value={h[k] || ""} onChange={(e) => set(k, e.target.value)} style={{ ...inp(), fontSize: 18, padding: "12px 14px", flex: 1 }} />
+      <button onClick={() => set(k, new Date().toTimeString().slice(0, 5))} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 10, padding: "0 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>maintenant</button>
+    </div>
+  );
+
+  const ETAPES = [
+    { t: "Le lot", s: "Ce qu'on fabrique, et avec quoi" },
+    { t: "La cuisson", s: "Début, fin, température" },
+    { t: "Le refroidissement", s: "Le point le plus surveillé" },
+    { t: "La conservation", s: "Froid, DLC, nombre de bacs" },
+    { t: "Vérification", s: "Relecture et impression" },
+  ];
+
+  const ticketHTML = () => `
+    <h1>${enseigne}</h1>
+    <div class="sous">${h.produit || ""}</div>
+    <div class="bloc">
+      <div class="cap">Lot</div><div class="gros">${h.lot || "—"}</div>
+    </div>
+    <div class="bloc">
+      <div class="l"><span>Fabriqué le</span><b>${frDate(h.date_fab)}</b></div>
+      <div class="l"><span>À consommer avant le</span><b>${frDate(dlc)}</b></div>
+      <div class="l"><span>À conserver à</span><b>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : `+${HYG.conservMax} °C max`}</b></div>
+      ${h.qte_kg ? `<div class="l"><span>Quantité</span><b>${h.qte_kg} kg</b></div>` : ""}
+      ${h.nb_bacs ? `<div class="l"><span>Bacs</span><b>${h.nb_bacs}</b></div>` : ""}
+    </div>`;
+
+  const ficheHTML = () => `
+    <h1>Fiche de fabrication — ${h.produit || ""}</h1>
+    <div class="sous">${enseigne} · lot ${h.lot || "—"} · éditée le ${frDate(new Date().toISOString().slice(0, 10))}</div>
+    <table>
+      <tr><th style="width:42%">Date de fabrication</th><td>${frDate(h.date_fab)}</td></tr>
+      <tr><th>Produit</th><td>${h.produit || "—"}</td></tr>
+      <tr><th>Quantité mise en œuvre</th><td>${h.qte_kg ? `${h.qte_kg} kg` : "—"}</td></tr>
+      <tr><th>Origine de la matière première</th><td>${h.origine || "—"}</td></tr>
+      <tr><th>Début de cuisson</th><td>${h.h_debut_cuisson || "—"}</td></tr>
+      <tr><th>Fin de cuisson</th><td>${h.h_fin_cuisson || "—"}</td></tr>
+      <tr><th>Température à cœur</th><td>${h.temp_cuisson !== "" && h.temp_cuisson != null ? `${h.temp_cuisson} °C` : "—"} <span class="${Number(h.temp_cuisson) >= HYG.cuissonMin ? "ok" : "ko"}">(mini ${HYG.cuissonMin} °C)</span></td></tr>
+      <tr><th>Refroidi à ${HYG.refroidCible} °C à</th><td>${h.h_refroidi || "—"}</td></tr>
+      <tr><th>Durée de refroidissement</th><td>${fmtDuree(dureeMin(h.h_fin_cuisson, h.h_refroidi))} <span class="${(dureeMin(h.h_fin_cuisson, h.h_refroidi) || 999) <= HYG.refroidMaxMin ? "ok" : "ko"}">(maxi ${fmtDuree(HYG.refroidMaxMin)})</span></td></tr>
+      <tr><th>Température de conservation</th><td>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : "—"} <span class="${Number(h.temp_conservation) <= HYG.conservMax ? "ok" : "ko"}">(maxi +${HYG.conservMax} °C)</span></td></tr>
+      <tr><th>À consommer avant le</th><td>${frDate(dlc)}</td></tr>
+      <tr><th>Nombre de bacs</th><td>${h.nb_bacs || "—"}</td></tr>
+      ${h.correctif ? `<tr><th>Action corrective</th><td>${h.correctif}</td></tr>` : ""}
+      <tr><th>Responsable</th><td>${h.responsable || "—"}</td></tr>
+    </table>
+    <div class="sign">Seuils de référence : arrêté du 21 décembre 2009 et règlement CE 852/2004.
+    Document interne d'autocontrôle — à conserver avec le plan de maîtrise sanitaire.<br><br>
+    Signature : ____________________</div>`;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 120, background: "#16140fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 10px", overflowY: "auto" }}>
+      <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px 20px", maxHeight: "min(94vh, 900px)", margin: "auto", overflowY: "auto" }}>
+
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: SCRIPT, fontSize: 23, color: C.jam, lineHeight: 1.15 }}>Contrôle hygiène</div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>Étape {Math.min(etape + 1, 5)} sur 5 · {ETAPES[etape].t}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0, flexShrink: 0 }}><X size={21} /></button>
+        </div>
+
+        <div style={{ display: "flex", gap: 4, marginBottom: 18 }}>
+          {ETAPES.map((e, i) => (
+            <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i <= etape ? C.jam : C.line }} />
+          ))}
+        </div>
+
+        <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>{ETAPES[etape].s}</div>
+
+        {etape === 0 && (<>
+          {champ("Date de fabrication", null, txt("date_fab", "", "date"))}
+          {champ("Numéro de lot", "Proposé automatiquement. Ce numéro relie le bac au registre.", txt("lot", "20260919-01"))}
+          {champ("Produit", null, txt("produit", "Oignons confits"))}
+          {champ("Quantité mise en œuvre (kg)", "Reprise de la fournée, modifiable.", txt("qte_kg", "0", "number"))}
+          {champ("Origine des oignons", "Nom du producteur ou du fournisseur. C'est ce qui permet de remonter la filière.", txt("origine", "ex. Ferme des Collines, Vence"))}
+        </>)}
+
+        {etape === 1 && (<>
+          {champ("Heure de début de cuisson", null, heure("h_debut_cuisson"))}
+          {champ("Heure de fin de cuisson", null, heure("h_fin_cuisson"))}
+          {champ(`Température à cœur (°C)`, `Au thermomètre sonde, au centre de la masse. Minimum ${HYG.cuissonMin} °C.`, txt("temp_cuisson", "65", "number"))}
+          {h.h_debut_cuisson && h.h_fin_cuisson && (
+            <div style={{ background: "#f7f4ec", borderRadius: 10, padding: "10px 12px", fontSize: 13, color: C.ink }}>
+              Temps de cuisson : <b>{fmtDuree(dureeMin(h.h_debut_cuisson, h.h_fin_cuisson))}</b>
+            </div>
+          )}
+        </>)}
+
+        {etape === 2 && (<>
+          <div style={{ background: "#faece5", border: `1px solid ${PF.warn}44`, borderRadius: 11, padding: "11px 13px", fontSize: 12.5, color: C.ink, marginBottom: 16, lineHeight: 1.5 }}>
+            C&apos;est le point que l&apos;inspection regarde en premier : le produit doit passer de <b>{HYG.cuissonMin} °C à {HYG.refroidCible} °C en moins de {fmtDuree(HYG.refroidMaxMin)}</b>. Étalez en bacs peu profonds, sans couvrir.
+          </div>
+          <div style={{ fontSize: 13, color: C.soft, marginBottom: 14 }}>Le chrono démarre à la fin de cuisson{h.h_fin_cuisson ? <> : <b style={{ color: C.ink }}>{h.h_fin_cuisson}</b></> : " (à renseigner à l'étape précédente)"}.</div>
+          {champ(`Heure où le produit atteint ${HYG.refroidCible} °C`, null, heure("h_refroidi"))}
+          {dureeMin(h.h_fin_cuisson, h.h_refroidi) != null && (() => {
+            const d = dureeMin(h.h_fin_cuisson, h.h_refroidi), ok = d <= HYG.refroidMaxMin;
+            return (
+              <div style={{ background: ok ? "#eaf3ec" : "#faece5", border: `1.5px solid ${ok ? C.ok : PF.warn}`, borderRadius: 11, padding: "12px 14px", fontSize: 14, fontWeight: 700, color: ok ? C.ok : PF.warn }}>
+                {ok ? "✓" : "⚠"} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
+              </div>
+            );
+          })()}
+        </>)}
+
+        {etape === 3 && (<>
+          {champ("Température de conservation (°C)", `Relevé du frigo ou de la chambre froide. Maximum +${HYG.conservMax} °C.`, txt("temp_conservation", "3", "number"))}
+          {champ("Durée de conservation (jours)", `À consommer avant le ${frDate(dlc)}.`, txt("dlc_jours", String(HYG.dlcJours), "number"))}
+          {champ("Nombre de bacs", "Combien de contenants sortent de cette production.", txt("nb_bacs", "2", "number"))}
+          {champ("Qui a fait la production", null, txt("responsable", "Prénom"))}
+        </>)}
+
+        {etape === 4 && (<>
+          {ctrl.map((c) => (
+            <div key={c.cle} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 0", borderBottom: `1px solid ${C.line}` }}>
+              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? "✓" : "!"}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: C.ink }}>{c.titre}</span>
+                <span style={{ display: "block", fontSize: 12, color: C.soft }}>{c.regle}</span>
+              </span>
+              <b style={{ fontSize: 15, color: !c.rempli ? C.soft : c.ok ? C.ok : PF.warn, flexShrink: 0 }}>{c.valeur}</b>
+            </div>
+          ))}
+
+          {nonConformes.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              {champ("Qu'avez-vous fait ?", "Un point est hors norme. Notez la décision prise — c'est obligatoire, et ça vous protège.", txt("correctif", "ex. lot écarté / remis au froid immédiatement"))}
+            </div>
+          )}
+
+          <div style={{ background: "#f7f4ec", borderRadius: 11, padding: "12px 14px", fontSize: 13, color: C.ink, margin: "16px 0", lineHeight: 1.55 }}>
+            <b>Lot {h.lot || "—"}</b> · {h.produit || "—"}<br />
+            Fabriqué le {frDate(h.date_fab)} · à consommer avant le <b>{frDate(dlc)}</b>
+          </div>
+
+          <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(), 62)} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 9 }}>
+            Imprimer l&apos;étiquette du bac
+          </button>
+          <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML())} className="ca-tap" style={{ width: "100%", background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
+            Imprimer la fiche de fabrication
+          </button>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 12, lineHeight: 1.5 }}>
+            Seuils par défaut : arrêté du 21 décembre 2009 et règlement CE 852/2004. Vérifiez-les avec votre guide de bonnes pratiques — c&apos;est lui qui fait foi, pas cette application.
+          </div>
+        </>)}
+
+        <div style={{ display: "flex", gap: 9, marginTop: 20 }}>
+          {etape > 0 && <button onClick={() => setEtape(etape - 1)} className="ca-tap" style={{ flex: "0 0 auto", background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 12, padding: "14px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Retour</button>}
+          {etape < 4
+            ? <button onClick={() => setEtape(etape + 1)} className="ca-tap" style={{ flex: 1, background: C.jam, color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Continuer</button>
+            : <button onClick={onClose} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Terminé</button>}
+        </div>
+        <div style={{ fontSize: 11.5, color: C.soft, textAlign: "center", marginTop: 10 }}>Tout est enregistré au fur et à mesure.</div>
+      </div>
+    </div>
+  );
+}
+
 function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
@@ -1548,6 +1807,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
   const [etab, setEtab] = useState("mat");
+  const [hygieneOuverte, setHygieneOuverte] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [cumulFormat, setCumulFormat] = useState("");
@@ -2136,6 +2396,14 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       </div>
 
       {heroCards(R, FAM)}
+
+      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
+          cuisine par quelqu'un qui ne connaît pas le reste de l'app. */}
+      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
+      </button>
+      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {[["mat", "Matières"], ["mo", "Main d'œuvre & frais"], ["pot", "Contenants & vente"]].map(([k, l]) => (
@@ -3335,6 +3603,14 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           const valeurStock = prodsAvecStock.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0);
           const prodsAvecCoutConnu = prodsAvecStock.filter((p) => Number(p.cost) > 0).length;
           return kpi("Valeur du stock", valeurStock > 0 ? eur(valeurStock) : "—", prodsAvecStock.length > 0 ? `${prodsAvecCoutConnu}/${prodsAvecStock.length} produits avec coût connu` : "aucun stock renseigné");
+        })()}
+        {/* Achats marchandises : ce que les ventes de la période ont coûté en matières, au prix
+            d'achat saisi dans les recettes de fournée. Rapporté au CA, c'est le ratio qu'un
+            commerçant surveille en premier. */}
+        {(() => {
+          const achats = consoPeriode.reduce((s, [ing, g]) => s + (prixMatiere[ing] > 0 ? (g / 1000) * prixMatiere[ing] : 0), 0);
+          const pct = A.ca > 0 ? Math.round((achats / A.ca) * 100) : null;
+          return kpi("Achats marchandises", achats > 0 ? eur(achats) : "—", achats > 0 && pct != null ? `${pct}% du chiffre d'affaires` : "aucune recette reliée aux ventes");
         })()}
       </div>
 
