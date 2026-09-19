@@ -217,6 +217,14 @@ pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fru
   marron, clafoutis et caramel à tartiner. Rattachement **exact** uniquement (`normNom`) ; ce qui ne
   matche pas va dans « vendu sans recette », visible, plutôt que deviné.
 
+### 5.4 ter — La marge n'est pas affichée si elle ne veut rien dire
+Sur les données du 19/09/2026 : **1 produit sur 48** a un prix d'achat. La marge s'affichait
+« 20,80 € » à côté d'un CA de **8 289,50 €** — le calcul était juste (20,80 € de marge sur ~36 € de
+ventes dont le coût est connu, soit 58 %) mais **illisible** : un commerçant lit « j'ai gagné 20 € ».
+Sous **5 % du CA couvert**, la tuile affiche `—` et dit ce qui manque (« 1 produit sur 48 a un prix
+d'achat »). Au-dessus, elle affiche le taux et la part du CA couverte. Un chiffre faux-ami est pire
+qu'une case vide. Le déblocage est §10 : le bouton « Calculer N prix d'achat depuis les fournées ».
+
 ### 5.5 bis — Réassort & rythme de vente
 - **« À refaire »** = produit en vente (`active`), non `soon`, stock ≤ 5. Même règle partout :
   chip dans Produits (liste triée du plus urgent au moins urgent) et bandeau repliable en Caisse.

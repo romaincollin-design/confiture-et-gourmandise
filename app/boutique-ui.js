@@ -3596,7 +3596,19 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
         {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
         {/* le "% du CA" n'a de sens que si le CA est > 0 : sinon la division affichait "Infinity%" */}
-        {kpi("Marge", A.caAvecCout > 0 ? eur(A.marge) : "—", A.caAvecCout > 0 ? `${Math.round((A.marge / A.caAvecCout) * 100)}%${A.ca > 0 ? ` · calculée sur ${Math.round((A.caAvecCout / A.ca) * 100)}% du CA (coût connu)` : ""}` : "prix d'achat non renseignés")}
+        {/* Une marge calculée sur une poignée de ventes est pire qu'absente : « 20,80 € » à côté de
+            « 8 289,50 € » de CA se lit « j'ai gagné 20 € ». Sous 5 % du CA couvert, on refuse de
+            l'afficher et on dit ce qui manque. */}
+        {(() => {
+          const part = A.ca > 0 ? A.caAvecCout / A.ca : 0;
+          const avecCout = (products || []).filter((p) => Number(p.cost) > 0).length;
+          const total = (products || []).length;
+          if (A.caAvecCout <= 0 || part < 0.05) {
+            return kpi("Marge", "—", total > 0 ? `${avecCout} produit${avecCout > 1 ? "s" : ""} sur ${total} ont un prix d'achat` : "prix d'achat non renseignés");
+          }
+          const pct = Math.round(part * 100);
+          return kpi("Marge", eur(A.marge), `${Math.round((A.marge / A.caAvecCout) * 100)}% · sur les ${pct}% du CA dont le coût est connu`);
+        })()}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
         {(() => {
           const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
