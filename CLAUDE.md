@@ -381,26 +381,32 @@ lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
 Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
 
 ### 7.1 bis — Une seule grammaire de recette, partout
-**Toutes** les listes de saisie de la fiche fournée suivent la même forme, pour que l'œil n'ait pas
-à réapprendre à lire d'un bloc à l'autre : **en-tête une fois en haut, lignes dessous, colonnes
-alignées**. Deux gabarits seulement :
-- `.pf-extra` — quatre colonnes de recette (Ingrédient · Qté · Unité · Prix/Coût) + corbeille.
-  Utilisé par : les **ingrédients libres** (saisie), le **rappel en lecture seule** juste au-dessus,
-  et les **accompagnements** d'un format « kit ».
-- `.pf-duo` — libellé + montant + corbeille. Utilisé par le **personnel** et les **frais divers**.
-- `.pf-head` — la rangée d'en-tête, commune aux deux.
-Vérifié au navigateur : les 10 rangées de recette (lecture seule + saisie mélangées) tombent sur
-**un seul gabarit de colonnes**, l'en-tête compris ; idem pour les 3 rangées de Main d'œuvre et les
-accompagnements d'un kit. Aucun débordement en 1280 ni en 390 px.
+**Toute recette se lit de la même façon : une CELLULE par ingrédient** — son nom en tête, sa
+quantité et son unité dessous, puis son prix. C'est la forme du bloc « matières premières »
+(oignon, huile, sel, poivre, anchois, thym, ail), et elle s'applique maintenant aux trois autres
+listes qui en utilisaient une différente :
+- les **ingrédients libres** (la recette d'un cake, d'une confiture…),
+- le **rappel en lecture seule** de leur coût, juste au-dessus,
+- les **accompagnements** d'un format « Kit ».
+Classe unique : `.pf-ing`. `.pf-duo` reste pour le personnel et les frais (libellé + montant),
+`.pf-row` pour les rangées de champs simples.
+- ⚠️ **`auto-fill`, jamais `auto-fit`.** `auto-fit` ajuste le nombre de colonnes au nombre de
+  cellules : 7 matières premières donnaient 7 colonnes de 132 px et 12 ingrédients 8 colonnes de
+  114 px — deux grilles qui ne tombaient pas l'une sous l'autre. `auto-fill` fixe les colonnes sur
+  la **largeur disponible**, donc toutes les recettes partagent la même trame.
+- La piste de colonne fait **150 px minimum** : en dessous, « poudre d'amande » ou « bicarbonate »
+  se coupent dans le champ. La corbeille est sur la ligne de l'unité, jamais à côté du nom — elle
+  lui volait la largeur.
+- Vérifié au navigateur en **320 / 390 / 768 / 1280 px** : 3 grilles de recette, cellules de
+  largeur identique partout, aucun nom tronqué, aucun débordement.
+- ⚠️ La forme en **lignes avec en-tête** (ancienne classe `.pf-extra`) a été retirée : une recette
+  ne se lit plus jamais en tableau. Ne pas la réintroduire pour une liste d'ingrédients.
 
-### 7.1 ter — Une liste de saisie : les en-têtes UNE fois
-Les « Ingrédients libres » répétaient « INGRÉDIENT / QTÉ / UNITÉ / PRIX » **au-dessus de chaque
-ligne** : douze ingrédients donnaient douze fois les mêmes quatre libellés. Désormais une seule
-rangée d'en-tête (`.pf-extra-head`) et les lignes en colonnes alignées (`.pf-extra`).
-Sur téléphone, cinq colonnes ne tiennent pas : l'en-tête disparaît, chaque champ reprend son
-libellé (`.pf-lbl`), le nom passe sur toute la largeur, quantité et unité côte à côte.
-L'unité du prix (« €/kg », « €/L », « €/u ») est **à côté** du champ et à **largeur fixe** — au-dessus
-elle recréait du bruit à chaque ligne, et à largeur libre elle décalait les champs entre eux.
+### 5.1 sexies — Il faut une rubrique pour pouvoir reclasser
+La fournée « cake aux fruits confits » restait en famille `pissaladiere` non par négligence :
+**aucune famille « Cake » n'existait**, donc le sélecteur ne proposait rien de juste. Famille
+`cake` (« Cake / Gâteau ») ajoutée à `FAMILLES`. Règle générale : avant de demander au commerçant
+de reclasser une fournée, vérifier que la destination existe.
 
 ### 7.2 — Version mobile de l'espace commerçant
 L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
