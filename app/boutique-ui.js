@@ -33,12 +33,64 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .caisse-ticket { position: sticky; top: 0; }
   .caisse-empty-ticket { display: block; }
 }
+/* --- Fiche fournée : une colonne par ingrédient (quantité + son prix dans la même cellule) --- */
+.pf-ing { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+/* --- Rangées de champs alignées en grille plutôt qu'en flex qui enroule (fin du quinconce) --- */
+.pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+/* --- Ingrédients libres : les en-têtes UNE fois, les lignes en colonnes alignées --- */
+.pf-extra { display: grid; grid-template-columns: minmax(0, 2.4fr) 92px 78px 120px 38px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
+/* Une seule grammaire pour TOUTES les listes de saisie de la fiche fournée : en-tête une
+   fois, lignes dessous, colonnes alignées. L'œil n'a pas à réapprendre à lire d'un bloc
+   à l'autre. .pf-extra = recette (4 colonnes), .pf-duo = libellé + montant. */
+.pf-duo { display: grid; grid-template-columns: minmax(0, 2fr) 128px 40px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
+.pf-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
+.pf-lbl { display: none; }
+.pf-prix { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+/* Largeur FIXE : « €/kg », « €/L » et « €/u » n'ont pas la même longueur, sans elle les
+   champs de prix n'auraient pas tous la même largeur d'une ligne à l'autre. */
+.pf-unit { flex: 0 0 34px; font-size: 10.5px; color: #A89E89; font-weight: 600; white-space: nowrap; }
+
+/* --- Tableaux larges : on laisse glisser le tableau, jamais la page --- */
+.pro-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 @media (max-width: 720px) {
-  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: 14px; z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
+  /* Le ticket de caisse remonte au-dessus de la barre d'onglets, sinon il la recouvre. */
+  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
   .pro-shell { flex-direction: column; min-height: 0; }
-  .pro-nav { width: 100%; display: flex; gap: 6px; overflow-x: auto; border-right: none; border-bottom: 1px solid #241F1718; padding: 8px; -webkit-overflow-scrolling: touch; }
-  .pro-nav button { width: auto !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; }
-  .pro-content { max-height: none; padding: 16px 14px 90px; }
+  /* Onglets en BAS sur téléphone : au marché on tient l'appareil d'une main, le haut de
+     l'écran n'est pas atteignable. Même liste, même ordre — seule la position change. */
+  .pro-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; width: 100%; display: flex; gap: 2px; overflow-x: auto; border-right: none; border-bottom: none; border-top: 1px solid #241F1718; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; box-shadow: 0 -8px 22px -14px #00000066; }
+  .pro-nav button { width: auto !important; flex-direction: column; gap: 3px !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; font-size: 10.5px !important; padding: 7px 9px !important; min-width: 60px; justify-content: center; }
+  .pro-content { max-height: none; padding: 16px 14px calc(150px + env(safe-area-inset-bottom)); }
+  /* Les grilles à colonnes fixes de l'admin (fiche produit, coordonnées client, promos,
+     réglages) tenaient sur 6 colonnes : illisibles sur un téléphone. */
+  .pro-cols { grid-template-columns: 1fr !important; }
+  .pro-cols2 { grid-template-columns: 1fr 1fr !important; }
+  .pf-ing { grid-template-columns: repeat(2, 1fr); }
+  .pf-row { grid-template-columns: repeat(2, 1fr); }
+  /* Cinq colonnes ne tiennent pas sur un téléphone : l'en-tête disparaît et chaque champ
+     reprend son propre libellé. Le nom sur toute la largeur, quantité et unité côte à côte. */
+  .pf-head { display: none; }
+  .pf-extra { grid-template-columns: 1fr 1fr 40px; gap: 6px 8px; padding: 9px 0; }
+  .pf-extra > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
+  .pf-extra > :nth-child(5) { grid-column: 3; grid-row: 1; align-self: end; }
+  .pf-extra > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .pf-extra > :nth-child(3) { grid-column: 2; grid-row: 2; }
+  .pf-extra > :nth-child(4) { grid-column: 1 / 3; grid-row: 3; }
+  .pf-duo { grid-template-columns: 1fr 40px; gap: 6px 8px; padding: 9px 0; }
+  .pf-duo > :nth-child(1) { grid-column: 1; grid-row: 1; }
+  .pf-duo > :nth-child(3) { grid-column: 2; grid-row: 1; align-self: end; }
+  .pf-duo > :nth-child(2) { grid-column: 1 / 3; grid-row: 2; }
+  .pf-lbl { display: block; }
+  .pf-unit { display: none; }
+  .pf-prix { margin-top: 0; }
+  /* Cibles tactiles : 44 px minimum, sinon on tape à côté sur un stand de marché. */
+  .pro-content input, .pro-content select, .pro-content textarea { font-size: 16px; min-height: 42px; }
+  .pro-content table { font-size: 12px; }
+}
+/* Sous 360 px (petits iPhone) deux colonnes deviennent illisibles : on passe à une. */
+@media (max-width: 359px) {
+  .pf-ing, .pf-row, .pro-cols2 { grid-template-columns: 1fr !important; }
 }
 `;
 
@@ -1102,7 +1154,7 @@ function ProFournisseurs({ pass }) {
               </div>
 
               <div style={{ ...h2 }}>Coordonnées</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+              <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Contact</span><br /><b>{[selS.contact_prenom, selS.contact_nom].filter(Boolean).join(" ") || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selS.tel || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selS.email || "—"}</b></div>
@@ -1795,6 +1847,20 @@ function FicheHygiene({ f, change, onClose, profile }) {
   );
 }
 
+/* En-tête d'étape de la fiche fournée. AU NIVEAU MODULE : défini à l'intérieur de
+   ProProduction, chaque frappe au clavier en recréerait le type et React démonterait
+   tout le sous-arbre — le champ en cours de saisie perdrait le focus. */
+function EtapeFournee({ n, titre, sous }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
+      <span style={{ width: 30, height: 30, borderRadius: 10, background: PF.navy, color: "#fff", display: "grid", placeItems: "center", fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{n}</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontFamily: SCRIPT, fontSize: 20, color: PF.navy, lineHeight: 1.15 }}>{titre}</span>
+        {sous && <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 2 }}>{sous}</span>}
+      </span>
+    </div>
+  );
+}
 function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
@@ -1806,6 +1872,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [annonce, setAnnonce] = useState(null);             // message prêt à envoyer après une fournée validée
   const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [echecSauvegarde, setEchecSauvegarde] = useState(false);
   const [etab, setEtab] = useState("mat");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
@@ -1917,17 +1984,46 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     return nouveauSnapshot;
   };
 
+  // Un enregistrement sans id est un INSERT. Si un second part avant que le premier ait renvoyé
+  // son id, on crée DEUX fournées au lieu d'en modifier une — et la suite de la saisie part dans
+  // une fiche que l'écran n'affiche pas. Prouvé en base : deux « pain d'épices » identiques nés
+  // le 17/09/2026 à 171 µs d'écart, et la fournée fantôme titrée « C » (§8) née 0,6 s — la durée
+  // exacte de l'anti-rebond — avant « CARAMEL POT ». On attend donc l'insert en vol.
+  const insertEnVol = useRef(null);
   const persist = async (fRaw) => {
     if (!supabase || !pass) return;
     const f = pfNorm(fRaw);
+    if (!f.id && insertEnVol.current) {
+      try { const id = await insertEnVol.current; if (id) f.id = id; } catch (e) {}
+    }
+    const envoi = (async () => {
+      const { data, error } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
+      if (error) throw error;
+      return data;
+    })();
+    if (!f.id) insertEnVol.current = envoi;
     try {
-      const { data } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
+      const data = await envoi;
       if (data && !f.id) { setCur((c) => c ? { ...c, id: data } : c); f.id = data; }
       setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
+      setEchecSauvegarde(false);
       setSaved(true); setTimeout(() => setSaved(false), 1200);
-    } catch (e) {}
+    } catch (e) {
+      // Un échec avalé en silence, sous un bandeau « enregistrement automatique », fait perdre
+      // la saisie sans que personne ne le voie. On le dit à l'écran.
+      setEchecSauvegarde(true);
+    } finally {
+      if (insertEnVol.current === envoi) insertEnVol.current = null;
+    }
   };
-  const change = (patch) => { setCur((c) => { const nf = { ...c, ...patch }; clearTimeout(timer.current); timer.current = setTimeout(() => persist(nf), 600); return nf; }); };
+  // L'anti-rebond est posé HORS de l'updater : React peut réinvoquer une fonction de mise à jour,
+  // et un clearTimeout/setTimeout qui s'y trouve se rejoue alors avec une valeur périmée.
+  const aEnregistrer = useRef(null);
+  const change = (patch) => {
+    setCur((c) => { const nf = { ...c, ...patch }; aEnregistrer.current = nf; return nf; });
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
+  };
   const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("mat"); setView("edit"); };
   const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("mat"); setView("edit"); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
@@ -2390,20 +2486,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
             {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
           </div>
-          <div style={{ fontSize: 12, color: saved ? PF.good : C.soft }}>{f.titre ? FAM.label + " · " : ""}{saved ? "✓ enregistré" : "enregistrement automatique"}</div>
+          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "⚠ non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
         </div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
 
       {heroCards(R, FAM)}
-
-      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
-          cuisine par quelqu'un qui ne connaît pas le reste de l'app. */}
-      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
-      </button>
-      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {[["mat", "Matières"], ["mo", "Main d'œuvre & frais"], ["pot", "Contenants & vente"]].map(([k, l]) => (
@@ -2411,8 +2499,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         ))}
       </div>
 
-      {etab === "mat" && (
+      {etab === "mat" && (<>
+        {/* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
+            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
+            la cuisson une fois le résultat déjà saisi. */}
         <div style={card()}>
+          <EtapeFournee n={1} titre="Préparation" sous="Ce qui entre dans la fournée" />
           <button onClick={() => change({ estimation: !f.estimation })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.estimation ? "#fff7e0" : "#f7f4ec", border: `1.5px solid ${f.estimation ? PF.yellow : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
             <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.estimation ? PF.ochre : C.soft}`, background: f.estimation ? PF.ochre : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.estimation && <Check size={13} color="#fff" />}</span>
             <span style={{ flex: 1 }}>
@@ -2431,7 +2523,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+          <div className="pf-row" style={{ marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. Casa Mama" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "1 1 160px" }}>
@@ -2450,7 +2542,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           )}
           {isPissa && (
             <div style={{ padding: "6px 0 10px", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {/* Une colonne par ingrédient, quantité et prix dans LA MÊME cellule. Deux rangées
+                  séparées enroulaient chacune de leur côté : « Prix anchois » ne tombait pas sous
+                  « Anchois ». En grille, un décalage est impossible. */}
+              <div className="pf-ing">
                 {PF_ING.map((ing) => {
                   const chosenUnit = pfDisplayUnit(f, ing);
                   const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
@@ -2458,7 +2553,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                   const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
                   const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
                   return (
-                    <div key={ing.key} style={{ flex: "1 1 84px", minWidth: 78, maxWidth: 120 }}>
+                    <div key={ing.key}>
                       <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</span></Lbl>
                       <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
                         <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
@@ -2470,49 +2565,45 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                           } else {
                             change({ [ing.qf]: stored });
                           }
-                        }} style={{ ...inp(), padding: "6px 6px", fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0 }} />
-                        <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), padding: "6px 1px", fontSize: 10.5, width: 36, flexShrink: 0 }}>
+                        }} style={{ ...inp(), padding: "8px 8px", fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                        <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), padding: "8px 1px", fontSize: 10.5, width: 38, flexShrink: 0 }}>
                           {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                         </select>
+                      </div>
+                      <div style={{ marginTop: 7 }}>
+                        <Lbl>Prix <span style={{ fontWeight: 400, color: C.soft }}>({ing.pu})</span></Lbl>
+                        <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                          {ing.key !== "oignon" && (
+                            <input inputMode="decimal" title="Réf. /kg oignon" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 4px", fontSize: 11.5, color: PF.navy, fontWeight: 700, width: 44, flexShrink: 0 }} />
+                          )}
+                          <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                {PF_ING.map((ing) => (
-                  <div key={ing.key + "px"} style={{ flex: "1 1 120px", minWidth: 110, maxWidth: 160 }}>
-                    <Lbl>Prix {ing.label} <span style={{ fontWeight: 400, color: C.soft }}>({ing.pu})</span></Lbl>
-                    <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
-                      {ing.key !== "oignon" && (
-                        <input inputMode="decimal" title="Réf. /kg oignon" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 5px", fontSize: 11.5, color: PF.navy, fontWeight: 700, width: 46, flexShrink: 0 }} />
-                      )}
-                      <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
+          {/* Même grammaire que la recette juste en dessous : en-tête une fois, colonnes alignées.
+              Ces lignes rappellent les ingrédients libres et leur coût — elles doivent tomber
+              exactement sous les mêmes colonnes, sinon l'œil recommence sa lecture. */}
+          {isPissa && (f.extra || []).length > 0 && (
+            <div className="pf-extra pf-head">
+              <span>Ingrédient</span><span>Quantité</span><span>Unité</span><span>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</span><span />
+            </div>
+          )}
           {isPissa && (f.extra || []).map((e, i) => {
             const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
             const cost = (pfNum(e.qty) / div) * pfNum(e.price);
             return (
-              <div key={"exf" + i} style={{ display: "flex", gap: 6, alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-                <div style={{ width: 82, flexShrink: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
-                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
-                  <Lbl>Quantité</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div>
-                </div>
-                <div style={{ flex: "0 1 56px", minWidth: 52 }}>
-                  <Lbl>Unité</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div>
-                </div>
-                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
-                  <Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div>
-                </div>
+              <div key={"exf" + i} className="pf-extra">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, minWidth: 0 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
+                <div><span className="pf-lbl"><Lbl>Quantité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div></div>
+                <div><span className="pf-lbl"><Lbl>Unité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div></div>
+                <div><span className="pf-lbl"><Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div></div>
+                <span />
               </div>
             );
           })}
@@ -2523,29 +2614,89 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessous.
             </div>
           )}
+          {/* Les en-têtes « Ingrédient / Qté / Unité / Prix » se répétaient AU-DESSUS DE CHAQUE
+              ligne : dix ingrédients donnaient dix fois les mêmes quatre libellés. Une seule
+              rangée d'en-tête en haut, les lignes dessous, en colonnes alignées. Sur téléphone
+              la colonne disparaît et chaque champ reprend son libellé (voir .pf-extra). */}
+          {(f.extra || []).length > 0 && (
+            <div className="pf-extra pf-head">
+              <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
+            </div>
+          )}
           {(f.extra || []).map((e, i) => (
-            <div key={"x" + i} style={{ display: "flex", gap: 6, alignItems: "flex-end", padding: "5px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-              <div style={{ flex: "2 1 100px", minWidth: 90 }}>
-                <Lbl>Ingrédient</Lbl>
-                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} />
-              </div>
-              <div style={{ flex: "1 1 54px", minWidth: 50 }}><Lbl>Qté</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
-              <div style={{ flex: "0 1 54px", minWidth: 50 }}>
-                <Lbl>Unité</Lbl>
+            <div key={"x" + i} className="pf-extra">
+              <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} /></div>
+              <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div>
+                <span className="pf-lbl"><Lbl>Unité</Lbl></span>
                 <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="cl">cl</option>
-                  <option value="L">L</option>
-                  <option value="piece">pièce</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="cl">cl</option>
+                <option value="L">L</option>
+                <option value="piece">pièce</option>
                 </select>
               </div>
-              <div style={{ flex: "1 1 68px", minWidth: 62 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /><span className="pf-unit">{(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
               <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
             </div>
           ))}
           <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
+            <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
+          </div>
+        </div>
+
+        {isPissa && (
+          <div style={card()}>
+            <EtapeFournee n={2} titre="Cuisson" sous="Feux, cycles et durée" />
+            <div>
+              <div style={{ ...h2 }}>Mode de préparation</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Combien de feux, combien de kilos par feu, combien de temps par cycle. Le temps de production saisi dans &laquo;&nbsp;Main d&apos;&#339;uvre &amp; frais&nbsp;&raquo; dit combien de cycles rentrent dans la journée.</div>
+              <div className="pf-row" >
+                {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+              </div>
+              {R.cyclesTotal > 0 && (
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    Capacité max en {R.tempsTotal.toLocaleString("fr-FR")} h : <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg crus</span> → <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span>
+                  </span>
+                  <button onClick={() => {
+                    const q = R.quantiteBruteProcess; // kg
+                    change({
+                      oignon_kg: Math.round(q * 1000) / 1000,
+                      ...pfSuggestRecipe(f, q),
+                      poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
+                    });
+                  }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
+                </div>
+              )}
+              {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
+                  </span>
+                </div>
+              )}
+              {FAM.key === "grande_fournee" && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ ...h2 }}>Temps d'épluchage</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+                    {NF("Kg épluchés / min / personne", "epluchage_kg_par_min", "kg", "0,5", f, (k, v) => change({ [k]: v }))}
+                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 0,5 kg/min</div>
+                  </div>
+                  {R.tempsEpluchageTotalMin > 0 && (
+                    <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg ÷ {pfNum(f.epluchage_kg_par_min)} kg/min = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
           {isPissa && (() => {
             const rondes = f.rounds_extra || [];
@@ -2674,71 +2825,22 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               </div>
             );
           })()}
-
-          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
-            <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
           </div>
+        )}
+
+        <div style={card()}>
+          <EtapeFournee n={isPissa ? 3 : 2} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
-
-          {isPissa && (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ ...h2 }}>Process de fabrication (optionnel — pour estimer une grande quantité)</div>
-              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Renseigne aussi le temps de production dans l'onglet « Main d'œuvre & frais » — c'est lui qui détermine combien de cycles de cuisson rentrent dans la journée, et donc la quantité totale produite.</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
-                {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
-                {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
-              </div>
-              {R.cyclesTotal > 0 && (
-                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    Capacité max en {R.tempsTotal.toLocaleString("fr-FR")} h : <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg crus</span> → <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span>
-                  </span>
-                  <button onClick={() => {
-                    const q = R.quantiteBruteProcess; // kg
-                    change({
-                      oignon_kg: Math.round(q * 1000) / 1000,
-                      ...pfSuggestRecipe(f, q),
-                      poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
-                    });
-                  }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
-                </div>
-              )}
-              {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
-                  </span>
-                </div>
-              )}
-              {FAM.key === "grande_fournee" && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ ...h2 }}>Temps d'épluchage</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-                    {NF("Kg épluchés / min / personne", "epluchage_kg_par_min", "kg", "0,5", f, (k, v) => change({ [k]: v }))}
-                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 0,5 kg/min</div>
-                  </div>
-                  {R.tempsEpluchageTotalMin > 0 && (
-                    <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg ÷ {pfNum(f.epluchage_kg_par_min)} kg/min = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
         </div>
-      )}
+      </>)}
 
       {etab === "mo" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Temps de production</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <div className="pf-row" style={{ marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("dont", "temps_min", "min", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Pour cette fournée", "part_temps", "%", "100", f, (k, v) => change({ [k]: v }))}
@@ -2747,28 +2849,38 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             Pendant cette heure, on ne fabrique pas que ce produit. <b style={{ color: C.ink }}>« Pour cette fournée »</b> dit quelle part du temps lui revient — le reste appartient aux autres produits faits en même temps. À 100 %, toute l&apos;heure tombe sur cette seule fournée.
           </div>
           <div style={{ ...h2 }}>Personnel (€/h par personne)</div>
-          {(f.personnel || []).map((p, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
-              <div style={{ flex: "2 1 120px" }}><Lbl>Nom</Lbl><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ flex: "1 1 90px" }}><Lbl>Taux (€/h)</Lbl><input inputMode="decimal" value={p.taux == null ? "" : String(p.taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          {(f.personnel || []).length > 0 && (
+            <div className="pf-duo pf-head">
+              <span>Nom</span><span>Taux (€/h)</span><span />
             </div>
+          )}
+          {(f.personnel || []).map((p, i) => (
+            <div key={i} className="pf-duo">
+            <div><span className="pf-lbl"><Lbl>Nom</Lbl></span><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div><span className="pf-lbl"><Lbl>Taux (€/h)</Lbl></span><input inputMode="decimal" value={p.taux == null ? "" : String(p.taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          </div>
           ))}
           <button onClick={() => change({ personnel: [...(f.personnel || []), { nom: "", taux: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une personne</button>
           <div style={{ ...h2, marginTop: 16 }}>Frais</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="pf-row" >
             {NF("Location du local", "taux_local", "€/h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Transport", "transport", "€", "0", f, (k, v) => change({ [k]: v }))}
           </div>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8, lineHeight: 1.45 }}>
             La production se fait à la maison : ce tarif de local est un <b style={{ color: C.ink }}>loyer fictif</b>, utile pour savoir si le produit tiendrait dans un vrai atelier. Mettez 0 pour ne compter que les dépenses réelles.
           </div>
-          {(f.frais_extra || []).map((fr, i) => (
-            <div key={"fr" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
-              <div style={{ flex: "2 1 140px" }}><Lbl>Libellé du frais</Lbl><input value={fr.label || ""} placeholder="ex. Gaz, électricité…" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], label: e.target.value }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ flex: "1 1 90px" }}><Lbl>Montant (€)</Lbl><input inputMode="decimal" value={fr.montant == null ? "" : String(fr.montant).replace(".", ",")} placeholder="0" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], montant: e.target.value.replace(",", ".") }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-              <button onClick={() => change({ frais_extra: f.frais_extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          {(f.frais_extra || []).length > 0 && (
+            <div className="pf-duo pf-head">
+              <span>Libellé du frais</span><span>Montant (€)</span><span />
             </div>
+          )}
+          {(f.frais_extra || []).map((fr, i) => (
+            <div key={"fr" + i} className="pf-duo">
+            <div><span className="pf-lbl"><Lbl>Libellé du frais</Lbl></span><input value={fr.label || ""} placeholder="ex. Gaz, électricité…" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], label: e.target.value }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div><span className="pf-lbl"><Lbl>Montant (€)</Lbl></span><input inputMode="decimal" value={fr.montant == null ? "" : String(fr.montant).replace(".", ",")} placeholder="0" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], montant: e.target.value.replace(",", ".") }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+            <button onClick={() => change({ frais_extra: f.frais_extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          </div>
           ))}
           <button onClick={() => change({ frais_extra: [...(f.frais_extra || []), { label: "", montant: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un frais</button>
           {(() => {
@@ -2973,25 +3085,28 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {p.type === "kit" && (
                 <div style={{ marginTop: 10 }}>
                   <Lbl>Accompagnements (huile, anchois, olive…)</Lbl>
+                  {/* Un accompagnement est une ligne de recette : mêmes colonnes, même en-tête. */}
+                  {(p.accompagnements || []).length > 0 && (
+                    <div className="pf-extra pf-head">
+                      <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
+                    </div>
+                  )}
                   {(p.accompagnements || []).map((a, ai) => (
-                    <div key={ai} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-                      <div style={{ flex: "2 1 120px", minWidth: 100 }}>
-                        <Lbl>Ingrédient</Lbl>
-                        <input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
-                      </div>
-                      <div style={{ flex: "1 1 64px", minWidth: 58 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
-                      <div style={{ flex: "0 1 62px", minWidth: 58 }}>
-                        <Lbl>Unité</Lbl>
+                    <div key={ai} className="pf-extra">
+                      <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} /></div>
+                      <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <div>
+                        <span className="pf-lbl"><Lbl>Unité</Lbl></span>
                         <select value={a.unit || "piece"} onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], unit: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 12.5, padding: "9px 5px" }}>
-                          <option value="g">g</option>
-                          <option value="kg">kg</option>
-                          <option value="ml">ml</option>
-                          <option value="cl">cl</option>
-                          <option value="L">L</option>
-                          <option value="piece">pièce</option>
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="cl">cl</option>
+                        <option value="L">L</option>
+                        <option value="piece">pièce</option>
                         </select>
                       </div>
-                      <div style={{ flex: "1 1 80px", minWidth: 72 }}><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /><span className="pf-unit">{(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
                       <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: (pots[i].accompagnements || []).filter((_, j) => j !== ai) }; change({ pots }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 36, height: 36, cursor: "pointer", flexShrink: 0 }}><Trash2 size={14} /></button>
                     </div>
                   ))}
@@ -3109,6 +3224,15 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           )}
         </div>
       )}
+
+      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
+          cuisine par quelqu'un qui ne connaît pas le reste de l'app. Elle vient EN FIN de parcours,
+          juste avant la validation : on la remplit quand la fournée est faite, pas avant. */}
+      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
+      </button>
+      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
 
       <button onClick={() => {
         // on n'annonce que ce qui va RÉELLEMENT bouger : la validation est idempotente via stock_applique
@@ -4330,7 +4454,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
       {creating && (
         <div style={{ ...card(), background: C.paper, border: `1.5px solid #7A2B3333` }}>
           <Section>Nouveau produit · rangé automatiquement dans sa catégorie</Section>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ gridColumn: "1 / -1" }}><MiniLabel>Nom</MiniLabel><input value={nw.name} onChange={(e) => setNw({ ...nw, name: e.target.value })} placeholder="Confiture de figue" style={inp()} /></div>
             <div><MiniLabel>Catégorie</MiniLabel><select value={nw.cat} onChange={(e) => setNw({ ...nw, cat: e.target.value })} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><MiniLabel>Format / poids</MiniLabel><input value={nw.unit} onChange={(e) => setNw({ ...nw, unit: e.target.value })} placeholder="pot 250g" style={inp()} /></div>
@@ -4372,7 +4496,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
               <div style={{ marginTop: 8 }}>
                 {items.map((p) => (
                   <div key={p.id} style={{ ...card(), opacity: p.active === false ? .55 : 1 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
+                    <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
@@ -4399,7 +4523,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                     </div>
                     {openId === p.id && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
+                        <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
                           <div><MiniLabel>Catégorie</MiniLabel><select value={p.cat} onChange={(e) => updField(p.id, "cat", e.target.value)} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
                           <div><MiniLabel>Couleur</MiniLabel><input type="color" value={p.col} onChange={(e) => updField(p.id, "col", e.target.value)} style={{ width: "100%", height: 38, border: `1px solid ${C.line}`, borderRadius: 10, background: C.cream, cursor: "pointer" }} /></div>
                         </div>
@@ -4514,7 +4638,7 @@ function ProClients({ clients, orders, pass }) {
               </div>
 
               <div style={{ ...h2 }}>Coordonnées</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+              <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selClient.tel || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selClient.email}</b></div>
                 <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Adresse</span><br /><b>{[selClient.adresse, selClient.cp, selClient.ville].filter(Boolean).join(", ") || "— non renseignée"}</b></div>
@@ -4652,7 +4776,7 @@ function ProPromos({ promos, setPromos }) {
   return (
     <div className="ca-anim">
       <ProHead title="Codes promo" sub="Créez des réductions pour fidéliser" />
-      <div style={{ ...card(), display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 10, alignItems: "end", background: C.paper }}>
+      <div className="pro-cols" style={{ ...card(), display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 10, alignItems: "end", background: C.paper }}>
         <div><MiniLabel>Code</MiniLabel><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MARCHE" style={inp()} /></div>
         <div><MiniLabel>Remise %</MiniLabel><input type="number" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="10" style={inp()} /></div>
         <button onClick={addPromo} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Créer</button>
@@ -5015,7 +5139,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
       </div>
       <div style={card()}>
         <Section>Contact</Section>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Téléphone" value={draft.tel} onChange={set("tel")} type="tel" />
           <Field label="WhatsApp" value={draft.wa} onChange={set("wa")} type="tel" />
         </div>
@@ -5281,14 +5405,16 @@ function useChunkErrorRecovery() {
 function Header({ profile, badge }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderBottom: `1px solid ${C.line}`, background: C.paper }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: C.board, display: "grid", placeItems: "center" }}><Store size={16} color={C.chalk} /></div>
+      {/* minWidth: 0 sur le groupe de gauche : sans lui il refuse de rétrécir et pousse le badge
+          hors de l'écran — 13 px de débordement horizontal sur un téléphone de 390 px. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: C.board, display: "grid", placeItems: "center", flexShrink: 0 }}><Store size={16} color={C.chalk} /></div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: SCRIPT, fontSize: 18, lineHeight: 1, color: C.jam }}>{profile.name}</div>
+          <div style={{ fontFamily: SCRIPT, fontSize: 18, lineHeight: 1, color: C.jam, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile.name}</div>
           <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile.tag}</div>
         </div>
       </div>
-      {badge && <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: C.soft }}><Lock size={13} /> {badge}</span>}
+      {badge && <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: C.soft, flexShrink: 0, whiteSpace: "nowrap", marginLeft: 10 }}><Lock size={13} /> {badge}</span>}
     </div>
   );
 }

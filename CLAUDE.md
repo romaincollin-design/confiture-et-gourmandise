@@ -154,6 +154,51 @@ coefficient de 1,1 à 2,6.
 - La tuile « Coût de revient » affiche les **deux lectures** : `coutMatieresKg` (ce qui sort de la
   caisse) et `coutTempsKg` (temps + frais). Un seul chiffre global était illisible.
 
+### 5.1 ter — La fiche fournée suit le process, pas l'ordre du formulaire
+Le parcours de l'onglet « Matières » est découpé en **trois étapes numérotées** qui suivent le
+travail réel : **1 Préparation → 2 Cuisson → 3 Résultat**. Avant, le « Process de fabrication »
+(nombre de feux, kg par feu, temps de cuisson) arrivait **après** le poids cuit : on décrivait la
+cuisson une fois le résultat déjà saisi. Il est remonté en étape 2 sous le titre
+**« Mode de préparation »**, avec les fournées supplémentaires du même jour.
+- Le **bouton Contrôle hygiène est en FIN de fiche**, juste au-dessus de « Valider la fournée » :
+  on le remplit quand la fournée est faite. Il reste hors des onglets (§5.8), c'est un document à part.
+- Les confitures n'ont pas d'étape Cuisson (ni feux ni cycles) : la numérotation passe à
+  **1 Préparation → 2 Résultat**. Ne pas afficher une étape vide.
+- Composant `EtapeFournee` — **au niveau module, obligatoirement**. Défini dans `ProProduction`,
+  chaque frappe au clavier recréerait le type React, démonterait le sous-arbre et le champ en cours
+  de saisie perdrait le focus. Même piège que `BlocPliant`.
+
+### 5.1 quater — Enregistrement d'une fournée : la course à l'insertion
+`change()` enregistre avec un **anti-rebond de 600 ms**. Une fournée neuve n'a pas d'`id` : chaque
+enregistrement est donc un INSERT tant que le premier n'a pas renvoyé le sien. Si une deuxième
+sauvegarde partait avant cette réponse, on créait **deux fournées** au lieu d'en modifier une — et
+la suite de la saisie atterrissait dans une fiche que l'écran n'affichait pas. D'où « mes infos ne
+sont pas enregistrées ».
+Prouvé sur les données réelles :
+- deux « Pain d'épices » sans titre, identiques, `created_at` à **171 µs d'écart** (17/09/2026 17:32:45) ;
+- la fournée fantôme titrée **`C`** (§8) créée à 13:08:40,48 et « CARAMEL POT » à 13:08:41,08 —
+  **0,6 s**, soit exactement la durée de l'anti-rebond. `C` n'est pas une saisie bâclée,
+  c'est la première frappe du titre partie dans une ligne orpheline.
+Correctif : `insertEnVol` (un `useRef` portant la promesse de l'INSERT en cours). Toute sauvegarde
+sans `id` **attend** cet insert et récupère l'id avant d'envoyer — les suivantes deviennent des UPDATE.
+- ⚠️ **Ne jamais remettre `clearTimeout`/`setTimeout` dans l'updater de `setCur`.** React peut
+  réinvoquer une fonction de mise à jour ; l'anti-rebond se rejouerait avec une valeur périmée.
+  Il est posé hors de l'updater, qui ne fait plus qu'écrire dans un ref (idempotent).
+- ⚠️ **Ne jamais ravaler l'échec d'un enregistrement** (`catch (e) {}`). Sous un bandeau
+  « enregistrement automatique », une sauvegarde qui échoue fait perdre la saisie sans que personne
+  ne le voie. Le bandeau affiche désormais **« ⚠ non enregistré — vérifiez la connexion »**.
+- Les doublons déjà en base ne sont PAS supprimés (§9) : à traiter avec le propriétaire.
+
+### 5.1 quinquies — La famille d'une fournée décide de tout l'écran
+`famille` pilote `isPissa`, donc les champs affichés. La fournée **« cake aux fruits confits »
+du 17/09/2026 porte `famille = "pissaladiere"`** : le formulaire lui propose OIGNON / HUILE
+D'OLIVE / ANCHOIS / THYM / AIL, et elle apparaît dans l'onglet Pissaladière. C'est une **erreur de
+saisie, pas un bug** — elle se corrige avec le sélecteur « Famille ».
+⚠️ Risque latent : dans `recettes()` (§5.5) la clé est `estPissa ? "pissaladiere" : normNom(titre)`.
+Tant que son `poids_fini_kg` est vide, la fournée est écartée. **Dès qu'on saisira son poids, la
+farine, le cognac et les cerises confites entreront dans la recette de la pissaladière.**
+Reclasser la fournée avant de renseigner son poids.
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -326,6 +371,63 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
   la couleur de SA clé (`COUL_PAR_ILLU[k]`), pas celle du produit, sinon l'aperçu ment.
 
 ---
+
+### 7.1 — Alignement : grille, jamais flex qui enroule
+Deux rangées flex séparées (les quantités, puis les prix) **enroulent chacune de leur côté** :
+« Prix anchois » ne tombait pas sous « Anchois ». La règle est désormais **une cellule par
+ingrédient, contenant sa quantité ET son prix** (`.pf-ing`) — un décalage devient impossible.
+Même principe pour les rangées de champs (`.pf-row`, `align-items: end`) : un label sur deux
+lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
+Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
+
+### 7.1 bis — Une seule grammaire de recette, partout
+**Toutes** les listes de saisie de la fiche fournée suivent la même forme, pour que l'œil n'ait pas
+à réapprendre à lire d'un bloc à l'autre : **en-tête une fois en haut, lignes dessous, colonnes
+alignées**. Deux gabarits seulement :
+- `.pf-extra` — quatre colonnes de recette (Ingrédient · Qté · Unité · Prix/Coût) + corbeille.
+  Utilisé par : les **ingrédients libres** (saisie), le **rappel en lecture seule** juste au-dessus,
+  et les **accompagnements** d'un format « kit ».
+- `.pf-duo` — libellé + montant + corbeille. Utilisé par le **personnel** et les **frais divers**.
+- `.pf-head` — la rangée d'en-tête, commune aux deux.
+Vérifié au navigateur : les 10 rangées de recette (lecture seule + saisie mélangées) tombent sur
+**un seul gabarit de colonnes**, l'en-tête compris ; idem pour les 3 rangées de Main d'œuvre et les
+accompagnements d'un kit. Aucun débordement en 1280 ni en 390 px.
+
+### 7.1 ter — Une liste de saisie : les en-têtes UNE fois
+Les « Ingrédients libres » répétaient « INGRÉDIENT / QTÉ / UNITÉ / PRIX » **au-dessus de chaque
+ligne** : douze ingrédients donnaient douze fois les mêmes quatre libellés. Désormais une seule
+rangée d'en-tête (`.pf-extra-head`) et les lignes en colonnes alignées (`.pf-extra`).
+Sur téléphone, cinq colonnes ne tiennent pas : l'en-tête disparaît, chaque champ reprend son
+libellé (`.pf-lbl`), le nom passe sur toute la largeur, quantité et unité côte à côte.
+L'unité du prix (« €/kg », « €/L », « €/u ») est **à côté** du champ et à **largeur fixe** — au-dessus
+elle recréait du bruit à chaque ligne, et à largeur libre elle décalait les champs entre eux.
+
+### 7.2 — Version mobile de l'espace commerçant
+L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
+logique n'est dupliquée — une seule interface, pas deux codes à maintenir.
+- **Onglets en bas** (`.pro-nav` en `position: fixed; bottom: 0` sous 720 px) : le haut de l'écran
+  n'est pas atteignable au pouce. Même liste, même ordre, icône au-dessus du libellé.
+  Le ticket de caisse (`.caisse-mobilebar`) remonte au-dessus, sinon il la recouvre.
+- `.pro-cols` → une colonne, `.pro-cols2` → deux : les grilles à colonnes fixes (fiche produit sur
+  **6 colonnes**, coordonnées client, promos, réglages) étaient illisibles sur un téléphone.
+- Champs à **16 px et 42 px de haut minimum** : sous 16 px, iOS zoome tout seul à la saisie ;
+  sous 42 px on tape à côté.
+- `env(safe-area-inset-bottom)` partout en bas (encoche iPhone).
+- ⚠️ **Aucun débordement horizontal** — vérifié onglet par onglet en 320 / 390 / 768 / 1280 px.
+  Un `minWidth: 0` manquait sur le groupe de gauche de `Header` : il refusait de rétrécir et
+  poussait le badge « Espace commerçant » 13 px hors de l'écran.
+
+### 7.3 — Comment vérifier réellement un changement d'interface ici
+Supabase est **injoignable depuis une session Claude Code** : impossible de passer le PIN, donc
+impossible de charger l'admin connecté dans un navigateur. La méthode qui marche :
+`npx next start`, une page jetable qui monte `ProView` avec un jeu de produits complet, et
+Chromium (`/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell`, pas le binaire
+`chromium-*` dont le mode headless historique a été retiré). **Penser à injecter `<style>{FONT}</style>`** :
+il est posé par `BoutiquePublique`/`EspacePro`, pas par `ProView` — sans lui aucune classe ne
+s'applique et on mesure une mise en page qui n'existe pas.
+⚠️ **Un onglet qui mesure « 0 px de débordement » peut être un onglet qui n'a rien rendu.**
+Toujours compter les éléments rendus en même temps, sinon un écran planté passe pour un écran sain.
+Un jeu de test incomplet (produits sans `price`) fait planter toute la page sur `eur(undefined)`.
 
 ## 8. PIÈGES CONNUS (déjà corrigés — ne pas réintroduire)
 
