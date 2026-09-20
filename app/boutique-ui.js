@@ -39,7 +39,11 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
 /* --- Ingrédients libres : les en-têtes UNE fois, les lignes en colonnes alignées --- */
 .pf-extra { display: grid; grid-template-columns: minmax(0, 2.4fr) 92px 78px 120px 38px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
-.pf-extra-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
+/* Une seule grammaire pour TOUTES les listes de saisie de la fiche fournée : en-tête une
+   fois, lignes dessous, colonnes alignées. L'œil n'a pas à réapprendre à lire d'un bloc
+   à l'autre. .pf-extra = recette (4 colonnes), .pf-duo = libellé + montant. */
+.pf-duo { display: grid; grid-template-columns: minmax(0, 2fr) 128px 40px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
+.pf-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
 .pf-lbl { display: none; }
 .pf-prix { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
 /* Largeur FIXE : « €/kg », « €/L » et « €/u » n'ont pas la même longueur, sans elle les
@@ -66,13 +70,17 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .pf-row { grid-template-columns: repeat(2, 1fr); }
   /* Cinq colonnes ne tiennent pas sur un téléphone : l'en-tête disparaît et chaque champ
      reprend son propre libellé. Le nom sur toute la largeur, quantité et unité côte à côte. */
-  .pf-extra-head { display: none; }
+  .pf-head { display: none; }
   .pf-extra { grid-template-columns: 1fr 1fr 40px; gap: 6px 8px; padding: 9px 0; }
   .pf-extra > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
   .pf-extra > :nth-child(5) { grid-column: 3; grid-row: 1; align-self: end; }
   .pf-extra > :nth-child(2) { grid-column: 1; grid-row: 2; }
   .pf-extra > :nth-child(3) { grid-column: 2; grid-row: 2; }
   .pf-extra > :nth-child(4) { grid-column: 1 / 3; grid-row: 3; }
+  .pf-duo { grid-template-columns: 1fr 40px; gap: 6px 8px; padding: 9px 0; }
+  .pf-duo > :nth-child(1) { grid-column: 1; grid-row: 1; }
+  .pf-duo > :nth-child(3) { grid-column: 2; grid-row: 1; align-self: end; }
+  .pf-duo > :nth-child(2) { grid-column: 1 / 3; grid-row: 2; }
   .pf-lbl { display: block; }
   .pf-unit { display: none; }
   .pf-prix { margin-top: 0; }
@@ -2578,24 +2586,24 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             </div>
           )}
 
+          {/* Même grammaire que la recette juste en dessous : en-tête une fois, colonnes alignées.
+              Ces lignes rappellent les ingrédients libres et leur coût — elles doivent tomber
+              exactement sous les mêmes colonnes, sinon l'œil recommence sa lecture. */}
+          {isPissa && (f.extra || []).length > 0 && (
+            <div className="pf-extra pf-head">
+              <span>Ingrédient</span><span>Quantité</span><span>Unité</span><span>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</span><span />
+            </div>
+          )}
           {isPissa && (f.extra || []).map((e, i) => {
             const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
             const cost = (pfNum(e.qty) / div) * pfNum(e.price);
             return (
-              <div key={"exf" + i} style={{ display: "flex", gap: 6, alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-                <div style={{ width: 82, flexShrink: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
-                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
-                  <Lbl>Quantité</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div>
-                </div>
-                <div style={{ flex: "0 1 56px", minWidth: 52 }}>
-                  <Lbl>Unité</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div>
-                </div>
-                <div style={{ flex: "1 1 76px", minWidth: 68 }}>
-                  <Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl>
-                  <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div>
-                </div>
+              <div key={"exf" + i} className="pf-extra">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, minWidth: 0 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
+                <div><span className="pf-lbl"><Lbl>Quantité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div></div>
+                <div><span className="pf-lbl"><Lbl>Unité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div></div>
+                <div><span className="pf-lbl"><Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div></div>
+                <span />
               </div>
             );
           })}
@@ -2611,7 +2619,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               rangée d'en-tête en haut, les lignes dessous, en colonnes alignées. Sur téléphone
               la colonne disparaît et chaque champ reprend son libellé (voir .pf-extra). */}
           {(f.extra || []).length > 0 && (
-            <div className="pf-extra pf-extra-head">
+            <div className="pf-extra pf-head">
               <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
             </div>
           )}
@@ -2841,12 +2849,17 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             Pendant cette heure, on ne fabrique pas que ce produit. <b style={{ color: C.ink }}>« Pour cette fournée »</b> dit quelle part du temps lui revient — le reste appartient aux autres produits faits en même temps. À 100 %, toute l&apos;heure tombe sur cette seule fournée.
           </div>
           <div style={{ ...h2 }}>Personnel (€/h par personne)</div>
-          {(f.personnel || []).map((p, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
-              <div style={{ flex: "2 1 120px" }}><Lbl>Nom</Lbl><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ flex: "1 1 90px" }}><Lbl>Taux (€/h)</Lbl><input inputMode="decimal" value={p.taux == null ? "" : String(p.taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          {(f.personnel || []).length > 0 && (
+            <div className="pf-duo pf-head">
+              <span>Nom</span><span>Taux (€/h)</span><span />
             </div>
+          )}
+          {(f.personnel || []).map((p, i) => (
+            <div key={i} className="pf-duo">
+            <div><span className="pf-lbl"><Lbl>Nom</Lbl></span><input value={p.nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div><span className="pf-lbl"><Lbl>Taux (€/h)</Lbl></span><input inputMode="decimal" value={p.taux == null ? "" : String(p.taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...f.personnel]; pers[i] = { ...pers[i], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <button onClick={() => { const pers = f.personnel.filter((_, j) => j !== i); change({ personnel: pers.length ? pers : [{ nom: "", taux: "" }] }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          </div>
           ))}
           <button onClick={() => change({ personnel: [...(f.personnel || []), { nom: "", taux: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une personne</button>
           <div style={{ ...h2, marginTop: 16 }}>Frais</div>
@@ -2857,12 +2870,17 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8, lineHeight: 1.45 }}>
             La production se fait à la maison : ce tarif de local est un <b style={{ color: C.ink }}>loyer fictif</b>, utile pour savoir si le produit tiendrait dans un vrai atelier. Mettez 0 pour ne compter que les dépenses réelles.
           </div>
-          {(f.frais_extra || []).map((fr, i) => (
-            <div key={"fr" + i} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
-              <div style={{ flex: "2 1 140px" }}><Lbl>Libellé du frais</Lbl><input value={fr.label || ""} placeholder="ex. Gaz, électricité…" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], label: e.target.value }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4 }} /></div>
-              <div style={{ flex: "1 1 90px" }}><Lbl>Montant (€)</Lbl><input inputMode="decimal" value={fr.montant == null ? "" : String(fr.montant).replace(".", ",")} placeholder="0" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], montant: e.target.value.replace(",", ".") }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
-              <button onClick={() => change({ frais_extra: f.frais_extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          {(f.frais_extra || []).length > 0 && (
+            <div className="pf-duo pf-head">
+              <span>Libellé du frais</span><span>Montant (€)</span><span />
             </div>
+          )}
+          {(f.frais_extra || []).map((fr, i) => (
+            <div key={"fr" + i} className="pf-duo">
+            <div><span className="pf-lbl"><Lbl>Libellé du frais</Lbl></span><input value={fr.label || ""} placeholder="ex. Gaz, électricité…" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], label: e.target.value }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4 }} /></div>
+            <div><span className="pf-lbl"><Lbl>Montant (€)</Lbl></span><input inputMode="decimal" value={fr.montant == null ? "" : String(fr.montant).replace(".", ",")} placeholder="0" onChange={(e) => { const fx = [...f.frais_extra]; fx[i] = { ...fx[i], montant: e.target.value.replace(",", ".") }; change({ frais_extra: fx }); }} style={{ ...inp(), marginTop: 4, fontSize: 17, fontWeight: 700 }} /></div>
+            <button onClick={() => change({ frais_extra: f.frais_extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 40, height: 40, cursor: "pointer", flexShrink: 0 }}><Minus size={15} /></button>
+          </div>
           ))}
           <button onClick={() => change({ frais_extra: [...(f.frais_extra || []), { label: "", montant: "" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un frais</button>
           {(() => {
@@ -3067,25 +3085,28 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {p.type === "kit" && (
                 <div style={{ marginTop: 10 }}>
                   <Lbl>Accompagnements (huile, anchois, olive…)</Lbl>
+                  {/* Un accompagnement est une ligne de recette : mêmes colonnes, même en-tête. */}
+                  {(p.accompagnements || []).length > 0 && (
+                    <div className="pf-extra pf-head">
+                      <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
+                    </div>
+                  )}
                   {(p.accompagnements || []).map((a, ai) => (
-                    <div key={ai} style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "6px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-                      <div style={{ flex: "2 1 120px", minWidth: 100 }}>
-                        <Lbl>Ingrédient</Lbl>
-                        <input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
-                      </div>
-                      <div style={{ flex: "1 1 64px", minWidth: 58 }}><Lbl>Quantité</Lbl><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
-                      <div style={{ flex: "0 1 62px", minWidth: 58 }}>
-                        <Lbl>Unité</Lbl>
+                    <div key={ai} className="pf-extra">
+                      <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} /></div>
+                      <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <div>
+                        <span className="pf-lbl"><Lbl>Unité</Lbl></span>
                         <select value={a.unit || "piece"} onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], unit: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 12.5, padding: "9px 5px" }}>
-                          <option value="g">g</option>
-                          <option value="kg">kg</option>
-                          <option value="ml">ml</option>
-                          <option value="cl">cl</option>
-                          <option value="L">L</option>
-                          <option value="piece">pièce</option>
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="cl">cl</option>
+                        <option value="L">L</option>
+                        <option value="piece">pièce</option>
                         </select>
                       </div>
-                      <div style={{ flex: "1 1 80px", minWidth: 72 }}><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
+                      <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /><span className="pf-unit">{(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
                       <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: (pots[i].accompagnements || []).filter((_, j) => j !== ai) }; change({ pots }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 36, height: 36, cursor: "pointer", flexShrink: 0 }}><Trash2 size={14} /></button>
                     </div>
                   ))}

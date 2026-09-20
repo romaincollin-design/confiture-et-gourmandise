@@ -380,7 +380,20 @@ Même principe pour les rangées de champs (`.pf-row`, `align-items: end`) : un 
 lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
 Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
 
-### 7.1 bis — Une liste de saisie : les en-têtes UNE fois
+### 7.1 bis — Une seule grammaire de recette, partout
+**Toutes** les listes de saisie de la fiche fournée suivent la même forme, pour que l'œil n'ait pas
+à réapprendre à lire d'un bloc à l'autre : **en-tête une fois en haut, lignes dessous, colonnes
+alignées**. Deux gabarits seulement :
+- `.pf-extra` — quatre colonnes de recette (Ingrédient · Qté · Unité · Prix/Coût) + corbeille.
+  Utilisé par : les **ingrédients libres** (saisie), le **rappel en lecture seule** juste au-dessus,
+  et les **accompagnements** d'un format « kit ».
+- `.pf-duo` — libellé + montant + corbeille. Utilisé par le **personnel** et les **frais divers**.
+- `.pf-head` — la rangée d'en-tête, commune aux deux.
+Vérifié au navigateur : les 10 rangées de recette (lecture seule + saisie mélangées) tombent sur
+**un seul gabarit de colonnes**, l'en-tête compris ; idem pour les 3 rangées de Main d'œuvre et les
+accompagnements d'un kit. Aucun débordement en 1280 ni en 390 px.
+
+### 7.1 ter — Une liste de saisie : les en-têtes UNE fois
 Les « Ingrédients libres » répétaient « INGRÉDIENT / QTÉ / UNITÉ / PRIX » **au-dessus de chaque
 ligne** : douze ingrédients donnaient douze fois les mêmes quatre libellés. Désormais une seule
 rangée d'en-tête (`.pf-extra-head`) et les lignes en colonnes alignées (`.pf-extra`).
