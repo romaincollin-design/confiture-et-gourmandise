@@ -33,12 +33,35 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .caisse-ticket { position: sticky; top: 0; }
   .caisse-empty-ticket { display: block; }
 }
+/* --- Fiche fournée : une colonne par ingrédient (quantité + son prix dans la même cellule) --- */
+.pf-ing { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+/* --- Rangées de champs alignées en grille plutôt qu'en flex qui enroule (fin du quinconce) --- */
+.pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+/* --- Tableaux larges : on laisse glisser le tableau, jamais la page --- */
+.pro-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 @media (max-width: 720px) {
-  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: 14px; z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
+  /* Le ticket de caisse remonte au-dessus de la barre d'onglets, sinon il la recouvre. */
+  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
   .pro-shell { flex-direction: column; min-height: 0; }
-  .pro-nav { width: 100%; display: flex; gap: 6px; overflow-x: auto; border-right: none; border-bottom: 1px solid #241F1718; padding: 8px; -webkit-overflow-scrolling: touch; }
-  .pro-nav button { width: auto !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; }
-  .pro-content { max-height: none; padding: 16px 14px 90px; }
+  /* Onglets en BAS sur téléphone : au marché on tient l'appareil d'une main, le haut de
+     l'écran n'est pas atteignable. Même liste, même ordre — seule la position change. */
+  .pro-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; width: 100%; display: flex; gap: 2px; overflow-x: auto; border-right: none; border-bottom: none; border-top: 1px solid #241F1718; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; box-shadow: 0 -8px 22px -14px #00000066; }
+  .pro-nav button { width: auto !important; flex-direction: column; gap: 3px !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; font-size: 10.5px !important; padding: 7px 9px !important; min-width: 60px; justify-content: center; }
+  .pro-content { max-height: none; padding: 16px 14px calc(150px + env(safe-area-inset-bottom)); }
+  /* Les grilles à colonnes fixes de l'admin (fiche produit, coordonnées client, promos,
+     réglages) tenaient sur 6 colonnes : illisibles sur un téléphone. */
+  .pro-cols { grid-template-columns: 1fr !important; }
+  .pro-cols2 { grid-template-columns: 1fr 1fr !important; }
+  .pf-ing { grid-template-columns: repeat(2, 1fr); }
+  .pf-row { grid-template-columns: repeat(2, 1fr); }
+  /* Cibles tactiles : 44 px minimum, sinon on tape à côté sur un stand de marché. */
+  .pro-content input, .pro-content select, .pro-content textarea { font-size: 16px; min-height: 42px; }
+  .pro-content table { font-size: 12px; }
+}
+/* Sous 360 px (petits iPhone) deux colonnes deviennent illisibles : on passe à une. */
+@media (max-width: 359px) {
+  .pf-ing, .pf-row, .pro-cols2 { grid-template-columns: 1fr !important; }
 }
 `;
 
@@ -1102,7 +1125,7 @@ function ProFournisseurs({ pass }) {
               </div>
 
               <div style={{ ...h2 }}>Coordonnées</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+              <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Contact</span><br /><b>{[selS.contact_prenom, selS.contact_nom].filter(Boolean).join(" ") || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selS.tel || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selS.email || "—"}</b></div>
@@ -1795,6 +1818,20 @@ function FicheHygiene({ f, change, onClose, profile }) {
   );
 }
 
+/* En-tête d'étape de la fiche fournée. AU NIVEAU MODULE : défini à l'intérieur de
+   ProProduction, chaque frappe au clavier en recréerait le type et React démonterait
+   tout le sous-arbre — le champ en cours de saisie perdrait le focus. */
+function EtapeFournee({ n, titre, sous }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
+      <span style={{ width: 30, height: 30, borderRadius: 10, background: PF.navy, color: "#fff", display: "grid", placeItems: "center", fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{n}</span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontFamily: SCRIPT, fontSize: 20, color: PF.navy, lineHeight: 1.15 }}>{titre}</span>
+        {sous && <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 2 }}>{sous}</span>}
+      </span>
+    </div>
+  );
+}
 function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
@@ -2397,22 +2434,18 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
 
       {heroCards(R, FAM)}
 
-      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
-          cuisine par quelqu'un qui ne connaît pas le reste de l'app. */}
-      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
-      </button>
-      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
-
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {[["mat", "Matières"], ["mo", "Main d'œuvre & frais"], ["pot", "Contenants & vente"]].map(([k, l]) => (
           <button key={k} onClick={() => setEtab(k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etab === k ? C.jam : C.line}`, background: etab === k ? C.jam : "#fff", color: etab === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
         ))}
       </div>
 
-      {etab === "mat" && (
+      {etab === "mat" && (<>
+        {/* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
+            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
+            la cuisson une fois le résultat déjà saisi. */}
         <div style={card()}>
+          <EtapeFournee n={1} titre="Préparation" sous="Ce qui entre dans la fournée" />
           <button onClick={() => change({ estimation: !f.estimation })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.estimation ? "#fff7e0" : "#f7f4ec", border: `1.5px solid ${f.estimation ? PF.yellow : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
             <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.estimation ? PF.ochre : C.soft}`, background: f.estimation ? PF.ochre : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.estimation && <Check size={13} color="#fff" />}</span>
             <span style={{ flex: 1 }}>
@@ -2431,7 +2464,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+          <div className="pf-row" style={{ marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "2 1 200px" }}><Lbl>Lieu de production</Lbl><input value={f.lieu || ""} placeholder="ex. Casa Mama" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
             <div style={{ flex: "1 1 160px" }}>
@@ -2450,7 +2483,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           )}
           {isPissa && (
             <div style={{ padding: "6px 0 10px", borderBottom: `1px solid ${C.line}` }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {/* Une colonne par ingrédient, quantité et prix dans LA MÊME cellule. Deux rangées
+                  séparées enroulaient chacune de leur côté : « Prix anchois » ne tombait pas sous
+                  « Anchois ». En grille, un décalage est impossible. */}
+              <div className="pf-ing">
                 {PF_ING.map((ing) => {
                   const chosenUnit = pfDisplayUnit(f, ing);
                   const opts = Object.keys(PF_UNIT_OPTS[ing.family]);
@@ -2458,7 +2494,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                   const isEmpty = f[ing.qf] == null || f[ing.qf] === "";
                   const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
                   return (
-                    <div key={ing.key} style={{ flex: "1 1 84px", minWidth: 78, maxWidth: 120 }}>
+                    <div key={ing.key}>
                       <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</span></Lbl>
                       <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
                         <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
@@ -2470,27 +2506,23 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                           } else {
                             change({ [ing.qf]: stored });
                           }
-                        }} style={{ ...inp(), padding: "6px 6px", fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0 }} />
-                        <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), padding: "6px 1px", fontSize: 10.5, width: 36, flexShrink: 0 }}>
+                        }} style={{ ...inp(), padding: "8px 8px", fontSize: 14, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                        <select value={chosenUnit} onChange={(e) => change({ [ing.key + "_unit"]: e.target.value })} style={{ ...inp(), padding: "8px 1px", fontSize: 10.5, width: 38, flexShrink: 0 }}>
                           {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                         </select>
+                      </div>
+                      <div style={{ marginTop: 7 }}>
+                        <Lbl>Prix <span style={{ fontWeight: 400, color: C.soft }}>({ing.pu})</span></Lbl>
+                        <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                          {ing.key !== "oignon" && (
+                            <input inputMode="decimal" title="Réf. /kg oignon" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 4px", fontSize: 11.5, color: PF.navy, fontWeight: 700, width: 44, flexShrink: 0 }} />
+                          )}
+                          <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                {PF_ING.map((ing) => (
-                  <div key={ing.key + "px"} style={{ flex: "1 1 120px", minWidth: 110, maxWidth: 160 }}>
-                    <Lbl>Prix {ing.label} <span style={{ fontWeight: 400, color: C.soft }}>({ing.pu})</span></Lbl>
-                    <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
-                      {ing.key !== "oignon" && (
-                        <input inputMode="decimal" title="Réf. /kg oignon" value={String(Math.round(pfRefRatio(f, ing) * 1000) / 1000).replace(".", ",")} onChange={(e) => change({ [ing.key + "_ref"]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 5px", fontSize: 11.5, color: PF.navy, fontWeight: 700, width: 46, flexShrink: 0 }} />
-                      )}
-                      <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "6px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -2546,6 +2578,60 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             </div>
           ))}
           <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
+            <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
+          </div>
+        </div>
+
+        {isPissa && (
+          <div style={card()}>
+            <EtapeFournee n={2} titre="Cuisson" sous="Feux, cycles et durée" />
+            <div>
+              <div style={{ ...h2 }}>Mode de préparation</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Combien de feux, combien de kilos par feu, combien de temps par cycle. Le temps de production saisi dans &laquo;&nbsp;Main d&apos;&#339;uvre &amp; frais&nbsp;&raquo; dit combien de cycles rentrent dans la journée.</div>
+              <div className="pf-row" >
+                {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
+                {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
+              </div>
+              {R.cyclesTotal > 0 && (
+                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    Capacité max en {R.tempsTotal.toLocaleString("fr-FR")} h : <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg crus</span> → <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span>
+                  </span>
+                  <button onClick={() => {
+                    const q = R.quantiteBruteProcess; // kg
+                    change({
+                      oignon_kg: Math.round(q * 1000) / 1000,
+                      ...pfSuggestRecipe(f, q),
+                      poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
+                    });
+                  }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
+                </div>
+              )}
+              {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
+                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
+                  </span>
+                </div>
+              )}
+              {FAM.key === "grande_fournee" && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ ...h2 }}>Temps d'épluchage</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+                    {NF("Kg épluchés / min / personne", "epluchage_kg_par_min", "kg", "0,5", f, (k, v) => change({ [k]: v }))}
+                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 0,5 kg/min</div>
+                  </div>
+                  {R.tempsEpluchageTotalMin > 0 && (
+                    <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
+                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg ÷ {pfNum(f.epluchage_kg_par_min)} kg/min = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
           {isPissa && (() => {
             const rondes = f.rounds_extra || [];
@@ -2674,71 +2760,22 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               </div>
             );
           })()}
-
-          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
-            <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
           </div>
+        )}
+
+        <div style={card()}>
+          <EtapeFournee n={isPissa ? 3 : 2} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
-
-          {isPissa && (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ ...h2 }}>Process de fabrication (optionnel — pour estimer une grande quantité)</div>
-              <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Renseigne aussi le temps de production dans l'onglet « Main d'œuvre & frais » — c'est lui qui détermine combien de cycles de cuisson rentrent dans la journée, et donc la quantité totale produite.</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {NF("Nombre de feux", "nb_feux", "", "0", f, (k, v) => change({ [k]: v }))}
-                {NF("Kg d'oignons par feu", "kg_par_feu", "kg", "0", f, (k, v) => change({ [k]: v }))}
-                {NF("Temps de cuisson / cycle", "temps_cycle_min", "min", "0", f, (k, v) => change({ [k]: v }))}
-              </div>
-              {R.cyclesTotal > 0 && (
-                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#f6efdd", borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    Capacité max en {R.tempsTotal.toLocaleString("fr-FR")} h : <span style={{ color: PF.navy }}>{R.quantiteBruteProcess.toLocaleString("fr-FR")} kg crus</span> → <span style={{ color: PF.good }}>{(R.quantiteBruteProcess * 0.9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg cuits</span>
-                  </span>
-                  <button onClick={() => {
-                    const q = R.quantiteBruteProcess; // kg
-                    change({
-                      oignon_kg: Math.round(q * 1000) / 1000,
-                      ...pfSuggestRecipe(f, q),
-                      poids_fini_kg: Math.round(q * 0.9 * 100) / 100,
-                    });
-                  }} className="ca-tap" style={{ background: PF.navy, color: "#fff", border: "none", borderRadius: 6, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Appliquer à toute la recette</button>
-                </div>
-              )}
-              {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
-                  </span>
-                </div>
-              )}
-              {FAM.key === "grande_fournee" && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ ...h2 }}>Temps d'épluchage</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-                    {NF("Kg épluchés / min / personne", "epluchage_kg_par_min", "kg", "0,5", f, (k, v) => change({ [k]: v }))}
-                    <div style={{ fontSize: 11.5, color: C.soft, paddingBottom: 10 }}>ex. 5 kg épluchés en 10 min par une personne → 0,5 kg/min</div>
-                  </div>
-                  {R.tempsEpluchageTotalMin > 0 && (
-                    <div style={{ marginTop: 8, background: "#f6efdd", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-                      {R.quantiteBruteProcess.toLocaleString("fr-FR")} kg ÷ {pfNum(f.epluchage_kg_par_min)} kg/min = <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageTotalMin)} min</b> d'épluchage au total, soit <b style={{ color: PF.navy }}>{Math.round(R.tempsEpluchageParPersonneMin)} min</b> par personne (réparti sur {R.nbPersonnelEpluchage} personne{R.nbPersonnelEpluchage > 1 ? "s" : ""} déclarée{R.nbPersonnelEpluchage > 1 ? "s" : ""} en Main d'œuvre)
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
         </div>
-      )}
+      </>)}
 
       {etab === "mo" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Temps de production</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <div className="pf-row" style={{ marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("dont", "temps_min", "min", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Pour cette fournée", "part_temps", "%", "100", f, (k, v) => change({ [k]: v }))}
@@ -2756,7 +2793,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           ))}
           <button onClick={() => change({ personnel: [...(f.personnel || []), { nom: "", taux: "" }] })} className="ca-tap" style={{ background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une personne</button>
           <div style={{ ...h2, marginTop: 16 }}>Frais</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="pf-row" >
             {NF("Location du local", "taux_local", "€/h", "0", f, (k, v) => change({ [k]: v }))}
             {NF("Transport", "transport", "€", "0", f, (k, v) => change({ [k]: v }))}
           </div>
@@ -3109,6 +3146,15 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           )}
         </div>
       )}
+
+      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
+          cuisine par quelqu'un qui ne connaît pas le reste de l'app. Elle vient EN FIN de parcours,
+          juste avant la validation : on la remplit quand la fournée est faite, pas avant. */}
+      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
+      </button>
+      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
 
       <button onClick={() => {
         // on n'annonce que ce qui va RÉELLEMENT bouger : la validation est idempotente via stock_applique
@@ -4330,7 +4376,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
       {creating && (
         <div style={{ ...card(), background: C.paper, border: `1.5px solid #7A2B3333` }}>
           <Section>Nouveau produit · rangé automatiquement dans sa catégorie</Section>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ gridColumn: "1 / -1" }}><MiniLabel>Nom</MiniLabel><input value={nw.name} onChange={(e) => setNw({ ...nw, name: e.target.value })} placeholder="Confiture de figue" style={inp()} /></div>
             <div><MiniLabel>Catégorie</MiniLabel><select value={nw.cat} onChange={(e) => setNw({ ...nw, cat: e.target.value })} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><MiniLabel>Format / poids</MiniLabel><input value={nw.unit} onChange={(e) => setNw({ ...nw, unit: e.target.value })} placeholder="pot 250g" style={inp()} /></div>
@@ -4372,7 +4418,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
               <div style={{ marginTop: 8 }}>
                 {items.map((p) => (
                   <div key={p.id} style={{ ...card(), opacity: p.active === false ? .55 : 1 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
+                    <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "auto 2fr 1.3fr 0.9fr 0.8fr auto", gap: 9, alignItems: "end" }}>
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
@@ -4399,7 +4445,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                     </div>
                     {openId === p.id && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
+                        <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
                           <div><MiniLabel>Catégorie</MiniLabel><select value={p.cat} onChange={(e) => updField(p.id, "cat", e.target.value)} style={{ ...inp(), cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
                           <div><MiniLabel>Couleur</MiniLabel><input type="color" value={p.col} onChange={(e) => updField(p.id, "col", e.target.value)} style={{ width: "100%", height: 38, border: `1px solid ${C.line}`, borderRadius: 10, background: C.cream, cursor: "pointer" }} /></div>
                         </div>
@@ -4514,7 +4560,7 @@ function ProClients({ clients, orders, pass }) {
               </div>
 
               <div style={{ ...h2 }}>Coordonnées</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
+              <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selClient.tel || "—"}</b></div>
                 <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selClient.email}</b></div>
                 <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Adresse</span><br /><b>{[selClient.adresse, selClient.cp, selClient.ville].filter(Boolean).join(", ") || "— non renseignée"}</b></div>
@@ -4652,7 +4698,7 @@ function ProPromos({ promos, setPromos }) {
   return (
     <div className="ca-anim">
       <ProHead title="Codes promo" sub="Créez des réductions pour fidéliser" />
-      <div style={{ ...card(), display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 10, alignItems: "end", background: C.paper }}>
+      <div className="pro-cols" style={{ ...card(), display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: 10, alignItems: "end", background: C.paper }}>
         <div><MiniLabel>Code</MiniLabel><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MARCHE" style={inp()} /></div>
         <div><MiniLabel>Remise %</MiniLabel><input type="number" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="10" style={inp()} /></div>
         <button onClick={addPromo} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Créer</button>
@@ -5015,7 +5061,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
       </div>
       <div style={card()}>
         <Section>Contact</Section>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Téléphone" value={draft.tel} onChange={set("tel")} type="tel" />
           <Field label="WhatsApp" value={draft.wa} onChange={set("wa")} type="tel" />
         </div>
@@ -5281,14 +5327,16 @@ function useChunkErrorRecovery() {
 function Header({ profile, badge }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", borderBottom: `1px solid ${C.line}`, background: C.paper }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: C.board, display: "grid", placeItems: "center" }}><Store size={16} color={C.chalk} /></div>
+      {/* minWidth: 0 sur le groupe de gauche : sans lui il refuse de rétrécir et pousse le badge
+          hors de l'écran — 13 px de débordement horizontal sur un téléphone de 390 px. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: C.board, display: "grid", placeItems: "center", flexShrink: 0 }}><Store size={16} color={C.chalk} /></div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: SCRIPT, fontSize: 18, lineHeight: 1, color: C.jam }}>{profile.name}</div>
+          <div style={{ fontFamily: SCRIPT, fontSize: 18, lineHeight: 1, color: C.jam, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile.name}</div>
           <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{profile.tag}</div>
         </div>
       </div>
-      {badge && <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: C.soft }}><Lock size={13} /> {badge}</span>}
+      {badge && <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: C.soft, flexShrink: 0, whiteSpace: "nowrap", marginLeft: 10 }}><Lock size={13} /> {badge}</span>}
     </div>
   );
 }

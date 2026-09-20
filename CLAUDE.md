@@ -154,6 +154,20 @@ coefficient de 1,1 à 2,6.
 - La tuile « Coût de revient » affiche les **deux lectures** : `coutMatieresKg` (ce qui sort de la
   caisse) et `coutTempsKg` (temps + frais). Un seul chiffre global était illisible.
 
+### 5.1 ter — La fiche fournée suit le process, pas l'ordre du formulaire
+Le parcours de l'onglet « Matières » est découpé en **trois étapes numérotées** qui suivent le
+travail réel : **1 Préparation → 2 Cuisson → 3 Résultat**. Avant, le « Process de fabrication »
+(nombre de feux, kg par feu, temps de cuisson) arrivait **après** le poids cuit : on décrivait la
+cuisson une fois le résultat déjà saisi. Il est remonté en étape 2 sous le titre
+**« Mode de préparation »**, avec les fournées supplémentaires du même jour.
+- Le **bouton Contrôle hygiène est en FIN de fiche**, juste au-dessus de « Valider la fournée » :
+  on le remplit quand la fournée est faite. Il reste hors des onglets (§5.8), c'est un document à part.
+- Les confitures n'ont pas d'étape Cuisson (ni feux ni cycles) : la numérotation passe à
+  **1 Préparation → 2 Résultat**. Ne pas afficher une étape vide.
+- Composant `EtapeFournee` — **au niveau module, obligatoirement**. Défini dans `ProProduction`,
+  chaque frappe au clavier recréerait le type React, démonterait le sous-arbre et le champ en cours
+  de saisie perdrait le focus. Même piège que `BlocPliant`.
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -326,6 +340,41 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
   la couleur de SA clé (`COUL_PAR_ILLU[k]`), pas celle du produit, sinon l'aperçu ment.
 
 ---
+
+### 7.1 — Alignement : grille, jamais flex qui enroule
+Deux rangées flex séparées (les quantités, puis les prix) **enroulent chacune de leur côté** :
+« Prix anchois » ne tombait pas sous « Anchois ». La règle est désormais **une cellule par
+ingrédient, contenant sa quantité ET son prix** (`.pf-ing`) — un décalage devient impossible.
+Même principe pour les rangées de champs (`.pf-row`, `align-items: end`) : un label sur deux
+lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
+Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
+
+### 7.2 — Version mobile de l'espace commerçant
+L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
+logique n'est dupliquée — une seule interface, pas deux codes à maintenir.
+- **Onglets en bas** (`.pro-nav` en `position: fixed; bottom: 0` sous 720 px) : le haut de l'écran
+  n'est pas atteignable au pouce. Même liste, même ordre, icône au-dessus du libellé.
+  Le ticket de caisse (`.caisse-mobilebar`) remonte au-dessus, sinon il la recouvre.
+- `.pro-cols` → une colonne, `.pro-cols2` → deux : les grilles à colonnes fixes (fiche produit sur
+  **6 colonnes**, coordonnées client, promos, réglages) étaient illisibles sur un téléphone.
+- Champs à **16 px et 42 px de haut minimum** : sous 16 px, iOS zoome tout seul à la saisie ;
+  sous 42 px on tape à côté.
+- `env(safe-area-inset-bottom)` partout en bas (encoche iPhone).
+- ⚠️ **Aucun débordement horizontal** — vérifié onglet par onglet en 320 / 390 / 768 / 1280 px.
+  Un `minWidth: 0` manquait sur le groupe de gauche de `Header` : il refusait de rétrécir et
+  poussait le badge « Espace commerçant » 13 px hors de l'écran.
+
+### 7.3 — Comment vérifier réellement un changement d'interface ici
+Supabase est **injoignable depuis une session Claude Code** : impossible de passer le PIN, donc
+impossible de charger l'admin connecté dans un navigateur. La méthode qui marche :
+`npx next start`, une page jetable qui monte `ProView` avec un jeu de produits complet, et
+Chromium (`/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell`, pas le binaire
+`chromium-*` dont le mode headless historique a été retiré). **Penser à injecter `<style>{FONT}</style>`** :
+il est posé par `BoutiquePublique`/`EspacePro`, pas par `ProView` — sans lui aucune classe ne
+s'applique et on mesure une mise en page qui n'existe pas.
+⚠️ **Un onglet qui mesure « 0 px de débordement » peut être un onglet qui n'a rien rendu.**
+Toujours compter les éléments rendus en même temps, sinon un écran planté passe pour un écran sain.
+Un jeu de test incomplet (produits sans `price`) fait planter toute la page sur `eur(undefined)`.
 
 ## 8. PIÈGES CONNUS (déjà corrigés — ne pas réintroduire)
 
