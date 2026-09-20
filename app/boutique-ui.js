@@ -37,6 +37,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pf-ing { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
 /* --- Rangées de champs alignées en grille plutôt qu'en flex qui enroule (fin du quinconce) --- */
 .pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+/* --- Ingrédients libres : les en-têtes UNE fois, les lignes en colonnes alignées --- */
+.pf-extra { display: grid; grid-template-columns: minmax(0, 2.4fr) 92px 78px 120px 38px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
+.pf-extra-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
+.pf-lbl { display: none; }
+.pf-prix { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+/* Largeur FIXE : « €/kg », « €/L » et « €/u » n'ont pas la même longueur, sans elle les
+   champs de prix n'auraient pas tous la même largeur d'une ligne à l'autre. */
+.pf-unit { flex: 0 0 34px; font-size: 10.5px; color: #A89E89; font-weight: 600; white-space: nowrap; }
+
 /* --- Tableaux larges : on laisse glisser le tableau, jamais la page --- */
 .pro-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
@@ -55,6 +64,18 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .pro-cols2 { grid-template-columns: 1fr 1fr !important; }
   .pf-ing { grid-template-columns: repeat(2, 1fr); }
   .pf-row { grid-template-columns: repeat(2, 1fr); }
+  /* Cinq colonnes ne tiennent pas sur un téléphone : l'en-tête disparaît et chaque champ
+     reprend son propre libellé. Le nom sur toute la largeur, quantité et unité côte à côte. */
+  .pf-extra-head { display: none; }
+  .pf-extra { grid-template-columns: 1fr 1fr 40px; gap: 6px 8px; padding: 9px 0; }
+  .pf-extra > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
+  .pf-extra > :nth-child(5) { grid-column: 3; grid-row: 1; align-self: end; }
+  .pf-extra > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .pf-extra > :nth-child(3) { grid-column: 2; grid-row: 2; }
+  .pf-extra > :nth-child(4) { grid-column: 1 / 3; grid-row: 3; }
+  .pf-lbl { display: block; }
+  .pf-unit { display: none; }
+  .pf-prix { margin-top: 0; }
   /* Cibles tactiles : 44 px minimum, sinon on tape à côté sur un stand de marché. */
   .pro-content input, .pro-content select, .pro-content textarea { font-size: 16px; min-height: 42px; }
   .pro-content table { font-size: 12px; }
@@ -1843,6 +1864,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [annonce, setAnnonce] = useState(null);             // message prêt à envoyer après une fournée validée
   const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [echecSauvegarde, setEchecSauvegarde] = useState(false);
   const [etab, setEtab] = useState("mat");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
@@ -1954,17 +1976,46 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     return nouveauSnapshot;
   };
 
+  // Un enregistrement sans id est un INSERT. Si un second part avant que le premier ait renvoyé
+  // son id, on crée DEUX fournées au lieu d'en modifier une — et la suite de la saisie part dans
+  // une fiche que l'écran n'affiche pas. Prouvé en base : deux « pain d'épices » identiques nés
+  // le 17/09/2026 à 171 µs d'écart, et la fournée fantôme titrée « C » (§8) née 0,6 s — la durée
+  // exacte de l'anti-rebond — avant « CARAMEL POT ». On attend donc l'insert en vol.
+  const insertEnVol = useRef(null);
   const persist = async (fRaw) => {
     if (!supabase || !pass) return;
     const f = pfNorm(fRaw);
+    if (!f.id && insertEnVol.current) {
+      try { const id = await insertEnVol.current; if (id) f.id = id; } catch (e) {}
+    }
+    const envoi = (async () => {
+      const { data, error } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
+      if (error) throw error;
+      return data;
+    })();
+    if (!f.id) insertEnVol.current = envoi;
     try {
-      const { data } = await supabase.rpc("admin_save_batch", { pass, p_id: f.id || null, p_data: f, p_date: f.date || null });
+      const data = await envoi;
       if (data && !f.id) { setCur((c) => c ? { ...c, id: data } : c); f.id = data; }
       setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
+      setEchecSauvegarde(false);
       setSaved(true); setTimeout(() => setSaved(false), 1200);
-    } catch (e) {}
+    } catch (e) {
+      // Un échec avalé en silence, sous un bandeau « enregistrement automatique », fait perdre
+      // la saisie sans que personne ne le voie. On le dit à l'écran.
+      setEchecSauvegarde(true);
+    } finally {
+      if (insertEnVol.current === envoi) insertEnVol.current = null;
+    }
   };
-  const change = (patch) => { setCur((c) => { const nf = { ...c, ...patch }; clearTimeout(timer.current); timer.current = setTimeout(() => persist(nf), 600); return nf; }); };
+  // L'anti-rebond est posé HORS de l'updater : React peut réinvoquer une fonction de mise à jour,
+  // et un clearTimeout/setTimeout qui s'y trouve se rejoue alors avec une valeur périmée.
+  const aEnregistrer = useRef(null);
+  const change = (patch) => {
+    setCur((c) => { const nf = { ...c, ...patch }; aEnregistrer.current = nf; return nf; });
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
+  };
   const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("mat"); setView("edit"); };
   const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("mat"); setView("edit"); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
@@ -2427,7 +2478,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
             {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
           </div>
-          <div style={{ fontSize: 12, color: saved ? PF.good : C.soft }}>{f.titre ? FAM.label + " · " : ""}{saved ? "✓ enregistré" : "enregistrement automatique"}</div>
+          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "⚠ non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
         </div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
@@ -2555,25 +2606,31 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessous.
             </div>
           )}
+          {/* Les en-têtes « Ingrédient / Qté / Unité / Prix » se répétaient AU-DESSUS DE CHAQUE
+              ligne : dix ingrédients donnaient dix fois les mêmes quatre libellés. Une seule
+              rangée d'en-tête en haut, les lignes dessous, en colonnes alignées. Sur téléphone
+              la colonne disparaît et chaque champ reprend son libellé (voir .pf-extra). */}
+          {(f.extra || []).length > 0 && (
+            <div className="pf-extra pf-extra-head">
+              <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
+            </div>
+          )}
           {(f.extra || []).map((e, i) => (
-            <div key={"x" + i} style={{ display: "flex", gap: 6, alignItems: "flex-end", padding: "5px 0", borderBottom: `1px solid ${C.line}`, flexWrap: "wrap" }}>
-              <div style={{ flex: "2 1 100px", minWidth: 90 }}>
-                <Lbl>Ingrédient</Lbl>
-                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} />
-              </div>
-              <div style={{ flex: "1 1 54px", minWidth: 50 }}><Lbl>Qté</Lbl><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
-              <div style={{ flex: "0 1 54px", minWidth: 50 }}>
-                <Lbl>Unité</Lbl>
+            <div key={"x" + i} className="pf-extra">
+              <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} /></div>
+              <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div>
+                <span className="pf-lbl"><Lbl>Unité</Lbl></span>
                 <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="cl">cl</option>
-                  <option value="L">L</option>
-                  <option value="piece">pièce</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="cl">cl</option>
+                <option value="L">L</option>
+                <option value="piece">pièce</option>
                 </select>
               </div>
-              <div style={{ flex: "1 1 68px", minWidth: 62 }}><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
+              <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /><span className="pf-unit">{(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
               <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
             </div>
           ))}

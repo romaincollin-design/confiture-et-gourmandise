@@ -168,6 +168,37 @@ cuisson une fois le résultat déjà saisi. Il est remonté en étape 2 sous le 
   chaque frappe au clavier recréerait le type React, démonterait le sous-arbre et le champ en cours
   de saisie perdrait le focus. Même piège que `BlocPliant`.
 
+### 5.1 quater — Enregistrement d'une fournée : la course à l'insertion
+`change()` enregistre avec un **anti-rebond de 600 ms**. Une fournée neuve n'a pas d'`id` : chaque
+enregistrement est donc un INSERT tant que le premier n'a pas renvoyé le sien. Si une deuxième
+sauvegarde partait avant cette réponse, on créait **deux fournées** au lieu d'en modifier une — et
+la suite de la saisie atterrissait dans une fiche que l'écran n'affichait pas. D'où « mes infos ne
+sont pas enregistrées ».
+Prouvé sur les données réelles :
+- deux « Pain d'épices » sans titre, identiques, `created_at` à **171 µs d'écart** (17/09/2026 17:32:45) ;
+- la fournée fantôme titrée **`C`** (§8) créée à 13:08:40,48 et « CARAMEL POT » à 13:08:41,08 —
+  **0,6 s**, soit exactement la durée de l'anti-rebond. `C` n'est pas une saisie bâclée,
+  c'est la première frappe du titre partie dans une ligne orpheline.
+Correctif : `insertEnVol` (un `useRef` portant la promesse de l'INSERT en cours). Toute sauvegarde
+sans `id` **attend** cet insert et récupère l'id avant d'envoyer — les suivantes deviennent des UPDATE.
+- ⚠️ **Ne jamais remettre `clearTimeout`/`setTimeout` dans l'updater de `setCur`.** React peut
+  réinvoquer une fonction de mise à jour ; l'anti-rebond se rejouerait avec une valeur périmée.
+  Il est posé hors de l'updater, qui ne fait plus qu'écrire dans un ref (idempotent).
+- ⚠️ **Ne jamais ravaler l'échec d'un enregistrement** (`catch (e) {}`). Sous un bandeau
+  « enregistrement automatique », une sauvegarde qui échoue fait perdre la saisie sans que personne
+  ne le voie. Le bandeau affiche désormais **« ⚠ non enregistré — vérifiez la connexion »**.
+- Les doublons déjà en base ne sont PAS supprimés (§9) : à traiter avec le propriétaire.
+
+### 5.1 quinquies — La famille d'une fournée décide de tout l'écran
+`famille` pilote `isPissa`, donc les champs affichés. La fournée **« cake aux fruits confits »
+du 17/09/2026 porte `famille = "pissaladiere"`** : le formulaire lui propose OIGNON / HUILE
+D'OLIVE / ANCHOIS / THYM / AIL, et elle apparaît dans l'onglet Pissaladière. C'est une **erreur de
+saisie, pas un bug** — elle se corrige avec le sélecteur « Famille ».
+⚠️ Risque latent : dans `recettes()` (§5.5) la clé est `estPissa ? "pissaladiere" : normNom(titre)`.
+Tant que son `poids_fini_kg` est vide, la fournée est écartée. **Dès qu'on saisira son poids, la
+farine, le cognac et les cerises confites entreront dans la recette de la pissaladière.**
+Reclasser la fournée avant de renseigner son poids.
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -348,6 +379,15 @@ ingrédient, contenant sa quantité ET son prix** (`.pf-ing`) — un décalage d
 Même principe pour les rangées de champs (`.pf-row`, `align-items: end`) : un label sur deux
 lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
 Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
+
+### 7.1 bis — Une liste de saisie : les en-têtes UNE fois
+Les « Ingrédients libres » répétaient « INGRÉDIENT / QTÉ / UNITÉ / PRIX » **au-dessus de chaque
+ligne** : douze ingrédients donnaient douze fois les mêmes quatre libellés. Désormais une seule
+rangée d'en-tête (`.pf-extra-head`) et les lignes en colonnes alignées (`.pf-extra`).
+Sur téléphone, cinq colonnes ne tiennent pas : l'en-tête disparaît, chaque champ reprend son
+libellé (`.pf-lbl`), le nom passe sur toute la largeur, quantité et unité côte à côte.
+L'unité du prix (« €/kg », « €/L », « €/u ») est **à côté** du champ et à **largeur fixe** — au-dessus
+elle recréait du bruit à chaque ligne, et à largeur libre elle décalait les champs entre eux.
 
 ### 7.2 — Version mobile de l'espace commerçant
 L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
