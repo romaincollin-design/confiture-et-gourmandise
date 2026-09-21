@@ -227,6 +227,29 @@ document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste d
 - Toutes les saisies numériques acceptent la **virgule** (brouillon conservé pendant la frappe,
   normalisation à la sortie du champ).
 
+### 5.4 quater — D'où vient ce prix d'achat ? (origine affichée, aucun champ en base)
+Un chiffre qu'on ne sait pas expliquer est un chiffre en qui on n'a pas confiance. L'onglet Produits
+affiche donc **l'origine de chaque prix d'achat**, à côté du champ « Achat ». Rien n'est stocké :
+l'origine se **déduit** de la chaîne §5.2 (`origineCouts`).
+- **`↓ fournée JJ/MM`** (navy) — un format de cette fournée porte le `pid` du produit **et**
+  `data.stock_applique[pid] > 0`, donc la validation a réellement poussé le coût. C'est le seul cas
+  où on peut affirmer que le chiffre descend d'une recette.
+- **`fournée JJ/MM · non validée`** (caramel) — le format est relié mais la fournée n'a jamais été
+  validée : elle n'a rien poussé. Le produit n'a pas encore de coût. C'est une invitation à valider.
+- **`saisi à la main`** (gris) — aucune fournée validée ne l'a poussé, le coût vient de la fiche.
+  C'est le cas **normal** d'un produit d'**achat-revente** (crème de marron, miel, Reine Claude) que
+  l'association ne fabrique pas : prix d'achat manuel, prix de vente manuel, coefficient déduit.
+  Le suffixe **`· fournée non validée`** s'ajoute si un format lui est relié sans avoir été validé.
+- Rien du tout quand le coût est absent : le ⚠ rouge du champ le dit déjà.
+⚠ **Ne jamais étiqueter « fournée » un coût tapé à la main.** Une fournée reliée mais non validée
+n'a rien poussé ; mettre « fournée » dessus recréerait exactement la confusion qu'on lève ici.
+Une ligne de récapitulatif sous le titre donne les quatre compteurs (depuis les fournées / saisis à
+la main / fournée non validée / manquants) — c'est la réponse d'un coup d'œil à « est-ce que mes
+prix d'achat sont bien là ? ».
+- **Un coût absent vaut `0` en base.** Affiché tel quel, le champ disait « ce produit coûte zéro
+  euro » au lieu de « je ne sais pas » : `dvalCout()` laisse le placeholder « manquant » apparaître
+  tant qu'on ne tape pas. Le **stock** garde son `0` — là, c'est une vraie valeur (§8, `0` falsy).
+
 ### 5.5 Consommation matières (Tableau de bord)
 Section "Consommation matières (crues)" : croise les **ventes de la période** avec les **recettes des fournées**
 pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fruits, sucre…).

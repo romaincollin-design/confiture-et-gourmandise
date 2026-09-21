@@ -4234,6 +4234,43 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
 // Même définition que « Valider la fournée » (CLAUDE.md 5.2) : coût de revient =
 // (matières + main d'œuvre + local + transport + frais) ÷ poids fini, puis × le grammage du
 // conditionnement, plus l'emballage du format correspondant. Le prix de VENTE n'est jamais touché.
+// D'où vient le prix d'achat d'un produit ? Un chiffre qu'on ne sait pas expliquer est un chiffre
+// en qui on n'a pas confiance — et le commerçant a saisi des prix à la main sans jamais les revoir.
+// Aucun champ à ajouter en base : l'origine se DÉDUIT de la chaîne §5.2. Un format de fournée
+// porte le `pid` du produit (le coût descend de la recette), ou personne ne le porte et le chiffre
+// a donc été tapé dans cette fiche — c'est le cas normal des produits d'achat-revente
+// (crème de marron, miel, Reine Claude) que l'association ne fabrique pas.
+function origineCouts(batches, products) {
+  const parPid = {};
+  (batches || []).forEach((b) => {
+    const f = b.data || b;
+    const date = f.date || b.date || "";
+    const applique = f.stock_applique || {};
+    const noter = (pid) => {
+      if (!pid) return;
+      const cand = { date, titre: (f.titre || "").trim(), valide: (Number(applique[pid]) || 0) > 0 };
+      const prec = parPid[pid];
+      // une fournée validée l'emporte sur une simple liaison ; à égalité, la plus récente
+      if (!prec || (cand.valide && !prec.valide) || (cand.valide === prec.valide && String(date) > String(prec.date))) parPid[pid] = cand;
+    };
+    if (f.pissa_plaque_pid) noter(f.pissa_plaque_pid);
+    (f.pots || []).forEach((p) => noter(p.pid));
+  });
+  const out = {};
+  (products || []).forEach((p) => {
+    const lien = parPid[p.id];
+    const cout = Number(p.cost) || 0;
+    // Un format relié dont la fournée n'a PAS été validée n'a rien poussé : si le produit porte
+    // quand même un coût, ce coût vient de la fiche, pas de la recette. On ne met pas « fournée »
+    // sur un chiffre tapé à la main — c'est précisément la confusion qu'on cherche à lever.
+    if (lien && lien.valide && cout > 0) out[p.id] = { src: "fournee", ...lien };
+    else if (cout > 0) out[p.id] = { src: "manuel", ...(lien || {}) };
+    else if (lien) out[p.id] = { src: "lien", ...lien };
+    else out[p.id] = { src: "aucun" };
+  });
+  return out;
+}
+
 function coutsDepuisFournees(batches, products, rendement) {
   const acc = {};   // clé de recette -> cumuls sur toutes les fournées comptées
   (batches || []).forEach((b) => {
@@ -4345,6 +4382,10 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
   const dval = (p, k) => { const d = draft[dk(p.id, k)]; if (d != null) return d; const v = p[k]; return (v == null || v === "") ? "" : String(v).replace(".", ","); };
   const dset = (p, k, raw, fn) => { setDraft((o) => ({ ...o, [dk(p.id, k)]: raw })); fn(pfNum(raw)); };
   const dblur = (p, k) => setDraft((o) => { const n = { ...o }; delete n[dk(p.id, k)]; return n; });
+  // un prix d'achat absent vaut 0 en base : affiché tel quel, le champ dit « ce produit coûte
+  // zéro euro » au lieu de « je ne sais pas ». On laisse le placeholder « manquant » apparaître,
+  // sauf pendant la frappe (le brouillon prime). Le stock, lui, garde son 0 : c'est une vraie valeur.
+  const dvalCout = (p) => { const d = draft[dk(p.id, "cost")]; if (d != null) return d; const v = Number(p.cost) || 0; return v > 0 ? String(v).replace(".", ",") : ""; };
   // prix de vente FIGE : saisir un prix d'achat ne recalcule que le coefficient (CLAUDE.md 5.4)
   const onCost = (p, cost) => apply(p.id, (x) => ({ ...x, cost, coef: (cost > 0 && Number(x.price) > 0) ? +(Number(x.price) / cost).toFixed(2) : x.coef }));
   // le coef est le seul geste qui fixe volontairement un prix de vente a partir du prix d'achat
@@ -4386,6 +4427,20 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
   // ---- prix d'achat déduits des fournées ----
   const couts = useMemo(() => coutsDepuisFournees(batches, products, rendement), [batches, products, rendement]);
+  // origine de chaque prix d'achat : fournée validée, format relié mais pas encore validé, ou saisie manuelle
+  const origines = useMemo(() => origineCouts(batches, products), [batches, products]);
+  const nbFournee = products.filter((p) => (origines[p.id] || {}).src === "fournee").length;
+  const nbManuel = products.filter((p) => (origines[p.id] || {}).src === "manuel").length;
+  const nbLien = products.filter((p) => (origines[p.id] || {}).src === "lien").length;
+  const jourCourt = (d) => { if (!d) return ""; const x = new Date(d); return isNaN(x) ? "" : x.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }); };
+  const puce = (fond, bord, couleur) => ({ background: fond, border: `1px solid ${bord}`, color: couleur, borderRadius: 20, padding: "3px 9px", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap" });
+  const badgeOrigine = (p) => {
+    const o = origines[p.id] || {};
+    if (o.src === "fournee") return <span title={`Coût de revient descendu de la fournée${o.titre ? ` « ${o.titre} »` : ""} lors de sa validation. Il se met à jour à chaque nouvelle fournée validée.`} style={puce("#123a5212", PF.navy + "33", PF.navy)}>↓ fournée {jourCourt(o.date)}</span>;
+    if (o.src === "lien") return <span title={`Un format de la fournée${o.titre ? ` « ${o.titre} »` : ""} est relié à ce produit, mais elle n'a pas encore été validée : le coût ne descend pas tant que « Valider la fournée » n'a pas été fait.`} style={puce("#f6efdd", C.caramel + "44", C.caramel)}>fournée {jourCourt(o.date)} · non validée</span>;
+    if (o.src === "manuel") return <span title={o.date ? `Le prix d'achat vient de cette fiche. Un format de la fournée du ${jourCourt(o.date)}${o.titre ? ` « ${o.titre} »` : ""} est relié à ce produit, mais elle n'a pas été validée : elle n'a donc encore rien poussé.` : "Aucune fournée n'est reliée à ce produit : le prix d'achat vient de cette fiche. C'est le cas normal d'un produit d'achat-revente."} style={puce(C.cream, C.line, C.soft)}>saisi à la main{o.date ? " · fournée non validée" : ""}</span>;
+    return null;
+  };
   // on ne propose que ce qui change réellement quelque chose : coût calculé, différent de l'actuel
   const aAppliquer = couts.filter((c) => c.etat === "ok" && c.cost > 0 && Math.abs(c.cost - (Number(c.p.cost) || 0)) >= 0.01);
   const nbCalculables = aAppliquer.length;
@@ -4413,6 +4468,13 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
       )}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span>Prix d&apos;achat :</span>
+            <span style={puce("#123a5212", PF.navy + "33", PF.navy)}>{nbFournee} depuis les fournées</span>
+            <span style={puce(C.cream, C.line, C.soft)}>{nbManuel} saisis à la main</span>
+            {nbLien > 0 && <span style={puce("#f6efdd", C.caramel + "44", C.caramel)}>{nbLien} fournée non validée</span>}
+            {totalSansAchat > 0 && <span style={puce("#faece5", PF.warn + "44", PF.warn)}>{totalSansAchat} manquant{totalSansAchat > 1 ? "s" : ""}</span>}
+          </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
               <button onClick={() => setFiltre((v) => v === "reappro" ? null : "reappro")} className="ca-tap" style={{ border: `1.5px solid ${filtre === "reappro" ? C.jam : C.jam + "66"}`, background: filtre === "reappro" ? C.jam : "#7A2B3312", color: filtre === "reappro" ? "#fff" : C.jam, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -4538,8 +4600,9 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: (!p.cost || +p.cost === 0) ? PF.warn : C.soft, fontWeight: (!p.cost || +p.cost === 0) ? 700 : 400 }}>Achat</span>
-                        <input inputMode="decimal" value={dval(p, "cost")} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
+                        <input inputMode="decimal" value={dvalCout(p)} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
+                        {badgeOrigine(p)}
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
