@@ -458,6 +458,44 @@ s'applique et on mesure une mise en page qui n'existe pas.
 Toujours compter les éléments rendus en même temps, sinon un écran planté passe pour un écran sain.
 Un jeu de test incomplet (produits sans `price`) fait planter toute la page sur `eur(undefined)`.
 
+### 7.4 — Fenêtres (modales) : deux pièges qui se cumulaient
+Le 22/09/2026, la fiche client de **Simon Dupuis** était **impossible à fermer**. Deux défauts
+distincts, tous deux corrigés — ne pas les réintroduire.
+
+**a) L'email ne peut pas servir de clé.** `save_lead` enregistre un contact **sans email** (§4) :
+la colonne vaut alors `NULL`. Or `ProClients` faisait `sel = c.email` et
+`selClient = rows.find((c) => c.email === sel)`. Fermer la fenêtre faisait `setSel(null)`… et
+`find(c => c.email === null)` **retrouvait la fiche**, donc elle se rouvrait aussitôt. Vérifié en
+base : **1 fiche sur 13** était dans ce cas, et c'était bien celle qui bloquait.
+- Clé stable au niveau module : **`cleClient(c)`** — `mail:<email>` s'il existe, sinon
+  `tel:<9 derniers chiffres>` (la même règle d'identité que `save_lead`). Sert pour `sel`, pour la
+  `key` React de la ligne et pour le surlignage.
+- ⚠️ Même famille de piège que l'agrégation par nom (§8) : **ne jamais prendre pour clé un champ
+  qui peut être vide.** Le vide finit par égaler la valeur « aucune sélection ».
+- `ordersOf` comparait `(o.email||"") === (c.email||"")` : le client sans email héritait de
+  **toutes** les commandes sans email. Il compare maintenant `cleClient(o) === cleClient(c)`.
+- « Modifier la fiche » ne pouvait rien enregistrer (`admin_save_customer` est **identifié par
+  l'email**) et échouait **en silence**. La fenêtre l'explique désormais et le bouton
+  « Enregistrer » est désactivé : saisir un email ici créerait une **deuxième** fiche au lieu de
+  corriger celle-ci. ⚠️ Le vrai correctif est côté base (une RPC identifiée par `id` ou téléphone) —
+  à faire avec le propriétaire, aucune écriture Supabase sans accord (§9).
+
+**b) `animation-fill-mode: forwards` enfermait toutes les modales.** `.ca-anim` portait
+`animation: caIn .35s … both`. Le `forwards` de `both` **retient la dernière image**, et le
+`transform: none` du keyframe s'y calcule en **`matrix(1,0,0,1,0,0)`** — une valeur **non-`none`**.
+L'élément devient donc pour toujours le **bloc conteneur** de ses descendants `position: fixed` :
+chaque fenêtre de l'admin (`inset: 0`) était bornée à son panneau au lieu de l'écran.
+Mesuré au navigateur en 390 px : voile **350 × 362** au lieu de 390 × 844, carte de **393 px** de
+haut qui **dépassait de 31 px** sous son propre voile, et clic « à côté » sans effet sur tout le
+reste de la page. C'est visible sur la capture du propriétaire : seul le panneau central est assombri.
+- Corrigé en **`backwards`** : il n'y a aucun délai, et l'image finale (opacité 1, transform none)
+  est déjà l'état naturel de l'élément — rien ne change à l'œil.
+- ⚠️ **Ne jamais remettre `both` ni `forwards` sur `.ca-anim`**, et se méfier de tout
+  `transform` / `filter` / `will-change` sur un ancêtre d'une modale.
+- Vérifié en 390 / 768 / 1280 px : voile plein écran, carte contenue, fermeture par la croix **et**
+  par le fond, aucune erreur JS. (Les erreurs d'hydratation React #418/#423/#425 sur `/` et
+  `/admin` sont **antérieures** — signature identique avant le correctif — à traiter à part.)
+
 ## 8. PIÈGES CONNUS (déjà corrigés — ne pas réintroduire)
 
 - **Virgule française** : normaliser `,` → `.` sur toute saisie numérique (`.replace(",", ".")`).

@@ -18,7 +18,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .ca-scroll::-webkit-scrollbar-thumb { background: #00000018; border-radius: 8px; }
 @keyframes caIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
 @keyframes capulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-.ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) both; }
+/* fill-mode: on retire le "forwards" (le "both" d'avant). Avec forwards, la derniere image de
+   caIn est retenue, et le "transform: none" du keyframe s'y calcule en matrix(1,0,0,1,0,0) --
+   une valeur non-none. L'element devient alors pour toujours le bloc conteneur de ses
+   descendants en position fixed : chaque fenetre de l'admin (inset: 0) se retrouvait bornee a
+   son panneau au lieu de l'ecran. Mesure au navigateur en 390 px : voile de 350x362 au lieu de
+   390x900, carte de 393 px de haut qui depassait de 31 px sous son propre voile, et clic
+   "a cote" sans effet sur tout le reste de la page. backwards suffit : il n'y a aucun delai,
+   et l'image finale (opacite 1, transform none) est deja l'etat naturel de l'element. */
+.ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) backwards; }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
@@ -4634,6 +4642,20 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
     </div>
   );
 }
+// Identite d'une fiche client. L'email NE PEUT PAS servir de cle : `save_lead` enregistre un
+// contact sans email (CLAUDE.md 4), et la colonne vaut alors NULL. Le 22/09/2026, une seule fiche
+// sur 13 etait dans ce cas (Simon Dupuis) et elle rendait la fenetre impossible a fermer :
+// fermer faisait `setSel(null)`, et `clients.find((c) => c.email === null)` retrouvait cette fiche,
+// donc la fenetre se rouvrait dans la foulee. Meme regle d'identite que `save_lead` : l'email
+// quand il existe, sinon les 9 derniers chiffres du telephone (qui unifient 06 99…, 0699… et +336 99…).
+const tel9 = (t) => String(t || "").replace(/\D/g, "").slice(-9);
+const cleClient = (c) => {
+  const mail = String((c && c.email) || "").trim().toLowerCase();
+  if (mail) return "mail:" + mail;
+  const num = tel9(c && c.tel);
+  return num ? "tel:" + num : "";
+};
+
 function ProClients({ clients, orders, pass }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
@@ -4641,7 +4663,12 @@ function ProClients({ clients, orders, pass }) {
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const ordersOf = (email) => (orders || []).filter((o) => (o.email || "").toLowerCase() === (email || "").toLowerCase());
+  // Rapprocher sur "" ramassait TOUTES les commandes sans email et les collait au client sans email.
+  const ordersOf = (c) => {
+    const cle = cleClient(c);
+    if (!cle) return [];
+    return (orders || []).filter((o) => cleClient(o) === cle);
+  };
   const base = (clients || []).filter((c) => ((c.prenom || "") + " " + (c.nom || "") + " " + (c.email || "") + " " + (c.tel || "") + " " + (c.ville || "")).toLowerCase().includes(q.toLowerCase().trim()));
   const rows = [...base].sort((a, b) => {
     const k = sort.k;
@@ -4651,7 +4678,7 @@ function ProClients({ clients, orders, pass }) {
     va = String(va || "").toLowerCase(); vb = String(vb || "").toLowerCase();
     return va.localeCompare(vb) * sort.dir;
   });
-  const selClient = rows.find((c) => c.email === sel) || null;
+  const selClient = sel ? (rows.find((c) => cleClient(c) === sel) || null) : null;
   const th = (k, label, w) => (
     <th onClick={() => setSort((s) => ({ k, dir: s.k === k ? -s.dir : 1 }))}
       style={{ padding: "9px 8px", textAlign: k === "spent" || k === "orders" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `2px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, width: w, userSelect: "none" }}>
@@ -4662,7 +4689,10 @@ function ProClients({ clients, orders, pass }) {
     ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Inscrit le", "Commandes", "Total dépensé"],
     rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "", c.orders || 0, (c.spent || 0) + " €"]));
   const save = async () => {
-    if (!edit || !edit.email || !supabase || !pass) return;
+    // `admin_save_customer` identifie la fiche par son email : sans email il n'y a rien a mettre a
+    // jour, et envoyer quand meme creerait une SECONDE fiche. On ne touche pas aux donnees, on le dit.
+    if (!edit || !supabase || !pass) return;
+    if (!String(edit.email || "").trim()) return;
     setBusy(true);
     try { await supabase.rpc("admin_save_customer", { pass, p_email: edit.email, p_prenom: edit.prenom || "", p_nom: edit.nom || "", p_tel: edit.tel || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_notes: edit.notes || "" }); } catch (e) {}
     setBusy(false); setEdit(null);
@@ -4686,7 +4716,7 @@ function ProClients({ clients, orders, pass }) {
             <tbody>
               {rows.length === 0 ? <tr><td colSpan={8} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
                 : rows.map((c, i) => (
-                  <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                  <tr key={cleClient(c) || `ligne-${i}`} onClick={() => setSel(cleClient(c))} className="ca-tap" style={{ cursor: "pointer", background: (sel && cleClient(c) === sel) ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
                     {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
@@ -4705,7 +4735,7 @@ function ProClients({ clients, orders, pass }) {
       <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche client.</div>
 
       {selClient && (() => {
-        const os = ordersOf(selClient.email);
+        const os = ordersOf(selClient);
         const totalP = os.reduce((a, o) => a + (Number(o.total) || 0), 0);
         const byProd = {};
         os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
@@ -4780,8 +4810,14 @@ function ProClients({ clients, orders, pass }) {
               <F l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
               <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
             </div>
-            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>L'email ({edit.email}) identifie le client, il n'est pas modifiable.</div>
-            <button onClick={save} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+            {String(edit.email || "").trim() ? (
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>L&apos;email ({edit.email}) identifie le client, il n&apos;est pas modifiable.</div>
+            ) : (
+              <div style={{ background: "#faece5", border: `1px solid ${PF.warn}44`, borderRadius: 11, padding: "10px 12px", marginTop: 10, fontSize: 12, color: C.ink, lineHeight: 1.5 }}>
+                <b style={{ color: PF.warn }}>Fiche sans email — enregistrement impossible.</b> Cette fiche vient d&apos;un contact laissé sans email : elle est identifiée par son téléphone. L&apos;enregistrement passe par l&apos;email, en saisir un ici créerait une <b>deuxième</b> fiche au lieu de corriger celle-ci. Le reste de l&apos;écran fonctionne normalement.
+              </div>
+            )}
+            <button onClick={save} disabled={busy || !String(edit.email || "").trim()} className="ca-tap" style={{ width: "100%", marginTop: 14, background: (busy || !String(edit.email || "").trim()) ? C.line : C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: (busy || !String(edit.email || "").trim()) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
         </div>
       )}
@@ -5687,7 +5723,7 @@ export function EspacePro() {
         supabase.rpc("admin_batches", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
-      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
+      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email || "", prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       // on conserve pid et offert : ce sont eux qui permettent d'agréger par produit (et non par nom, cf. CLAUDE.md 8) et de sortir les offerts du CA
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "" })) })));
       if (!sansProduits && rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
