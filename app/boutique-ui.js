@@ -18,7 +18,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .ca-scroll::-webkit-scrollbar-thumb { background: #00000018; border-radius: 8px; }
 @keyframes caIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
 @keyframes capulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-.ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) both; }
+/* fill-mode: on retire le "forwards" (le "both" d'avant). Avec forwards, la derniere image de
+   caIn est retenue, et le "transform: none" du keyframe s'y calcule en matrix(1,0,0,1,0,0) --
+   une valeur non-none. L'element devient alors pour toujours le bloc conteneur de ses
+   descendants en position fixed : chaque fenetre de l'admin (inset: 0) se retrouvait bornee a
+   son panneau au lieu de l'ecran. Mesure au navigateur en 390 px : voile de 350x362 au lieu de
+   390x900, carte de 393 px de haut qui depassait de 31 px sous son propre voile, et clic
+   "a cote" sans effet sur tout le reste de la page. backwards suffit : il n'y a aucun delai,
+   et l'image finale (opacite 1, transform none) est deja l'etat naturel de l'element. */
+.ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) backwards; }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
@@ -4234,6 +4242,43 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
 // Même définition que « Valider la fournée » (CLAUDE.md 5.2) : coût de revient =
 // (matières + main d'œuvre + local + transport + frais) ÷ poids fini, puis × le grammage du
 // conditionnement, plus l'emballage du format correspondant. Le prix de VENTE n'est jamais touché.
+// D'où vient le prix d'achat d'un produit ? Un chiffre qu'on ne sait pas expliquer est un chiffre
+// en qui on n'a pas confiance — et le commerçant a saisi des prix à la main sans jamais les revoir.
+// Aucun champ à ajouter en base : l'origine se DÉDUIT de la chaîne §5.2. Un format de fournée
+// porte le `pid` du produit (le coût descend de la recette), ou personne ne le porte et le chiffre
+// a donc été tapé dans cette fiche — c'est le cas normal des produits d'achat-revente
+// (crème de marron, miel, Reine Claude) que l'association ne fabrique pas.
+function origineCouts(batches, products) {
+  const parPid = {};
+  (batches || []).forEach((b) => {
+    const f = b.data || b;
+    const date = f.date || b.date || "";
+    const applique = f.stock_applique || {};
+    const noter = (pid) => {
+      if (!pid) return;
+      const cand = { date, titre: (f.titre || "").trim(), valide: (Number(applique[pid]) || 0) > 0 };
+      const prec = parPid[pid];
+      // une fournée validée l'emporte sur une simple liaison ; à égalité, la plus récente
+      if (!prec || (cand.valide && !prec.valide) || (cand.valide === prec.valide && String(date) > String(prec.date))) parPid[pid] = cand;
+    };
+    if (f.pissa_plaque_pid) noter(f.pissa_plaque_pid);
+    (f.pots || []).forEach((p) => noter(p.pid));
+  });
+  const out = {};
+  (products || []).forEach((p) => {
+    const lien = parPid[p.id];
+    const cout = Number(p.cost) || 0;
+    // Un format relié dont la fournée n'a PAS été validée n'a rien poussé : si le produit porte
+    // quand même un coût, ce coût vient de la fiche, pas de la recette. On ne met pas « fournée »
+    // sur un chiffre tapé à la main — c'est précisément la confusion qu'on cherche à lever.
+    if (lien && lien.valide && cout > 0) out[p.id] = { src: "fournee", ...lien };
+    else if (cout > 0) out[p.id] = { src: "manuel", ...(lien || {}) };
+    else if (lien) out[p.id] = { src: "lien", ...lien };
+    else out[p.id] = { src: "aucun" };
+  });
+  return out;
+}
+
 function coutsDepuisFournees(batches, products, rendement) {
   const acc = {};   // clé de recette -> cumuls sur toutes les fournées comptées
   (batches || []).forEach((b) => {
@@ -4311,14 +4356,33 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
   // une seule ecriture par produit apres 500 ms de pause : evite un appel RPC a chaque frappe
   const timers = useRef({});
+  // Un echec avale en silence faisait croire que le prix d'achat etait enregistre alors qu'il
+  // etait perdu. On le dit a l'ecran, comme pour la fiche fournee (CLAUDE.md 5.1 quater).
+  const [echecs, setEchecs] = useState({});
   const persist = (np) => {
     if (!supabase || !pass) return;
     clearTimeout(timers.current[np.id]);
     timers.current[np.id] = setTimeout(() => {
-      supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }).then(() => {}, () => {});
+      supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false })
+        .then(({ error }) => {
+          if (error) { setEchecs((e) => ({ ...e, [np.id]: np.name || np.id })); return; }
+          setEchecs((e) => { if (!e[np.id]) return e; const n = { ...e }; delete n[np.id]; return n; });
+        }, () => setEchecs((e) => ({ ...e, [np.id]: np.name || np.id })));
     }, 500);
   };
-  const apply = (id, fn) => { const cur = products.find((p) => p.id === id); if (!cur) return; const np = fn(cur); setProducts((l) => l.map((p) => p.id === id ? np : p)); persist(np); };
+  // `products` vient des props : deux saisies rapprochees sur la MEME fiche lisaient toutes les
+  // deux l'etat d'avant la premiere, et la seconde ecrasait la premiere — un prix d'achat tape
+  // puis suivi d'une autre frappe disparaissait. Le ref porte toujours la version la plus fraiche.
+  const produitsRef = useRef(products);
+  produitsRef.current = products;
+  const apply = (id, fn) => {
+    const cur = produitsRef.current.find((p) => p.id === id);
+    if (!cur) return;
+    const np = fn(cur);
+    produitsRef.current = produitsRef.current.map((p) => p.id === id ? np : p);
+    setProducts((l) => l.map((p) => p.id === id ? np : p));
+    persist(np);
+  };
   const updField = (id, key, val) => apply(id, (p) => ({ ...p, [key]: val }));
   // brouillon de saisie : on garde la frappe telle quelle (y compris "2," ou "2,5") et on ne normalise qu'a la sortie du champ (CLAUDE.md 8)
   const [draft, setDraft] = useState({});
@@ -4326,6 +4390,10 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
   const dval = (p, k) => { const d = draft[dk(p.id, k)]; if (d != null) return d; const v = p[k]; return (v == null || v === "") ? "" : String(v).replace(".", ","); };
   const dset = (p, k, raw, fn) => { setDraft((o) => ({ ...o, [dk(p.id, k)]: raw })); fn(pfNum(raw)); };
   const dblur = (p, k) => setDraft((o) => { const n = { ...o }; delete n[dk(p.id, k)]; return n; });
+  // un prix d'achat absent vaut 0 en base : affiché tel quel, le champ dit « ce produit coûte
+  // zéro euro » au lieu de « je ne sais pas ». On laisse le placeholder « manquant » apparaître,
+  // sauf pendant la frappe (le brouillon prime). Le stock, lui, garde son 0 : c'est une vraie valeur.
+  const dvalCout = (p) => { const d = draft[dk(p.id, "cost")]; if (d != null) return d; const v = Number(p.cost) || 0; return v > 0 ? String(v).replace(".", ",") : ""; };
   // prix de vente FIGE : saisir un prix d'achat ne recalcule que le coefficient (CLAUDE.md 5.4)
   const onCost = (p, cost) => apply(p.id, (x) => ({ ...x, cost, coef: (cost > 0 && Number(x.price) > 0) ? +(Number(x.price) / cost).toFixed(2) : x.coef }));
   // le coef est le seul geste qui fixe volontairement un prix de vente a partir du prix d'achat
@@ -4367,6 +4435,20 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
   // ---- prix d'achat déduits des fournées ----
   const couts = useMemo(() => coutsDepuisFournees(batches, products, rendement), [batches, products, rendement]);
+  // origine de chaque prix d'achat : fournée validée, format relié mais pas encore validé, ou saisie manuelle
+  const origines = useMemo(() => origineCouts(batches, products), [batches, products]);
+  const nbFournee = products.filter((p) => (origines[p.id] || {}).src === "fournee").length;
+  const nbManuel = products.filter((p) => (origines[p.id] || {}).src === "manuel").length;
+  const nbLien = products.filter((p) => (origines[p.id] || {}).src === "lien").length;
+  const jourCourt = (d) => { if (!d) return ""; const x = new Date(d); return isNaN(x) ? "" : x.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }); };
+  const puce = (fond, bord, couleur) => ({ background: fond, border: `1px solid ${bord}`, color: couleur, borderRadius: 20, padding: "3px 9px", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap" });
+  const badgeOrigine = (p) => {
+    const o = origines[p.id] || {};
+    if (o.src === "fournee") return <span title={`Coût de revient descendu de la fournée${o.titre ? ` « ${o.titre} »` : ""} lors de sa validation. Il se met à jour à chaque nouvelle fournée validée.`} style={puce("#123a5212", PF.navy + "33", PF.navy)}>↓ fournée {jourCourt(o.date)}</span>;
+    if (o.src === "lien") return <span title={`Un format de la fournée${o.titre ? ` « ${o.titre} »` : ""} est relié à ce produit, mais elle n'a pas encore été validée : le coût ne descend pas tant que « Valider la fournée » n'a pas été fait.`} style={puce("#f6efdd", C.caramel + "44", C.caramel)}>fournée {jourCourt(o.date)} · non validée</span>;
+    if (o.src === "manuel") return <span title={o.date ? `Le prix d'achat vient de cette fiche. Un format de la fournée du ${jourCourt(o.date)}${o.titre ? ` « ${o.titre} »` : ""} est relié à ce produit, mais elle n'a pas été validée : elle n'a donc encore rien poussé.` : "Aucune fournée n'est reliée à ce produit : le prix d'achat vient de cette fiche. C'est le cas normal d'un produit d'achat-revente."} style={puce(C.cream, C.line, C.soft)}>saisi à la main{o.date ? " · fournée non validée" : ""}</span>;
+    return null;
+  };
   // on ne propose que ce qui change réellement quelque chose : coût calculé, différent de l'actuel
   const aAppliquer = couts.filter((c) => c.etat === "ok" && c.cost > 0 && Math.abs(c.cost - (Number(c.p.cost) || 0)) >= 0.01);
   const nbCalculables = aAppliquer.length;
@@ -4383,8 +4465,24 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
   return (
     <div className="ca-anim">
+      {/* Un prix d'achat tape mais non enregistre ne se voit nulle part : la fiche affiche la
+          valeur en memoire, la base garde 0, et la marge reste vide sans explication. */}
+      {Object.keys(echecs).length > 0 && (
+        <div style={{ background: "#faece5", border: `1.5px solid ${PF.warn}`, borderRadius: 12, padding: "11px 14px", marginBottom: 12, fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
+          <b style={{ color: PF.warn }}>⚠ Non enregistré</b> — {Object.values(echecs).slice(0, 4).join(", ")}
+          {Object.keys(echecs).length > 4 ? ` et ${Object.keys(echecs).length - 4} autre(s)` : ""}.
+          <span style={{ display: "block", marginTop: 3, color: C.soft }}>Vérifiez la connexion, puis ressaisissez la valeur — elle n'est pas en base.</span>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span>Prix d&apos;achat :</span>
+            <span style={puce("#123a5212", PF.navy + "33", PF.navy)}>{nbFournee} depuis les fournées</span>
+            <span style={puce(C.cream, C.line, C.soft)}>{nbManuel} saisis à la main</span>
+            {nbLien > 0 && <span style={puce("#f6efdd", C.caramel + "44", C.caramel)}>{nbLien} fournée non validée</span>}
+            {totalSansAchat > 0 && <span style={puce("#faece5", PF.warn + "44", PF.warn)}>{totalSansAchat} manquant{totalSansAchat > 1 ? "s" : ""}</span>}
+          </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
               <button onClick={() => setFiltre((v) => v === "reappro" ? null : "reappro")} className="ca-tap" style={{ border: `1.5px solid ${filtre === "reappro" ? C.jam : C.jam + "66"}`, background: filtre === "reappro" ? C.jam : "#7A2B3312", color: filtre === "reappro" ? "#fff" : C.jam, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -4510,8 +4608,9 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: (!p.cost || +p.cost === 0) ? PF.warn : C.soft, fontWeight: (!p.cost || +p.cost === 0) ? 700 : 400 }}>Achat</span>
-                        <input inputMode="decimal" value={dval(p, "cost")} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
+                        <input inputMode="decimal" value={dvalCout(p)} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
+                        {badgeOrigine(p)}
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -4543,6 +4642,20 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
     </div>
   );
 }
+// Identite d'une fiche client. L'email NE PEUT PAS servir de cle : `save_lead` enregistre un
+// contact sans email (CLAUDE.md 4), et la colonne vaut alors NULL. Le 22/09/2026, une seule fiche
+// sur 13 etait dans ce cas (Simon Dupuis) et elle rendait la fenetre impossible a fermer :
+// fermer faisait `setSel(null)`, et `clients.find((c) => c.email === null)` retrouvait cette fiche,
+// donc la fenetre se rouvrait dans la foulee. Meme regle d'identite que `save_lead` : l'email
+// quand il existe, sinon les 9 derniers chiffres du telephone (qui unifient 06 99…, 0699… et +336 99…).
+const tel9 = (t) => String(t || "").replace(/\D/g, "").slice(-9);
+const cleClient = (c) => {
+  const mail = String((c && c.email) || "").trim().toLowerCase();
+  if (mail) return "mail:" + mail;
+  const num = tel9(c && c.tel);
+  return num ? "tel:" + num : "";
+};
+
 function ProClients({ clients, orders, pass }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
@@ -4550,7 +4663,12 @@ function ProClients({ clients, orders, pass }) {
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const ordersOf = (email) => (orders || []).filter((o) => (o.email || "").toLowerCase() === (email || "").toLowerCase());
+  // Rapprocher sur "" ramassait TOUTES les commandes sans email et les collait au client sans email.
+  const ordersOf = (c) => {
+    const cle = cleClient(c);
+    if (!cle) return [];
+    return (orders || []).filter((o) => cleClient(o) === cle);
+  };
   const base = (clients || []).filter((c) => ((c.prenom || "") + " " + (c.nom || "") + " " + (c.email || "") + " " + (c.tel || "") + " " + (c.ville || "")).toLowerCase().includes(q.toLowerCase().trim()));
   const rows = [...base].sort((a, b) => {
     const k = sort.k;
@@ -4560,7 +4678,7 @@ function ProClients({ clients, orders, pass }) {
     va = String(va || "").toLowerCase(); vb = String(vb || "").toLowerCase();
     return va.localeCompare(vb) * sort.dir;
   });
-  const selClient = rows.find((c) => c.email === sel) || null;
+  const selClient = sel ? (rows.find((c) => cleClient(c) === sel) || null) : null;
   const th = (k, label, w) => (
     <th onClick={() => setSort((s) => ({ k, dir: s.k === k ? -s.dir : 1 }))}
       style={{ padding: "9px 8px", textAlign: k === "spent" || k === "orders" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `2px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, width: w, userSelect: "none" }}>
@@ -4571,7 +4689,10 @@ function ProClients({ clients, orders, pass }) {
     ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Inscrit le", "Commandes", "Total dépensé"],
     rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "", c.orders || 0, (c.spent || 0) + " €"]));
   const save = async () => {
-    if (!edit || !edit.email || !supabase || !pass) return;
+    // `admin_save_customer` identifie la fiche par son email : sans email il n'y a rien a mettre a
+    // jour, et envoyer quand meme creerait une SECONDE fiche. On ne touche pas aux donnees, on le dit.
+    if (!edit || !supabase || !pass) return;
+    if (!String(edit.email || "").trim()) return;
     setBusy(true);
     try { await supabase.rpc("admin_save_customer", { pass, p_email: edit.email, p_prenom: edit.prenom || "", p_nom: edit.nom || "", p_tel: edit.tel || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_notes: edit.notes || "" }); } catch (e) {}
     setBusy(false); setEdit(null);
@@ -4595,7 +4716,7 @@ function ProClients({ clients, orders, pass }) {
             <tbody>
               {rows.length === 0 ? <tr><td colSpan={8} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
                 : rows.map((c, i) => (
-                  <tr key={c.email} onClick={() => setSel(c.email)} className="ca-tap" style={{ cursor: "pointer", background: sel === c.email ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                  <tr key={cleClient(c) || `ligne-${i}`} onClick={() => setSel(cleClient(c))} className="ca-tap" style={{ cursor: "pointer", background: (sel && cleClient(c) === sel) ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
                     {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
@@ -4614,7 +4735,7 @@ function ProClients({ clients, orders, pass }) {
       <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche client.</div>
 
       {selClient && (() => {
-        const os = ordersOf(selClient.email);
+        const os = ordersOf(selClient);
         const totalP = os.reduce((a, o) => a + (Number(o.total) || 0), 0);
         const byProd = {};
         os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
@@ -4689,8 +4810,14 @@ function ProClients({ clients, orders, pass }) {
               <F l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
               <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
             </div>
-            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>L'email ({edit.email}) identifie le client, il n'est pas modifiable.</div>
-            <button onClick={save} disabled={busy} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
+            {String(edit.email || "").trim() ? (
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>L&apos;email ({edit.email}) identifie le client, il n&apos;est pas modifiable.</div>
+            ) : (
+              <div style={{ background: "#faece5", border: `1px solid ${PF.warn}44`, borderRadius: 11, padding: "10px 12px", marginTop: 10, fontSize: 12, color: C.ink, lineHeight: 1.5 }}>
+                <b style={{ color: PF.warn }}>Fiche sans email — enregistrement impossible.</b> Cette fiche vient d&apos;un contact laissé sans email : elle est identifiée par son téléphone. L&apos;enregistrement passe par l&apos;email, en saisir un ici créerait une <b>deuxième</b> fiche au lieu de corriger celle-ci. Le reste de l&apos;écran fonctionne normalement.
+              </div>
+            )}
+            <button onClick={save} disabled={busy || !String(edit.email || "").trim()} className="ca-tap" style={{ width: "100%", marginTop: 14, background: (busy || !String(edit.email || "").trim()) ? C.line : C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: (busy || !String(edit.email || "").trim()) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
         </div>
       )}
@@ -4808,16 +4935,33 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
       const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
       const num = (v) => { if (v === "" || v == null) return 0; const n = parseFloat(String(v).replace(",", ".").replace(/[^0-9.\-]/g, "")); return isNaN(n) ? 0 : n; };
       const slug = (s) => ((s || "prod").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "prod");
+      // Les en-tetes etaient lus au caractere pres. Numbers et Excel remplacent l'apostrophe
+      // droite par une courbe des qu'on edite : « Prix d'achat (€) » devenait introuvable,
+      // num(undefined) valait 0, et l'import ecrasait le prix d'achat de TOUS les produits
+      // par zero — sous un message « Import termine ». On compare desormais les noms reduits.
+      const normCol = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+      const colonnes = {};
+      rows.forEach((r) => Object.keys(r).forEach((k) => { colonnes[normCol(k)] = k; }));
+      const cel = (row, ...alias) => { for (const a of alias) { const k = colonnes[normCol(a)]; if (k !== undefined && row[k] !== undefined) return row[k]; } return undefined; };
+      const aColonne = (...alias) => alias.some((a) => colonnes[normCol(a)] !== undefined);
+      // Plutot qu'ecrire zero partout, on refuse l'import : une colonne absente n'est pas
+      // une valeur a zero, c'est un fichier qui ne correspond pas.
+      const manquantes = [["Prix d'achat (€)", "Prix d'achat"], ["Prix de vente (€)", "Prix de vente"], ["Stock"]]
+        .filter((al) => !aColonne(...al)).map((al) => al[0]);
+      if (manquantes.length) {
+        setImp({ busy: false, msg: `Import annulé : colonne(s) introuvable(s) — ${manquantes.join(", ")}. Aucun produit modifié. Repartez de l'export de l'app sans renommer les en-têtes.` });
+        return;
+      }
       let ok = 0, skip = 0;
       for (const row of rows) {
-        const name = String(row["Produit"] || "").trim();
+        const name = String(cel(row, "Produit") || "").trim();
         if (!name) { skip++; continue; }
-        let id = String(row["ID (ne pas modifier)"] || row["ID"] || "").trim();
+        let id = String(cel(row, "ID (ne pas modifier)", "ID") || "").trim();
         if (!id) id = slug(name) + "-" + Date.now().toString(36).slice(-4) + Math.floor(Math.random() * 100);
-        const actifRaw = String(row["Actif (oui/non)"] ?? row["Actif"] ?? "oui").trim().toLowerCase();
+        const actifRaw = String(cel(row, "Actif (oui/non)", "Actif") ?? "oui").trim().toLowerCase();
         const active = !(actifRaw === "non" || actifRaw === "no" || actifRaw === "false" || actifRaw === "0");
         try {
-          await supabase.rpc("admin_import_product", { pass, p_id: id, p_name: name, p_cat: String(row["Catégorie"] || "").trim() || "Confitures", p_unit: String(row["Unité"] || "").trim(), p_price: num(row["Prix de vente (€)"]), p_cost: num(row["Prix d'achat (€)"]), p_coef: num(row["Coefficient"]), p_stock: Math.round(num(row["Stock"])), p_active: active });
+          await supabase.rpc("admin_import_product", { pass, p_id: id, p_name: name, p_cat: String(cel(row, "Catégorie") || "").trim() || "Confitures", p_unit: String(cel(row, "Unité") || "").trim(), p_price: num(cel(row, "Prix de vente (€)", "Prix de vente")), p_cost: num(cel(row, "Prix d'achat (€)", "Prix d'achat")), p_coef: num(cel(row, "Coefficient")), p_stock: Math.round(num(cel(row, "Stock"))), p_active: active });
           ok++;
         } catch (err) { skip++; }
       }
@@ -5579,7 +5723,7 @@ export function EspacePro() {
         supabase.rpc("admin_batches", { pass: key }),
       ]);
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
-      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email, prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
+      if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email || "", prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       // on conserve pid et offert : ce sont eux qui permettent d'agréger par produit (et non par nom, cf. CLAUDE.md 8) et de sortir les offerts du CA
       if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "" })) })));
       if (!sansProduits && rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));

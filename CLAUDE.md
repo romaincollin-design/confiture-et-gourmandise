@@ -227,6 +227,29 @@ document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste d
 - Toutes les saisies numériques acceptent la **virgule** (brouillon conservé pendant la frappe,
   normalisation à la sortie du champ).
 
+### 5.4 quater — D'où vient ce prix d'achat ? (origine affichée, aucun champ en base)
+Un chiffre qu'on ne sait pas expliquer est un chiffre en qui on n'a pas confiance. L'onglet Produits
+affiche donc **l'origine de chaque prix d'achat**, à côté du champ « Achat ». Rien n'est stocké :
+l'origine se **déduit** de la chaîne §5.2 (`origineCouts`).
+- **`↓ fournée JJ/MM`** (navy) — un format de cette fournée porte le `pid` du produit **et**
+  `data.stock_applique[pid] > 0`, donc la validation a réellement poussé le coût. C'est le seul cas
+  où on peut affirmer que le chiffre descend d'une recette.
+- **`fournée JJ/MM · non validée`** (caramel) — le format est relié mais la fournée n'a jamais été
+  validée : elle n'a rien poussé. Le produit n'a pas encore de coût. C'est une invitation à valider.
+- **`saisi à la main`** (gris) — aucune fournée validée ne l'a poussé, le coût vient de la fiche.
+  C'est le cas **normal** d'un produit d'**achat-revente** (crème de marron, miel, Reine Claude) que
+  l'association ne fabrique pas : prix d'achat manuel, prix de vente manuel, coefficient déduit.
+  Le suffixe **`· fournée non validée`** s'ajoute si un format lui est relié sans avoir été validé.
+- Rien du tout quand le coût est absent : le ⚠ rouge du champ le dit déjà.
+⚠ **Ne jamais étiqueter « fournée » un coût tapé à la main.** Une fournée reliée mais non validée
+n'a rien poussé ; mettre « fournée » dessus recréerait exactement la confusion qu'on lève ici.
+Une ligne de récapitulatif sous le titre donne les quatre compteurs (depuis les fournées / saisis à
+la main / fournée non validée / manquants) — c'est la réponse d'un coup d'œil à « est-ce que mes
+prix d'achat sont bien là ? ».
+- **Un coût absent vaut `0` en base.** Affiché tel quel, le champ disait « ce produit coûte zéro
+  euro » au lieu de « je ne sais pas » : `dvalCout()` laisse le placeholder « manquant » apparaître
+  tant qu'on ne tape pas. Le **stock** garde son `0` — là, c'est une vraie valeur (§8, `0` falsy).
+
 ### 5.5 Consommation matières (Tableau de bord)
 Section "Consommation matières (crues)" : croise les **ventes de la période** avec les **recettes des fournées**
 pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fruits, sucre…).
@@ -381,26 +404,32 @@ lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
 Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
 
 ### 7.1 bis — Une seule grammaire de recette, partout
-**Toutes** les listes de saisie de la fiche fournée suivent la même forme, pour que l'œil n'ait pas
-à réapprendre à lire d'un bloc à l'autre : **en-tête une fois en haut, lignes dessous, colonnes
-alignées**. Deux gabarits seulement :
-- `.pf-extra` — quatre colonnes de recette (Ingrédient · Qté · Unité · Prix/Coût) + corbeille.
-  Utilisé par : les **ingrédients libres** (saisie), le **rappel en lecture seule** juste au-dessus,
-  et les **accompagnements** d'un format « kit ».
-- `.pf-duo` — libellé + montant + corbeille. Utilisé par le **personnel** et les **frais divers**.
-- `.pf-head` — la rangée d'en-tête, commune aux deux.
-Vérifié au navigateur : les 10 rangées de recette (lecture seule + saisie mélangées) tombent sur
-**un seul gabarit de colonnes**, l'en-tête compris ; idem pour les 3 rangées de Main d'œuvre et les
-accompagnements d'un kit. Aucun débordement en 1280 ni en 390 px.
+**Toute recette se lit de la même façon : une CELLULE par ingrédient** — son nom en tête, sa
+quantité et son unité dessous, puis son prix. C'est la forme du bloc « matières premières »
+(oignon, huile, sel, poivre, anchois, thym, ail), et elle s'applique maintenant aux trois autres
+listes qui en utilisaient une différente :
+- les **ingrédients libres** (la recette d'un cake, d'une confiture…),
+- le **rappel en lecture seule** de leur coût, juste au-dessus,
+- les **accompagnements** d'un format « Kit ».
+Classe unique : `.pf-ing`. `.pf-duo` reste pour le personnel et les frais (libellé + montant),
+`.pf-row` pour les rangées de champs simples.
+- ⚠️ **`auto-fill`, jamais `auto-fit`.** `auto-fit` ajuste le nombre de colonnes au nombre de
+  cellules : 7 matières premières donnaient 7 colonnes de 132 px et 12 ingrédients 8 colonnes de
+  114 px — deux grilles qui ne tombaient pas l'une sous l'autre. `auto-fill` fixe les colonnes sur
+  la **largeur disponible**, donc toutes les recettes partagent la même trame.
+- La piste de colonne fait **150 px minimum** : en dessous, « poudre d'amande » ou « bicarbonate »
+  se coupent dans le champ. La corbeille est sur la ligne de l'unité, jamais à côté du nom — elle
+  lui volait la largeur.
+- Vérifié au navigateur en **320 / 390 / 768 / 1280 px** : 3 grilles de recette, cellules de
+  largeur identique partout, aucun nom tronqué, aucun débordement.
+- ⚠️ La forme en **lignes avec en-tête** (ancienne classe `.pf-extra`) a été retirée : une recette
+  ne se lit plus jamais en tableau. Ne pas la réintroduire pour une liste d'ingrédients.
 
-### 7.1 ter — Une liste de saisie : les en-têtes UNE fois
-Les « Ingrédients libres » répétaient « INGRÉDIENT / QTÉ / UNITÉ / PRIX » **au-dessus de chaque
-ligne** : douze ingrédients donnaient douze fois les mêmes quatre libellés. Désormais une seule
-rangée d'en-tête (`.pf-extra-head`) et les lignes en colonnes alignées (`.pf-extra`).
-Sur téléphone, cinq colonnes ne tiennent pas : l'en-tête disparaît, chaque champ reprend son
-libellé (`.pf-lbl`), le nom passe sur toute la largeur, quantité et unité côte à côte.
-L'unité du prix (« €/kg », « €/L », « €/u ») est **à côté** du champ et à **largeur fixe** — au-dessus
-elle recréait du bruit à chaque ligne, et à largeur libre elle décalait les champs entre eux.
+### 5.1 sexies — Il faut une rubrique pour pouvoir reclasser
+La fournée « cake aux fruits confits » restait en famille `pissaladiere` non par négligence :
+**aucune famille « Cake » n'existait**, donc le sélecteur ne proposait rien de juste. Famille
+`cake` (« Cake / Gâteau ») ajoutée à `FAMILLES`. Règle générale : avant de demander au commerçant
+de reclasser une fournée, vérifier que la destination existe.
 
 ### 7.2 — Version mobile de l'espace commerçant
 L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
@@ -428,6 +457,44 @@ s'applique et on mesure une mise en page qui n'existe pas.
 ⚠️ **Un onglet qui mesure « 0 px de débordement » peut être un onglet qui n'a rien rendu.**
 Toujours compter les éléments rendus en même temps, sinon un écran planté passe pour un écran sain.
 Un jeu de test incomplet (produits sans `price`) fait planter toute la page sur `eur(undefined)`.
+
+### 7.4 — Fenêtres (modales) : deux pièges qui se cumulaient
+Le 22/09/2026, la fiche client de **Simon Dupuis** était **impossible à fermer**. Deux défauts
+distincts, tous deux corrigés — ne pas les réintroduire.
+
+**a) L'email ne peut pas servir de clé.** `save_lead` enregistre un contact **sans email** (§4) :
+la colonne vaut alors `NULL`. Or `ProClients` faisait `sel = c.email` et
+`selClient = rows.find((c) => c.email === sel)`. Fermer la fenêtre faisait `setSel(null)`… et
+`find(c => c.email === null)` **retrouvait la fiche**, donc elle se rouvrait aussitôt. Vérifié en
+base : **1 fiche sur 13** était dans ce cas, et c'était bien celle qui bloquait.
+- Clé stable au niveau module : **`cleClient(c)`** — `mail:<email>` s'il existe, sinon
+  `tel:<9 derniers chiffres>` (la même règle d'identité que `save_lead`). Sert pour `sel`, pour la
+  `key` React de la ligne et pour le surlignage.
+- ⚠️ Même famille de piège que l'agrégation par nom (§8) : **ne jamais prendre pour clé un champ
+  qui peut être vide.** Le vide finit par égaler la valeur « aucune sélection ».
+- `ordersOf` comparait `(o.email||"") === (c.email||"")` : le client sans email héritait de
+  **toutes** les commandes sans email. Il compare maintenant `cleClient(o) === cleClient(c)`.
+- « Modifier la fiche » ne pouvait rien enregistrer (`admin_save_customer` est **identifié par
+  l'email**) et échouait **en silence**. La fenêtre l'explique désormais et le bouton
+  « Enregistrer » est désactivé : saisir un email ici créerait une **deuxième** fiche au lieu de
+  corriger celle-ci. ⚠️ Le vrai correctif est côté base (une RPC identifiée par `id` ou téléphone) —
+  à faire avec le propriétaire, aucune écriture Supabase sans accord (§9).
+
+**b) `animation-fill-mode: forwards` enfermait toutes les modales.** `.ca-anim` portait
+`animation: caIn .35s … both`. Le `forwards` de `both` **retient la dernière image**, et le
+`transform: none` du keyframe s'y calcule en **`matrix(1,0,0,1,0,0)`** — une valeur **non-`none`**.
+L'élément devient donc pour toujours le **bloc conteneur** de ses descendants `position: fixed` :
+chaque fenêtre de l'admin (`inset: 0`) était bornée à son panneau au lieu de l'écran.
+Mesuré au navigateur en 390 px : voile **350 × 362** au lieu de 390 × 844, carte de **393 px** de
+haut qui **dépassait de 31 px** sous son propre voile, et clic « à côté » sans effet sur tout le
+reste de la page. C'est visible sur la capture du propriétaire : seul le panneau central est assombri.
+- Corrigé en **`backwards`** : il n'y a aucun délai, et l'image finale (opacité 1, transform none)
+  est déjà l'état naturel de l'élément — rien ne change à l'œil.
+- ⚠️ **Ne jamais remettre `both` ni `forwards` sur `.ca-anim`**, et se méfier de tout
+  `transform` / `filter` / `will-change` sur un ancêtre d'une modale.
+- Vérifié en 390 / 768 / 1280 px : voile plein écran, carte contenue, fermeture par la croix **et**
+  par le fond, aucune erreur JS. (Les erreurs d'hydratation React #418/#423/#425 sur `/` et
+  `/admin` sont **antérieures** — signature identique avant le correctif — à traiter à part.)
 
 ## 8. PIÈGES CONNUS (déjà corrigés — ne pas réintroduire)
 
