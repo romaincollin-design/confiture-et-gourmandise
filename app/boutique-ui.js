@@ -42,14 +42,16 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .caisse-empty-ticket { display: block; }
 }
 /* --- Fiche fournée : une colonne par ingrédient (quantité + son prix dans la même cellule) --- */
-.pf-ing { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+/* auto-FILL et non auto-fit : auto-fit ajuste le nombre de colonnes au nombre de cellules,
+   donc 7 matieres premieres donnaient 7 colonnes de 132 px et 12 ingredients 8 colonnes de
+   114 px — deux grilles qui ne tombaient pas l'une sous l'autre. auto-fill fixe le nombre
+   de colonnes sur la LARGEUR disponible : toutes les recettes partagent la meme trame. */
+.pf-ing { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 /* --- Rangées de champs alignées en grille plutôt qu'en flex qui enroule (fin du quinconce) --- */
 .pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
-/* --- Ingrédients libres : les en-têtes UNE fois, les lignes en colonnes alignées --- */
-.pf-extra { display: grid; grid-template-columns: minmax(0, 2.4fr) 92px 78px 120px 38px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
 /* Une seule grammaire pour TOUTES les listes de saisie de la fiche fournée : en-tête une
    fois, lignes dessous, colonnes alignées. L'œil n'a pas à réapprendre à lire d'un bloc
-   à l'autre. .pf-extra = recette (4 colonnes), .pf-duo = libellé + montant. */
+   à l'autre. .pf-ing = recette (une cellule par ingrédient), .pf-duo = libellé + montant. */
 .pf-duo { display: grid; grid-template-columns: minmax(0, 2fr) 128px 40px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
 .pf-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
 .pf-lbl { display: none; }
@@ -79,12 +81,6 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   /* Cinq colonnes ne tiennent pas sur un téléphone : l'en-tête disparaît et chaque champ
      reprend son propre libellé. Le nom sur toute la largeur, quantité et unité côte à côte. */
   .pf-head { display: none; }
-  .pf-extra { grid-template-columns: 1fr 1fr 40px; gap: 6px 8px; padding: 9px 0; }
-  .pf-extra > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
-  .pf-extra > :nth-child(5) { grid-column: 3; grid-row: 1; align-self: end; }
-  .pf-extra > :nth-child(2) { grid-column: 1; grid-row: 2; }
-  .pf-extra > :nth-child(3) { grid-column: 2; grid-row: 2; }
-  .pf-extra > :nth-child(4) { grid-column: 1 / 3; grid-row: 3; }
   .pf-duo { grid-template-columns: 1fr 40px; gap: 6px 8px; padding: 9px 0; }
   .pf-duo > :nth-child(1) { grid-column: 1; grid-row: 1; }
   .pf-duo > :nth-child(3) { grid-column: 2; grid-row: 1; align-self: end; }
@@ -1292,15 +1288,22 @@ const pfParseToStorage = (typedVal, ing, chosenUnit) => {
   return baseQty * PF_UNIT_OPTS[ing.family][ing.unit];
 };
 // packLabels = intitulés des 3 champs de contenant/emballage (null = champ masqué pour cette famille)
+// illu/col : le dessin de la vignette de choix. Deux familles voisines (caramel pot/bonbon,
+// pain d'épices/biscuit) partagent un dessin : la couleur les distingue, sinon les vignettes
+// sont indiscernables. Toutes ces clés ont un dessin propre (CLAUDE.md §7).
 const FAMILLES = [
-  { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
-  { key: "grande_fournee", label: "Grande fournée", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
-  { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot" },
-  { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot" },
-  { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet" },
-  { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet" },
-  { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette" },
-  { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit" },
+  { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "pissa", col: "#7A6A2A" },
+  { key: "grande_fournee", label: "Grande fournée", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "oignon", col: "#C25E1E" },
+  { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "fraise", col: "#C0392B" },
+  { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot", illu: "caramel", col: "#9A5E1F" },
+  { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet", illu: "caramel", col: "#B5722B" },
+  { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet", illu: "loaf", col: "#C9A14A" },
+  { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette", illu: "loaf", col: "#8A5A24" },
+  // Le cake aux fruits confits du 17/09/2026 etait classe « Pissaladiere » faute de rubrique :
+  // le formulaire lui demandait oignons, anchois et thym. On ne peut pas reclasser vers un
+  // choix qui n'existe pas.
+  { key: "cake", label: "Cake / Gâteau", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "cake", illu: "cake", col: "#A9712E" },
+  { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit", illu: "potpissa", col: "#123A52" },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 const isPissaFam = (famille) => famille === "pissaladiere" || famille === "grande_fournee";
@@ -1873,7 +1876,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
-  const [view, setView] = useState("list"); // list | edit | dash
+  const [view, setView] = useState("familles"); // familles | list | edit | dash
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmValide, setConfirmValide] = useState(null); // lignes du pop-up de validation
@@ -1881,7 +1884,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
   const [echecSauvegarde, setEchecSauvegarde] = useState(false);
-  const [etab, setEtab] = useState("mat");
+  const [etab, setEtab] = useState("prep");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
@@ -2032,8 +2035,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
   };
-  const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("mat"); setView("edit"); };
-  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("mat"); setView("edit"); };
+  const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("prep"); setView("edit"); };
+  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setView("edit"); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
@@ -2110,7 +2113,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / {fam.unitWord} moyen</div>
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.navy }}>{eur3(r.coutPotMoyen)}</div>
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>{r.nbPotsTotal || 0} {fam.unitWord}(s)</div>
+        {/* produits finis : les plaques comptent autant que les pots, elles sortent aussi de la fournée */}
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>{r.nbPotsTotal || 0} {fam.unitWord}(s){isPissaFam(fam.key) && r.nbPlaques > 0 ? ` + ${r.nbPlaques} plaque(s)` : ""}</div>
       </div>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coefficient moyen</div>
@@ -2124,6 +2128,63 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       </div>
     </div>
   );
+
+  // ================= VUE CHOIX DU PRODUIT (vignettes) =================
+  // On entrait dans Production directement sur la pissaladière, avec une rangée de pastilles
+  // de familles au milieu de la page : les champs oignons/anchois d'une pissaladière et les
+  // ingrédients d'un cake se mélangeaient à l'œil. On choisit d'abord le produit, on entre
+  // dedans, et on retrouve ensuite exactement la même fiche quel que soit le produit.
+  const estConnueFam = (b) => FAMILLES.some((fm) => fm.key === (b.famille || "pissaladiere"));
+  if (view === "familles") {
+    const statsFam = (key) => {
+      const arr = batches.filter((b) => (b.famille || "pissaladiere") === key);
+      const comptees = arr.filter(fourneeComptee);
+      let revient = 0, fini = 0, finis = 0;
+      comptees.forEach((b) => { const r = pfCalc(b, rendementEstime); revient += r.revientHE || 0; fini += r.poidsFini || 0; finis += (r.nbPotsTotal || 0) + (r.nbPlaques || 0); });
+      const dates = arr.map((b) => b.date).filter(Boolean).sort();
+      return { n: arr.length, derniere: dates.length ? dates[dates.length - 1] : null, coutKg: fini > 0 ? revient / fini : null, finis };
+    };
+    const nonClassees = batches.filter((b) => !estConnueFam(b));
+    const entrer = (key) => { setFamille(key); setView("list"); };
+    return (
+      <div className="ca-anim">
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Choisissez le produit — coût de revient, productivité et produits finis</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 10 }}>
+          {FAMILLES.map((fm) => {
+            const s = statsFam(fm.key);
+            return (
+              <button key={fm.key} onClick={() => entrer(fm.key)} className="ca-tap"
+                style={{ textAlign: "left", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, cursor: "pointer", display: "flex", flexDirection: "column", gap: 9, minHeight: 148 }}>
+                <span style={{ width: 52, height: 52, borderRadius: 13, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={fm.illu} col={fm.col} s={40} /></span>
+                <span style={{ fontSize: 14.5, fontWeight: 700, color: C.ink, lineHeight: 1.25 }}>{fm.label}</span>
+                <span style={{ marginTop: "auto", fontSize: 11.5, color: C.soft, lineHeight: 1.55, fontVariantNumeric: "tabular-nums" }}>
+                  {s.n === 0 ? "aucune fournée" : <>{s.n} fournée{s.n > 1 ? "s" : ""}{s.derniere ? ` · ${new Date(s.derniere).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : ""}</>}
+                  {s.coutKg != null && <span style={{ display: "block", color: PF.navy, fontWeight: 700 }}>{eur2(s.coutKg)}/kg</span>}
+                  {s.finis > 0 && <span style={{ display: "block", color: PF.good, fontWeight: 700 }}>{s.finis} produit{s.finis > 1 ? "s" : ""} fini{s.finis > 1 ? "s" : ""}</span>}
+                </span>
+              </button>
+            );
+          })}
+          {nonClassees.length > 0 && (
+            <button onClick={() => entrer("__autres__")} className="ca-tap"
+              style={{ textAlign: "left", background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 14, padding: 14, cursor: "pointer", display: "flex", flexDirection: "column", gap: 9, minHeight: 148 }}>
+              <span style={{ width: 52, height: 52, borderRadius: 13, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0, color: PF.warn }}><Package size={26} /></span>
+              <span style={{ fontSize: 14.5, fontWeight: 700, color: PF.warn, lineHeight: 1.25 }}>Non classées</span>
+              <span style={{ marginTop: "auto", fontSize: 11.5, color: C.soft, lineHeight: 1.55 }}>{nonClassees.length} fournée{nonClassees.length > 1 ? "s" : ""} à reclasser</span>
+            </button>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
+          <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée « {famOf(famille).label} »</button>
+        </div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{busy ? "Chargement…" : "Touchez un produit pour voir ses fournées et en créer une."}</div>
+      </div>
+    );
+  }
 
   // ================= VUE LISTE =================
   if (view === "list") {
@@ -2185,7 +2246,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           </div>
         )}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-          <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Pilotage des fournées · coût de revient & marges</div></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <button onClick={() => setView("familles")} title="Changer de produit" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{famille === "__autres__" ? "Non classées" : famOf(famille).label}</h2>
+              <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Pilotage des fournées · coût de revient &amp; marges</div>
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
             <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
@@ -2485,10 +2552,28 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const f = cur;
   const FAM = famOf(f.famille || "pissaladiere");
   const isPissa = isPissaFam(FAM.key);
+  // Une étape = un écran. Avant, Préparation + Cuisson + Résultat étaient empilés dans le
+  // seul onglet « Matières » : la fiche se lisait en déroulant la page, et les blocs d'un
+  // produit se confondaient avec ceux d'un autre. Les confitures et les cakes n'ont pas
+  // d'étape Cuisson (ni feux ni cycles) : on renumérote plutôt que d'afficher une étape
+  // vide (CLAUDE.md §5.1 ter).
+  const ETAPES = [
+    { k: "prep", label: "Préparation" },
+    ...(isPissa ? [{ k: "cuis", label: "Cuisson" }] : []),
+    { k: "res", label: "Résultat" },
+    { k: "mo", label: "Temps & frais" },
+    { k: "pot", label: "Contenants & vente" },
+  ];
+  // Changer la famille depuis l'étape Cuisson (pissaladière → confiture) faisait disparaître
+  // l'étape affichée : plus aucun panneau ne correspondait et l'écran restait vide.
+  const etabOk = ETAPES.some((e) => e.k === etab) ? etab : "prep";
+  const numEtape = (k) => ETAPES.findIndex((e) => e.k === k) + 1;
+  // Produits finis : ce qui sort réellement de la fournée, tous conditionnements confondus.
+  const nbFinisTotal = (R.nbPotsTotal || 0) + (isPissa ? (R.nbPlaques || 0) : 0);
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <button onClick={() => setView("list")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
+        <button onClick={() => setView("list")} title="Retour à la liste" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
@@ -2502,17 +2587,20 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       {heroCards(R, FAM)}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["mat", "Matières"], ["mo", "Main d'œuvre & frais"], ["pot", "Contenants & vente"]].map(([k, l]) => (
-          <button key={k} onClick={() => setEtab(k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etab === k ? C.jam : C.line}`, background: etab === k ? C.jam : "#fff", color: etab === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>{l}</button>
+        {ETAPES.map((e, i) => (
+          <button key={e.k} onClick={() => setEtab(e.k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etabOk === e.k ? C.jam : C.line}`, background: etabOk === e.k ? C.jam : "#fff", color: etabOk === e.k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
+            <span style={{ width: 18, height: 18, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, background: etabOk === e.k ? "#ffffff2e" : C.cream, color: etabOk === e.k ? "#fff" : C.soft }}>{i + 1}</span>
+            {e.label}
+          </button>
         ))}
       </div>
 
-      {etab === "mat" && (<>
-        {/* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
-            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
-            la cuisson une fois le résultat déjà saisi. */}
+      {etabOk === "prep" && (
+        /* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
+           préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
+           la cuisson une fois le résultat déjà saisi. */
         <div style={card()}>
-          <EtapeFournee n={1} titre="Préparation" sous="Ce qui entre dans la fournée" />
+          <EtapeFournee n={numEtape("prep")} titre="Préparation" sous="Ce qui entre dans la fournée" />
           <button onClick={() => change({ estimation: !f.estimation })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.estimation ? "#fff7e0" : "#f7f4ec", border: `1.5px solid ${f.estimation ? PF.yellow : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
             <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.estimation ? PF.ochre : C.soft}`, background: f.estimation ? PF.ochre : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.estimation && <Check size={13} color="#fff" />}</span>
             <span style={{ flex: 1 }}>
@@ -2594,27 +2682,29 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             </div>
           )}
 
-          {/* Même grammaire que la recette juste en dessous : en-tête une fois, colonnes alignées.
-              Ces lignes rappellent les ingrédients libres et leur coût — elles doivent tomber
-              exactement sous les mêmes colonnes, sinon l'œil recommence sa lecture. */}
+          {/* MÊME présentation que les deux autres blocs de recette : une cellule par ingrédient.
+              Ce rappel en lecture seule donne le coût de chaque ingrédient libre pour la fournée. */}
           {isPissa && (f.extra || []).length > 0 && (
-            <div className="pf-extra pf-head">
-              <span>Ingrédient</span><span>Quantité</span><span>Unité</span><span>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</span><span />
+            <div className="pf-ing" style={{ marginTop: 10 }}>
+              {(f.extra || []).map((e, i) => {
+                const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+                const cost = (pfNum(e.qty) / div) * pfNum(e.price);
+                return (
+                  <div key={"exf" + i}>
+                    <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</span></Lbl>
+                    <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                      <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div>
+                      <div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div>
+                    </div>
+                    <div style={{ marginTop: 7 }}>
+                      <Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl>
+                      <div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          {isPissa && (f.extra || []).map((e, i) => {
-            const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
-            const cost = (pfNum(e.qty) / div) * pfNum(e.price);
-            return (
-              <div key={"exf" + i} className="pf-extra">
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, minWidth: 0 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: PF.navy, display: "inline-block" }} />{e.label || "Ingrédient libre"}</div>
-                <div><span className="pf-lbl"><Lbl>Quantité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: C.ink, background: "#f3f0e8" }}>{e.qty || 0}</div></div>
-                <div><span className="pf-lbl"><Lbl>Unité</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 6px", fontSize: 12.5, color: C.ink, background: "#f3f0e8", textAlign: "center" }}>{e.unit === "piece" ? "u" : e.unit}</div></div>
-                <div><span className="pf-lbl"><Lbl>Coût{R.nbRondesTotal > 1 ? " /fournée" : ""}</Lbl></span><div style={{ ...inp(), marginTop: 3, padding: "7px 9px", fontSize: 15, fontWeight: 700, color: PF.navy, background: "#f3f0e8" }}>{eur2(cost)}</div></div>
-                <span />
-              </div>
-            );
-          })}
 
           <div style={{ marginTop: 18, ...h2 }}>Ingrédients libres <span style={{ fontWeight: 400, fontSize: 11.5, color: C.soft }}>(ex. vin blanc)</span></div>
           {isPissa && R.nbRondesTotal > 1 && (f.extra || []).length > 0 && (
@@ -2622,44 +2712,44 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               Comptés une fois <b>par fournée</b> — {R.nbRondesTotal} fournées ce jour → détail visible dans chaque bloc « Fournée N » ci-dessous.
             </div>
           )}
-          {/* Les en-têtes « Ingrédient / Qté / Unité / Prix » se répétaient AU-DESSUS DE CHAQUE
-              ligne : dix ingrédients donnaient dix fois les mêmes quatre libellés. Une seule
-              rangée d'en-tête en haut, les lignes dessous, en colonnes alignées. Sur téléphone
-              la colonne disparaît et chaque champ reprend son libellé (voir .pf-extra). */}
-          {(f.extra || []).length > 0 && (
-            <div className="pf-extra pf-head">
-              <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
-            </div>
-          )}
-          {(f.extra || []).map((e, i) => (
-            <div key={"x" + i} className="pf-extra">
-              <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12.5, padding: "7px 9px" }} /></div>
-              <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /></div>
-              <div>
-                <span className="pf-lbl"><Lbl>Unité</Lbl></span>
-                <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
-                <option value="g">g</option>
-                <option value="kg">kg</option>
-                <option value="ml">ml</option>
-                <option value="cl">cl</option>
-                <option value="L">L</option>
-                <option value="piece">pièce</option>
-                </select>
+          {/* MÊME présentation que les matières premières juste au-dessus : une cellule par
+              ingrédient, son nom en tête, sa quantité et son prix dessous. La forme en lignes
+              qui existait ici lisait autrement que le bloc oignons — deux grammaires dans une
+              seule recette. Les cellules s'alignent en grille, jamais en quinconce. */}
+          <div className="pf-ing">
+            {(f.extra || []).map((e, i) => (
+              <div key={"x" + i}>
+                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), fontSize: 12.5, padding: "7px 9px", fontWeight: 700 }} />
+                <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                  <input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} />
+                  <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="ml">ml</option>
+                  <option value="cl">cl</option>
+                  <option value="L">L</option>
+                  <option value="piece">pièce</option>
+                  </select>
+                  <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
+                </div>
+                <div style={{ marginTop: 7 }}>
+                  <Lbl>Prix <span style={{ fontWeight: 400, color: C.soft }}>({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</span></Lbl>
+                  <span className="pf-prix"><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /><span className="pf-unit">{(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu}</span></span>
+                </div>
               </div>
-              <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={e.price == null ? "" : String(e.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], price: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} /><span className="pf-unit">{(EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
-              <button onClick={() => change({ extra: f.extra.filter((_, j) => j !== i) })} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 8, width: 34, height: 34, cursor: "pointer", flexShrink: 0 }}><Trash2 size={13} /></button>
-            </div>
-          ))}
+            ))}
+          </div>
           <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
           <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
             <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
           </div>
         </div>
+      )}
 
-        {isPissa && (
+      {etabOk === "cuis" && isPissa && (
           <div style={card()}>
-            <EtapeFournee n={2} titre="Cuisson" sous="Feux, cycles et durée" />
+            <EtapeFournee n={numEtape("cuis")} titre="Cuisson" sous="Feux, cycles et durée" />
             <div>
               <div style={{ ...h2 }}>Mode de préparation</div>
               <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.4 }}>Combien de feux, combien de kilos par feu, combien de temps par cycle. Le temps de production saisi dans &laquo;&nbsp;Main d&apos;&#339;uvre &amp; frais&nbsp;&raquo; dit combien de cycles rentrent dans la journée.</div>
@@ -2836,16 +2926,78 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           </div>
         )}
 
+      {etabOk === "res" && (
         <div style={card()}>
-          <EtapeFournee n={isPissa ? 3 : 2} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
+          <EtapeFournee n={numEtape("res")} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
           </div>
-        </div>
-      </>)}
 
-      {etab === "mo" && (
+          {/* Le chiffre qu'on cherche en fin de fournée : combien de produits finis en sont
+              sortis. Proposé d'après le poids obtenu ÷ le format du contenant, corrigeable à
+              la main — et c'est le nombre affiché ici qui entre en stock à la validation.
+              Même grammaire que les recettes : une cellule par format (CLAUDE.md §7.1 bis). */}
+          <div style={{ marginTop: 18, ...h2 }}>Produits finis obtenus</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginBottom: 10, lineHeight: 1.45 }}>
+            Calculé d&apos;après le poids obtenu divisé par le format de chaque contenant. Si tu as compté autrement, tape le vrai nombre : c&apos;est lui qui fait foi, et c&apos;est lui qui entrera en stock à la validation.
+          </div>
+          {(f.pots || []).length === 0 ? (
+            <div style={{ fontSize: 12.5, color: C.ink, background: "#fff7e0", border: `1px solid ${PF.yellow}66`, borderRadius: 10, padding: "10px 12px", lineHeight: 1.5 }}>
+              Aucun format de contenant n&apos;est encore défini. Va à l&apos;étape «&nbsp;{numEtape("pot")} Contenants &amp; vente&nbsp;», indique le format en grammes, et le nombre de {FAM.unitWord}s se calculera ici.
+            </div>
+          ) : (
+            <div className="pf-ing">
+              {(f.pots || []).map((p, i) => {
+                const pl = R.potLines[i] || {};
+                const g = pfNum(p.format_g);
+                const motUnite = isPissa && p.type === "kit" ? "kit" : FAM.unitWord;
+                const figer = () => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: String(pl.nb || 0) }; change({ pots }); };
+                const recalculer = () => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: "" }; change({ pots }); };
+                return (
+                  <div key={"fin" + i}>
+                    <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: PF.navy, display: "inline-block", flexShrink: 0 }} />Format {i + 1}{g > 0 ? ` · ${g} g` : ""}</span></Lbl>
+                    <input inputMode="numeric" value={pl.isAutoNb ? (pl.nb || 0) : p.nb} placeholder="0"
+                      onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], nb: ev.target.value.replace(/^0+(?=\d)/, "") }; change({ pots }); }}
+                      style={{ ...inp(), marginTop: 3, fontSize: 18, fontWeight: 800, textAlign: "center", background: pl.isAutoNb ? "#f6efdd" : "#fff" }} />
+                    <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: pl.isAutoNb ? PF.ochre : PF.good, borderRadius: 5, padding: "2px 6px", letterSpacing: ".04em" }}>{pl.isAutoNb ? "CALCULÉ" : "SAISI"}</span>
+                      {pl.isAutoNb
+                        ? (pl.nb > 0 ? <button onClick={figer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>figer</button> : null)
+                        : <button onClick={recalculer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>recalculer</button>}
+                    </div>
+                    {pl.coutUnitaireTotal != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(pl.coutUnitaireTotal)} / {motUnite}</div>}
+                  </div>
+                );
+              })}
+              {isPissa && (
+                <div>
+                  <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: C.jam, display: "inline-block", flexShrink: 0 }} />Plaques{pfNum(f.pissa_poids_plaque) > 0 ? ` · ${pfNum(f.pissa_poids_plaque)} kg` : ""}</span></Lbl>
+                  <input inputMode="numeric" value={f.pissa_nb_plaques == null ? "" : String(f.pissa_nb_plaques).replace(".", ",")} placeholder="0" onChange={(e) => change({ pissa_nb_plaques: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 18, fontWeight: 800, textAlign: "center" }} />
+                  <div style={{ marginTop: 5 }}><span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", letterSpacing: ".04em" }}>SAISI</span></div>
+                  {R.coutPlaque != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(R.coutPlaque)} / plaque</div>}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Produits finis</span>
+            <span style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+              {R.coutPotMoyen != null && <span style={{ fontSize: 12, opacity: .85 }}>{eur3(R.coutPotMoyen)} / {FAM.unitWord}</span>}
+              <b style={{ fontSize: 30, fontWeight: 800 }}>{nbFinisTotal}</b>
+            </span>
+          </div>
+          {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
+            <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.45, color: R.ecartPoids > 0 ? C.soft : PF.warn }}>
+              {R.ecartPoids > 0
+                ? <>Il reste {R.ecartPoids.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg non mis en {FAM.unitWord} — ajoute un format ou augmente les quantités.</>
+                : <>⚠ {Math.abs(R.ecartPoids).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de plus que le poids obtenu : les quantités saisies dépassent la fournée.</>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {etabOk === "mo" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Temps de production</div>
           <div className="pf-row" style={{ marginBottom: 10 }}>
@@ -2912,7 +3064,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         </div>
       )}
 
-      {etab === "pot" && (
+      {etabOk === "pot" && (
         <div style={card()}>
           <div style={{ ...h2 }}>Contenants & vente</div>
 
@@ -3094,30 +3246,30 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                 <div style={{ marginTop: 10 }}>
                   <Lbl>Accompagnements (huile, anchois, olive…)</Lbl>
                   {/* Un accompagnement est une ligne de recette : mêmes colonnes, même en-tête. */}
-                  {(p.accompagnements || []).length > 0 && (
-                    <div className="pf-extra pf-head">
-                      <span>Ingrédient</span><span>Qté</span><span>Unité</span><span>Prix</span><span />
-                    </div>
-                  )}
-                  {(p.accompagnements || []).map((a, ai) => (
-                    <div key={ai} className="pf-extra">
-                      <div><span className="pf-lbl"><Lbl>Ingrédient</Lbl></span><input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} /></div>
-                      <div><span className="pf-lbl"><Lbl>Qté</Lbl></span><input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /></div>
-                      <div>
-                        <span className="pf-lbl"><Lbl>Unité</Lbl></span>
-                        <select value={a.unit || "piece"} onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], unit: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 12.5, padding: "9px 5px" }}>
-                        <option value="g">g</option>
-                        <option value="kg">kg</option>
-                        <option value="ml">ml</option>
-                        <option value="cl">cl</option>
-                        <option value="L">L</option>
-                        <option value="piece">pièce</option>
-                        </select>
+                  {/* Un accompagnement est une ligne de recette : MÊMES cellules que partout. */}
+                  <div className="pf-ing">
+                    {(p.accompagnements || []).map((a, ai) => (
+                      <div key={ai}>
+                        <input value={a.label || ""} placeholder="ex. Huile" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], label: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 13 }} />
+                        <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                          <input inputMode="decimal" value={a.qty == null ? "" : String(a.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], qty: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} />
+                          <select value={a.unit || "piece"} onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], unit: ev.target.value }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 12.5, padding: "9px 5px" }}>
+                          <option value="g">g</option>
+                          <option value="kg">kg</option>
+                          <option value="ml">ml</option>
+                          <option value="cl">cl</option>
+                          <option value="L">L</option>
+                          <option value="piece">pièce</option>
+                          </select>
+                          <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: (pots[i].accompagnements || []).filter((_, j) => j !== ai) }; change({ pots }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 36, height: 36, cursor: "pointer", flexShrink: 0 }}><Trash2 size={14} /></button>
+                        </div>
+                        <div style={{ marginTop: 7 }}>
+                          <Lbl>Prix <span style={{ fontWeight: 400, color: C.soft }}>({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</span></Lbl>
+                          <input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} />
+                        </div>
                       </div>
-                      <div><span className="pf-lbl"><Lbl>Prix ({(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu})</Lbl></span><span className="pf-prix"><input inputMode="decimal" value={a.price == null ? "" : String(a.price).replace(".", ",")} placeholder="0" onChange={(ev) => { const pots = [...f.pots]; const acc = [...(pots[i].accompagnements || [])]; acc[ai] = { ...acc[ai], price: ev.target.value.replace(",", ".") }; pots[i] = { ...pots[i], accompagnements: acc }; change({ pots }); }} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 700 }} /><span className="pf-unit">{(EXTRA_UNITS[a.unit] || EXTRA_UNITS.piece).pu}</span></span></div>
-                      <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: (pots[i].accompagnements || []).filter((_, j) => j !== ai) }; change({ pots }); }} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, width: 36, height: 36, cursor: "pointer", flexShrink: 0 }}><Trash2 size={14} /></button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                   <button onClick={() => { const pots = [...f.pots]; pots[i] = { ...pots[i], accompagnements: [...(pots[i].accompagnements || []), { label: "", qty: "", price: "", unit: "piece" }] }; change({ pots }); }} className="ca-tap" style={{ marginTop: 8, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 8, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Plus size={12} /> Ajouter un accompagnement</button>
                 </div>
               )}
