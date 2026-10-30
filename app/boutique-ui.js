@@ -1544,6 +1544,24 @@ function pfCalc(f, rendementEstime, poidsExtraDispo = 0) {
 // singulier et pluriel confondus. Sert à relier une vente, une fournée et une fiche produit.
 const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\bconfitures?\b/g, "").replace(/\bde\b|\bd'|\bla\b|\ble\b|\bles\b|\baux?\b/g, "").replace(/s\b/g, "").replace(/[^a-z0-9]/g, "");
 
+// Une RUBRIQUE de production = UN produit fabriqué, pas une famille. La famille « Confiture »
+// mélangeait 10 confitures différentes dans un seul tableau, et le cake aux fruits confits —
+// rangé par erreur en famille pissaladière — arrivait au milieu des fournées d'oignons, avec
+// une colonne OIGNON à côté de lui. D'une ligne à l'autre les chiffres ne parlaient plus du
+// même produit : plus rien n'était lisible.
+// La clé est le titre réduit à son noyau (normNom), donc « CONFITURE DE MELON »,
+// « confiture de melon » et « CONFITURE MELONS » sont bien le même produit (5 fournées).
+// Sans titre, on retombe sur la famille : les fournées de pissaladière sans titre restent
+// ensemble au lieu de se disperser en autant de rubriques vides.
+// ⚠️ Rattachement EXACT uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
+// titre « C » reste sa propre rubrique, visible et corrigeable, au lieu de happer Caramel,
+// Citron et Crème de marron.
+const rubriqueDe = (b) => {
+  const cle = normNom(b && b.titre);
+  if (!cle) { const fam = famOf((b && b.famille) || "pissaladiere"); return { cle: "fam:" + fam.key, label: fam.label, sansTitre: true }; }
+  return { cle, label: String(b.titre).trim(), sansTitre: false };
+};
+
 // Grammage de produit fini contenu dans UNE unité de vente, déduit du conditionnement.
 // On lit le premier nombre réellement suivi d'une unité de poids : "part ≈ 272 g · 35 €/kg" = 272 g
 // (et non 27235 comme le donnerait une simple extraction de tous les chiffres).
@@ -1876,6 +1894,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
+  const [sousProduit, setSousProduit] = useState(null); // rubrique ouverte : null = la liste des produits
+  const [blocsProd, setBlocsProd] = useState({});       // blocs dépliés de la vue liste (fermés au départ)
   const [view, setView] = useState("familles"); // familles | list | edit | dash
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -2142,26 +2162,28 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       let revient = 0, fini = 0, finis = 0;
       comptees.forEach((b) => { const r = pfCalc(b, rendementEstime); revient += r.revientHE || 0; fini += r.poidsFini || 0; finis += (r.nbPotsTotal || 0) + (r.nbPlaques || 0); });
       const dates = arr.map((b) => b.date).filter(Boolean).sort();
-      return { n: arr.length, derniere: dates.length ? dates[dates.length - 1] : null, coutKg: fini > 0 ? revient / fini : null, finis };
+      // nb de produits réellement fabriqués dans la famille : « Confiture » en compte 10
+      const nbProduits = new Set(arr.map((b) => rubriqueDe(b).cle)).size;
+      return { n: arr.length, derniere: dates.length ? dates[dates.length - 1] : null, coutKg: fini > 0 ? revient / fini : null, finis, nbProduits };
     };
     const nonClassees = batches.filter((b) => !estConnueFam(b));
-    const entrer = (key) => { setFamille(key); setView("list"); };
+    const entrer = (key) => { setFamille(key); setSousProduit(null); setView("list"); };
     return (
       <div className="ca-anim">
         <div style={{ marginBottom: 16 }}>
           <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2>
-          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Choisissez le produit — coût de revient, productivité et produits finis</div>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Choisissez la rubrique, puis le produit fabriqué</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 8 }}>
           {FAMILLES.map((fm) => {
             const s = statsFam(fm.key);
             return (
               <button key={fm.key} onClick={() => entrer(fm.key)} className="ca-tap"
-                style={{ textAlign: "left", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, cursor: "pointer", display: "flex", flexDirection: "column", gap: 9, minHeight: 148 }}>
-                <span style={{ width: 52, height: 52, borderRadius: 13, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={fm.illu} col={fm.col} s={40} /></span>
-                <span style={{ fontSize: 14.5, fontWeight: 700, color: C.ink, lineHeight: 1.25 }}>{fm.label}</span>
-                <span style={{ marginTop: "auto", fontSize: 11.5, color: C.soft, lineHeight: 1.55, fontVariantNumeric: "tabular-nums" }}>
-                  {s.n === 0 ? "aucune fournée" : <>{s.n} fournée{s.n > 1 ? "s" : ""}{s.derniere ? ` · ${new Date(s.derniere).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : ""}</>}
+                style={{ textAlign: "left", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 13, padding: 11, cursor: "pointer", display: "flex", flexDirection: "column", gap: 7, minHeight: 112 }}>
+                <span style={{ width: 40, height: 40, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={fm.illu} col={fm.col} s={31} /></span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{fm.label}</span>
+                <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45, fontVariantNumeric: "tabular-nums" }}>
+                  {s.n === 0 ? "aucune fournée" : <>{s.nbProduits} produit{s.nbProduits > 1 ? "s" : ""} · {s.n} fournée{s.n > 1 ? "s" : ""}{s.derniere ? ` · ${new Date(s.derniere).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : ""}</>}
                   {s.coutKg != null && <span style={{ display: "block", color: PF.navy, fontWeight: 700 }}>{eur2(s.coutKg)}/kg</span>}
                   {s.finis > 0 && <span style={{ display: "block", color: PF.good, fontWeight: 700 }}>{s.finis} produit{s.finis > 1 ? "s" : ""} fini{s.finis > 1 ? "s" : ""}</span>}
                 </span>
@@ -2170,10 +2192,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           })}
           {nonClassees.length > 0 && (
             <button onClick={() => entrer("__autres__")} className="ca-tap"
-              style={{ textAlign: "left", background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 14, padding: 14, cursor: "pointer", display: "flex", flexDirection: "column", gap: 9, minHeight: 148 }}>
-              <span style={{ width: 52, height: 52, borderRadius: 13, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0, color: PF.warn }}><Package size={26} /></span>
-              <span style={{ fontSize: 14.5, fontWeight: 700, color: PF.warn, lineHeight: 1.25 }}>Non classées</span>
-              <span style={{ marginTop: "auto", fontSize: 11.5, color: C.soft, lineHeight: 1.55 }}>{nonClassees.length} fournée{nonClassees.length > 1 ? "s" : ""} à reclasser</span>
+              style={{ textAlign: "left", background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 13, padding: 11, cursor: "pointer", display: "flex", flexDirection: "column", gap: 7, minHeight: 112 }}>
+              <span style={{ width: 40, height: 40, borderRadius: 11, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0, color: PF.warn }}><Package size={21} /></span>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: PF.warn, lineHeight: 1.2 }}>Non classées</span>
+              <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45 }}>{nonClassees.length} fournée{nonClassees.length > 1 ? "s" : ""} à reclasser</span>
             </button>
           )}
         </div>
@@ -2181,23 +2203,141 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
           <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée « {famOf(famille).label} »</button>
         </div>
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{busy ? "Chargement…" : "Touchez un produit pour voir ses fournées et en créer une."}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{busy ? "Chargement…" : "Touchez une rubrique pour voir ses produits fabriqués."}</div>
       </div>
     );
   }
 
   // ================= VUE LISTE =================
   if (view === "list") {
-    const isPissa = isPissaFam(famille);
     // fournées dont la clé de famille n'existe plus (ex. « pissaladiere_volume ») : sans cet onglet
     // elles restaient invisibles et impossibles à rouvrir dans l'app
     const estConnue = (b) => FAMILLES.some((fm) => fm.key === (b.famille || "pissaladiere"));
     const nbNonClassees = batches.filter((b) => !estConnue(b)).length;
     const famBatches = famille === "__autres__" ? batches.filter((b) => !estConnue(b)) : batches.filter((b) => (b.famille || "pissaladiere") === famille);
-    // Le prix de vente manquait : sans lui, coef et marge ne se relisent pas (marge = PV − coût).
-    const cols = isPissa ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/pot", "PV/pot", "Marge/pot", "Coef"] : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef"];
+    const famLabel = famille === "__autres__" ? "Non classées" : famOf(famille).label;
+
+    // ---- RUBRIQUES : un groupe = UN produit fabriqué, pas une famille (CLAUDE.md §5.9) ----
+    const gmap = new Map();
+    famBatches.forEach((b) => {
+      const rb = rubriqueDe(b);
+      if (!gmap.has(rb.cle)) gmap.set(rb.cle, { cle: rb.cle, sansTitre: rb.sansTitre, labels: {}, batches: [] });
+      const g = gmap.get(rb.cle);
+      g.batches.push(b);
+      g.labels[rb.label] = (g.labels[rb.label] || 0) + 1;
+    });
+    const groupes = [...gmap.values()].map((g) => {
+      // l'orthographe la plus fréquente représente le groupe (« CONFITURE DE MELON » / « confiture de melon »)
+      const label = Object.keys(g.labels).sort((a, b) => (g.labels[b] - g.labels[a]) || (b.length - a.length))[0] || "—";
+      const utiliseOignon = g.batches.some((b) => pfNum(b.oignon_kg) > 0);
+      const dates = g.batches.map((b) => b.date).filter(Boolean).sort();
+      let finis = 0, revient = 0, fini = 0, comptees = 0;
+      g.batches.forEach((b) => {
+        if (!fourneeComptee(b)) return;
+        comptees++;
+        const r = pfCalc(b, rendementEstime);
+        finis += (r.nbPotsTotal || 0) + (r.nbPlaques || 0);
+        revient += r.revientHE || 0;
+        fini += r.poidsFini || 0;
+      });
+      // conditionnement réel : celui du produit du catalogue si le format y est relié, sinon le grammage saisi
+      const units = [...new Set(g.batches.flatMap((b) => (b.pots || []).map((p) => p.pid)).filter(Boolean)
+        .map((pid) => { const pr = (products || []).find((x) => x.id === pid); return pr && pr.unit; }).filter(Boolean))];
+      const grammes = [...new Set(g.batches.flatMap((b) => (b.pots || []).map((p) => pfNum(p.format_g))).filter((x) => x > 0))].sort((a, b) => a - b);
+      const cond = units.length ? units.join(" · ") : (grammes.length ? grammes.map((x) => pfNum(x) + " g").join(" · ") : "");
+      return { ...g, label, utiliseOignon, derniere: dates.length ? dates[dates.length - 1] : null, finis, comptees, fini, coutKg: fini > 0 ? revient / fini : null, cond };
+    }).sort((a, b) => String(b.derniere || "").localeCompare(String(a.derniere || "")));
+    const groupe = groupes.find((g) => g.cle === sousProduit) || null;
+
+    // En-tête commun aux deux niveaux. Les pastilles de familles tiennent sur UNE ligne qui défile :
+    // enroulées, elles prenaient trois lignes sur un téléphone et repoussaient le tableau hors écran.
+    const barreFamilles = (
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
+        {FAMILLES.map((fm) => (
+          <button key={fm.key} onClick={() => { setFamille(fm.key); setSousProduit(null); }} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${famille === fm.key ? C.jam : C.line}`, background: famille === fm.key ? C.jam : "#fff", color: famille === fm.key ? "#fff" : C.ink, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{fm.label}</button>
+        ))}
+        {nbNonClassees > 0 && (
+          <button onClick={() => { setFamille("__autres__"); setSousProduit(null); }} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${famille === "__autres__" ? C.jam : PF.warn}`, background: famille === "__autres__" ? C.jam : "#faece5", color: famille === "__autres__" ? "#fff" : PF.warn, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Non classées ({nbNonClassees})</button>
+        )}
+      </div>
+    );
+    const enTete = (titre, soustitre, retour) => (
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <button onClick={retour.on} title={retour.titre} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{titre}</h2>
+            <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{soustitre}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
+          <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
+        </div>
+      </div>
+    );
+
+    // ============ NIVEAU 1 : les produits de la rubrique ============
+    // Avant, les 23 fournées de confiture (10 produits différents) et le cake tombé dans la famille
+    // pissaladière arrivaient dans un seul tableau : une colonne OIGNON à côté d'un cake, et des
+    // chiffres qui ne parlaient pas du même produit d'une ligne à l'autre.
+    if (!groupe) {
+      return (
+        <div className="ca-anim">
+          {enTete(famLabel, `${groupes.length} produit${groupes.length > 1 ? "s" : ""} · ${famBatches.length} fournée${famBatches.length > 1 ? "s" : ""}`, { on: () => setView("familles"), titre: "Changer de rubrique" })}
+          {barreFamilles}
+          {famille === "__autres__" && famBatches.length > 0 && (
+            <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+              Ces fournées portent une famille qui n&apos;existe plus dans l&apos;app. Elles sont conservées telles quelles et n&apos;entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
+            </div>
+          )}
+          {groupes.length === 0 ? (
+            <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : (famille === "__autres__" ? "Aucune fournée non classée." : `Aucune fournée « ${famLabel} ». Créez la première avec le bouton « Fournée ».`)}</div>
+          ) : (
+            <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
+                  <thead><tr>
+                    {["Produit fabriqué", "Fournées", "Dernière", "Poids fini", "Coût/kg", "Produits finis"].map((t, i) => (
+                      <th key={i} style={{ padding: "9px 8px", textAlign: i > 0 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {groupes.map((g, i) => (
+                      <tr key={g.cle} onClick={() => setSousProduit(g.cle)} className="ca-tap" style={{ cursor: "pointer", background: i % 2 ? "#ffffff66" : "transparent", borderBottom: `1px solid ${C.line}` }}>
+                        <td style={{ padding: "11px 8px", maxWidth: 240 }}>
+                          <div style={{ fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label}</div>
+                          {g.cond && <div style={{ fontSize: 11, color: C.soft, marginTop: 2 }}>unité : {g.cond}</div>}
+                        </td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{g.batches.length}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez un produit pour voir ses fournées. Les fournées sans titre sont regroupées sous le nom de la rubrique.</div>
+        </div>
+      );
+    }
+
+    // ============ NIVEAU 2 : les fournées d'UN produit ============
+    // Les colonnes suivent ce que le produit utilise réellement : la colonne OIGNON et le rendement
+    // de cuisson ne s'affichent que si la recette porte des oignons (un cake n'en a pas).
+    const grpBatches = groupe.batches;
+    const avecOignon = groupe.utiliseOignon;
+    // « pot » ne vaut que pour les confitures et les pots d'oignons : on ne vend pas un cake au pot.
+    // L'unité de compte est donc « unité », et le conditionnement réel est rappelé sous le titre.
+    const cols = avecOignon
+      ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/unité", "PV/unité", "Marge/unité", "Coef"]
+      : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef"];
     // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
-    const batchesPeriode = isPissa ? famBatches.filter((b) => {
+    const batchesPeriode = avecOignon ? grpBatches.filter((b) => {
       if (selectionManuelle) return selectionManuelle.has(b.id);
       if (!b.date) return false;
       if (dateDebut && b.date < dateDebut) return false;
@@ -2217,7 +2357,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
     // stock oignons cuits = produit par toutes les fournées pissaladière - consommé par les ventes de pissaladière
     const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere") && fourneeComptee(b)).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
-    const fourneesExclues = batches.filter((b) => isPissaFam(b.famille || "pissaladiere") && !fourneeComptee(b)).length;
+    const fourneesExclues = grpBatches.filter((b) => !fourneeComptee(b)).length;
     const oignonsCuitsConsommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
       const n = (it.name || "").toLowerCase();
       if (!n.includes("pissalad") && !n.includes("oignon")) return si;
@@ -2227,61 +2367,84 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       return si + (it.qty || 0) * (g / 1000);
     }, 0), 0);
     const stockOignonsCuits = oignonsCuitsProduits - oignonsCuitsConsommes;
+    const sousTitre = `${grpBatches.length} fournée${grpBatches.length > 1 ? "s" : ""} · ${famLabel}${groupe.cond ? ` · unité : ${groupe.cond}` : ""}`;
     return (
       <div className="ca-anim">
-        {isPissa && oignonsCuitsProduits > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-            <div style={{ flex: "1 1 130px", background: C.jam, color: "#fff", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 11, opacity: .8, textTransform: "uppercase", letterSpacing: ".08em" }}>Stock oignons cuits</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+        {enTete(groupe.sansTitre ? `${groupe.label} · sans titre` : groupe.label, sousTitre, { on: () => setSousProduit(null), titre: "Retour aux produits" })}
+        {groupes.length > 1 && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
+            <button onClick={() => setSousProduit(null)} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${C.line}`, background: "#fff", color: C.soft, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Tous ({groupes.length})</button>
+            {groupes.map((g) => (
+              <button key={g.cle} onClick={() => setSousProduit(g.cle)} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${g.cle === groupe.cle ? C.jam : C.line}`, background: g.cle === groupe.cle ? C.jam : "#fff", color: g.cle === groupe.cle ? "#fff" : C.ink, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label} ({g.batches.length})</button>
+            ))}
+          </div>
+        )}
+        {avecOignon && oignonsCuitsProduits > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: "1 1 140px", background: C.jam, color: "#fff", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 12, opacity: .85, textTransform: "uppercase", letterSpacing: ".07em" }}>Stock oignons cuits</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
-            <div style={{ flex: "1 1 110px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 11, color: C.soft, textTransform: "uppercase", letterSpacing: ".08em" }}>Produit</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: PF.good, marginTop: 2 }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+            <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Produit</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.good, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
-            <div style={{ flex: "1 1 110px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: 11, color: C.soft, textTransform: "uppercase", letterSpacing: ".08em" }}>Consommé (ventes)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: PF.navy, marginTop: 2 }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+            <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Consommé (ventes)</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.navy, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <button onClick={() => setView("familles")} title="Changer de produit" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
-            <div style={{ minWidth: 0 }}>
-              <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{famille === "__autres__" ? "Non classées" : famOf(famille).label}</h2>
-              <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Pilotage des fournées · coût de revient &amp; marges</div>
+
+        {grpBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>Aucune fournée.</div> : (
+          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: avecOignon ? 640 : 560 }}>
+                <thead><tr>
+                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: (avecOignon ? i > 2 : i > 1) ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
+                </tr></thead>
+                <tbody>
+                  {grpBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
+                    <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
+                      {avecOignon && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
+                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
+                      <td style={{ padding: "10px 8px", maxWidth: 180 }}>
+                        <div style={{ color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {f.titre || "sans titre"}
+                          {f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}
+                          {!f.estimation && !fourneeComptee(f) && <span title="Non comptée dans la consommation matières et le stock d'oignons cuits" style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.warn, borderRadius: 5, padding: "1px 5px" }}>HORS STATS</span>}
+                        </div>
+                        {/* le lieu n'est pas un nom de produit : affiché tel quel il faisait passer « casa mama » pour une recette */}
+                        {!f.titre && f.lieu && <div style={{ fontSize: 10.5, color: C.soft, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>chez {f.lieu}</div>}
+                      </td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{r.poidsFini && r.isEstimated ? "*" : ""}</td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
+                      {!avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutKg)}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutPotMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                    </tr>
+                  ); })}
+                </tbody>
+              </table>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
-            <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
-          </div>
-        </div>
+        )}
 
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-          {FAMILLES.map((fm) => (
-            <button key={fm.key} onClick={() => setFamille(fm.key)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${famille === fm.key ? C.jam : C.line}`, background: famille === fm.key ? C.jam : "#fff", color: famille === fm.key ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{fm.label}</button>
-          ))}
-          {nbNonClassees > 0 && (
-            <button onClick={() => setFamille("__autres__")} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${famille === "__autres__" ? C.jam : PF.warn}`, background: famille === "__autres__" ? C.jam : "#faece5", color: famille === "__autres__" ? "#fff" : PF.warn, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Non classées ({nbNonClassees})</button>
-          )}
-        </div>
-
-        {isPissa && (
-          <div style={{ ...card(), background: "#fff7e0", borderColor: PF.yellow + "66", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 12.5, color: C.ink, flex: 1, minWidth: 200 }}><b>Taux de transformation estimé</b><br /><span style={{ color: C.soft }}>utilisé tant que le poids cuit n'est pas pesé</span></div>
+        {avecOignon && (
+          <BlocPliant ouvert={!!blocsProd.rdt} onToggle={() => setBlocsProd((b) => ({ ...b, rdt: !b.rdt }))} titre="Taux de transformation estimé" resume={`${rendementEstime} % — utilisé tant que le poids cuit n'est pas pesé`}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 80, textAlign: "center" }} />
+              <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 90, textAlign: "center" }} />
               <span style={{ fontWeight: 700, color: PF.navy }}>%</span>
             </div>
-          </div>
+          </BlocPliant>
         )}
 
-        {isPissa && famBatches.length > 0 && (
-          <div style={{ ...card(), marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, display: "flex", alignItems: "center", gap: 7 }}><Package size={15} /> Cumul de plusieurs fournées</div>
+        {avecOignon && grpBatches.length > 0 && (
+          <BlocPliant ouvert={!!blocsProd.cumul} onToggle={() => setBlocsProd((b) => ({ ...b, cumul: !b.cumul }))} titre="Cumul de plusieurs fournées" resume={batchesPeriode.length ? `${batchesPeriode.length} fournée(s) · ${cumulCuit.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg cuit` : "aucune fournée retenue"}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               {selectionManuelle ? (
                 <button onClick={() => setSelectionManuelle(null)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Revenir aux dates</button>
               ) : (
@@ -2289,7 +2452,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               )}
             </div>
             {selectionManuelle ? (
-              <div style={{ fontSize: 12.5, color: C.soft }}>Coche les fournées voulues dans le tableau ci-dessous (colonne de gauche) — {selectionManuelle.size} sélectionnée{selectionManuelle.size > 1 ? "s" : ""}.</div>
+              <div style={{ fontSize: 12.5, color: C.soft }}>Coche les fournées voulues dans le tableau ci-dessus (colonne de gauche) — {selectionManuelle.size} sélectionnée{selectionManuelle.size > 1 ? "s" : ""}.</div>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 140px", minWidth: 130 }}>
@@ -2316,7 +2479,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                     <input inputMode="decimal" value={cumulFormat} placeholder="ex. 250" onChange={(e) => setCumulFormat(e.target.value.replace(",", "."))} style={{ ...inp(), marginTop: 4 }} />
                   </div>
                   {cumulNbFormat != null && (
-                    <div style={{ fontSize: 13, color: C.ink, paddingBottom: 10 }}>→ <b style={{ color: PF.navy }}>{cumulNbFormat} pot(s)/kit(s)</b> possibles de {pfNum(cumulFormat)} g avec ce cumul</div>
+                    <div style={{ fontSize: 13, color: C.ink, paddingBottom: 10 }}>→ <b style={{ color: PF.navy }}>{cumulNbFormat} unité(s)</b> de {pfNum(cumulFormat)} g possibles avec ce cumul</div>
                   )}
                 </div>
                 {cumulEstime && <div style={{ fontSize: 11, color: C.soft, marginTop: 6, fontStyle: "italic" }}>* au moins une fournée de la période a un poids cuit estimé (non pesé)</div>}
@@ -2324,43 +2487,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             ) : (
               <div style={{ fontSize: 12.5, color: C.soft, marginTop: 10 }}>Aucune fournée {selectionManuelle ? "sélectionnée" : "dans cette période"}.</div>
             )}
-          </div>
+          </BlocPliant>
         )}
 
-        {famille === "__autres__" && famBatches.length > 0 && (
-          <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
-            Ces fournées portent une famille qui n'existe plus dans l'app. Elles sont conservées telles quelles et n'entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
-          </div>
-        )}
-        {famBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : (famille === "__autres__" ? "Aucune fournée non classée." : `Aucune fournée « ${famOf(famille).label} ». Créez la première avec le bouton « Fournée ».`)}</div> : (
-          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
-                <thead><tr>
-                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: i > 1 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
-                </tr></thead>
-                <tbody>
-                  {famBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
-                    <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
-                      {isPissa && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
-                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
-                      <td style={{ padding: "10px 8px", color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre || f.lieu || "—"}{f.estimation && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 5, padding: "1px 5px" }}>EST.</span>}{!f.estimation && !fourneeComptee(f) && <span title="Non comptée dans la consommation matières et le stock d'oignons cuits" style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.warn, borderRadius: 5, padding: "1px 5px" }}>HORS STATS</span>}</td>
-                      {isPissa && <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : "—"}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : "—"}{r.isEstimated ? "*" : ""}</td>
-                      {isPissa && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
-                      {!isPissa && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutKg)}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap" }}>{eur2(r.coutPotMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap" }}>{eur2(r.prixVenteMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap" }}>{eur2(r.margeMoyenne)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
-                    </tr>
-                  ); })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{isPissa ? "* rendement estimé (poids non pesé). " : ""}Touchez une ligne pour ouvrir la fournée.{isPissa && fourneesExclues > 0 ? ` ${fourneesExclues} fournée(s) marquée(s) « hors stats » ou « estimation » ne sont pas comptées dans la consommation matières ni dans le stock d'oignons cuits.` : ""}</div>
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{avecOignon ? "* rendement estimé (poids non pesé). " : ""}Touchez une ligne pour ouvrir la fournée.{fourneesExclues > 0 ? ` ${fourneesExclues} fournée(s) marquée(s) « hors stats » ou « estimation » ne sont pas comptées dans la consommation matières ni dans le stock d'oignons cuits.` : ""}</div>
       </div>
     );
   }

@@ -199,6 +199,40 @@ Tant que son `poids_fini_kg` est vide, la fournée est écartée. **Dès qu'on s
 farine, le cognac et les cerises confites entreront dans la recette de la pissaladière.**
 Reclasser la fournée avant de renseigner son poids.
 
+### 5.9 Production : une RUBRIQUE = un produit fabriqué, pas une famille
+L'onglet Production se parcourt désormais en **trois niveaux** : vignettes de rubriques →
+**liste des produits fabriqués** → fournées d'UN produit.
+- Niveau 2 (`rubriqueDe`, au niveau module) regroupe les fournées par **titre réduit à son noyau**
+  (`normNom`) : « CONFITURE DE MELON », « confiture de melon » et « CONFITURE MELONS » sont le
+  **même** produit (5 fournées). Sans titre, la clé retombe sur la famille (`fam:<key>`), sinon les
+  5 fournées de pissaladière sans titre se disperseraient en 5 rubriques vides.
+- Avant, la famille « Confiture » affichait **10 produits différents dans un seul tableau** et le
+  cake aux fruits confits — rangé par erreur en famille pissaladière (§5.1 quinquies) — arrivait au
+  milieu des fournées d'oignons **avec une colonne OIGNON à côté de lui**. D'une ligne à l'autre les
+  chiffres ne parlaient plus du même produit.
+- **Les colonnes suivent ce que le produit utilise réellement** : OIGNON, Cuit et Rdt (et le cumul
+  de fournées, et les tuiles de stock d'oignons cuits) n'apparaissent que si **une fournée du groupe
+  porte `oignon_kg > 0`** — plus jamais d'après la clé de famille. Un cake n'a donc plus de colonne
+  oignon même tant que sa famille est fausse.
+- ⚠️ Rattachement **exact** uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
+  titre `C` reste sa propre rubrique, visible et corrigeable, au lieu de happer Caramel et Citron.
+- ⚠️ **« pot » ne vaut que pour les confitures et les pots d'oignons** : on ne vend pas un cake au
+  pot. Les colonnes disent **Coût/unité · PV/unité · Marge/unité**, et le **conditionnement réel**
+  est rappelé sous le titre et dans la colonne « Produit fabriqué » (`unité : 170 g · 250 g`, ou le
+  `unit` du produit du catalogue dès qu'un format lui est relié). Même règle pour le cumul :
+  « N unité(s) de 250 g », plus « pot(s)/kit(s) ».
+- **Le lieu n'est pas un nom de produit.** Le tableau affichait `{f.titre || f.lieu}` : « casa mama »
+  et « 3AD Kitchen, Carros » passaient pour des recettes. Une fournée sans titre affiche désormais
+  « sans titre » puis, en dessous, « chez &lt;lieu&gt; » en gris italique.
+- Scroll : la barre de familles est sur **une seule ligne qui défile** (`nowrap` + `overflowX`) —
+  enroulée elle prenait trois lignes sur un téléphone — et « Taux de transformation » et « Cumul de
+  plusieurs fournées » sont des `BlocPliant` fermés au départ.
+- Vérifié au navigateur sur les **39 fournées réelles** en 320 / 390 / 768 / 1280 px : 0 px de
+  débordement partout, chaque écran de liste tient dans la hauteur d'écran, aucune erreur JS.
+  ⚠️ Le compte d'éléments rendus est obligatoire dans le script de mesure : un onglet servi par un
+  **ancien `next start` resté en vie** renvoyait `ChunkLoadError` et mesurait « 0 px de débordement »
+  parce qu'il n'avait rien rendu du tout.
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
