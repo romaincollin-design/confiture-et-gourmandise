@@ -233,6 +233,44 @@ L'onglet Production se parcourt désormais en **trois niveaux** : vignettes de r
   **ancien `next start` resté en vie** renvoyait `ChunkLoadError` et mesurait « 0 px de débordement »
   parce qu'il n'avait rien rendu du tout.
 
+### 5.10 Prix d'achat : historique daté, premier entré premier sorti
+**Chaque fournée est un achat daté.** Elle produit N unités à un coût de revient qui lui est propre,
+et deux fournées du même produit ne coûtent pas pareil : sur les données réelles, le melon passe de
+**0,81 à 5 €/kg** d'une fournée à l'autre, soit **1,10 € d'écart** sur un pot. Une moyenne sur toutes
+les fournées écrase cet écart — on ne voit plus « la différence entre une production et une autre ».
+- `coutUneFournee(f, rendement)` — **au niveau module** — isole l'économie d'UNE fournée. C'est la
+  brique commune : `lotsDepuisFournees` (le FIFO) et `coutsDepuisFournees` (la moyenne, conservée
+  comme repère) s'appuient dessus. Avant, le calcul agrégeait tout de suite toutes les fournées
+  d'une recette : impossible d'en sortir un historique daté.
+- `lotsDepuisFournees(batches, products, rendement, sales)` → par produit : les **lots datés** du
+  plus ancien au plus récent, les **ventes** qui les écoulent du plus ancien au plus récent (FIFO),
+  ce qui **reste** de chaque lot, et le prix d'achat retenu = **le plus ancien lot encore en stock**.
+  Tous les lots écoulés → c'est la **dernière** fournée qui donne la valeur de remplacement.
+  **Rien n'est stocké en base** : tout se déduit des fournées et des ventes déjà enregistrées.
+- Affichage : pastille « ⌛ N achats » à côté du champ Achat, qui déplie un tableau
+  **Fournée · Produit · Vendu · Reste · Coût/kg · Prix d'achat**, le lot retenu marqué `RETENU`.
+- Les **sorties** se rattachent par `pid`, et à défaut par nom normalisé **seulement s'il est
+  unique** (§8 : 15 noms sont partagés ; « pot d'oignons » désigne 6 produits → non rattaché).
+- ⚠️ **Deux garde-fous, sans lesquels on écrirait des prix faux dans le catalogue :**
+  1. **Recette physiquement impossible** (`suspect`) : si les ingrédients pesés font moins de la
+     **moitié** du poids fini, le lot est écarté. Trois fournées de melon portent **« 4 g »** et
+     **« 1,818 g »** de melon pour **4,979 kg** et **2,298 kg** de confiture — des kilos saisis en
+     grammes. Le coût tombait à **0,41 € pour un pot de 383 g vendu 9 €** (coefficient 22). Même
+     principe que `fourneeComptee` (§5.5) : on écarte et on dit pourquoi (« recette à revoir »),
+     on ne publie pas un chiffre faux-ami.
+  2. **Emballage non compté** (`embInconnu`) : aucun format de fournée ne correspond au
+     conditionnement vendu (produit en « pot 383 g », fournées en 250 g et 350 g), donc bocal,
+     capuchon et étiquette sont absents du prix. C'est dit à l'écran, avec le geste qui corrige
+     (relier le format, §5.2 bis) — un coût silencieusement amputé gonflerait la marge.
+- Un lot écarté par l'un de ces deux motifs est **sauté** par le FIFO : sinon une seule fournée mal
+  saisie imposerait son chiffre faux à tout le produit. Le lot reste consommé par les ventes (la
+  confiture a bien été fabriquée) ; c'est seulement son **coût** qui est inutilisable.
+- Le bouton « Calculer N prix d'achat depuis les fournées » applique désormais le **prix FIFO**, plus
+  la moyenne. La moyenne reste affichée à côté (« moyenne X € ») comme repère.
+- ⚠️ Ce FIFO est une **convention de valorisation**, pas un inventaire physique par lot : les ventes
+  ne portent pas de numéro de lot. Les unités d'un lot sont « ce que cette fournée aurait produit
+  dans ce conditionnement ». Ne jamais le présenter comme une traçabilité de lot (≠ §5.8).
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -581,7 +619,8 @@ reste de la page. C'est visible sur la capture du propriétaire : seul le pannea
 ## 10. Idées / chantiers en cours (backlog)
 
 - Kit Apéro (confit d'oignons + biscuits + tapenade + anchois) — à monter via le type "Kit" en Production.
-- Prix d'achat manquants : **ne pas les saisir à la main**. Deux chemins, tous deux automatiques :
+- Prix d'achat manquants : **ne pas les saisir à la main**. Trois chemins, tous automatiques :
+  le bouton « Calculer N prix d'achat depuis les fournées » applique le **prix FIFO** (§5.10),
   relier les formats de fournée aux produits (§5.2 bis) puis valider la fournée, **ou** le bouton
   « Calculer N prix d'achat depuis les fournées » de l'onglet Produits (`coutsDepuisFournees`), qui
   applique la même définition sans passer par la validation. Au 17/09/2026 : **21 applicables**,

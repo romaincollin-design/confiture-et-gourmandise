@@ -775,7 +775,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -4561,54 +4561,169 @@ function origineCouts(batches, products) {
   return out;
 }
 
+// Économie d'UNE fournée, isolée (matières, frais, poids fini, formats, ingrédients sans prix).
+// Elle était noyée dans une boucle qui cumulait tout de suite toutes les fournées d'une recette :
+// impossible d'en sortir un historique daté, donc impossible de dire ce que CETTE production a
+// coûté. C'est la brique du FIFO (§5.10) et de la moyenne (coutsDepuisFournees).
+function coutUneFournee(f, rendement) {
+  if (!f || !fourneeComptee(f)) return null;
+  const estPissa = isPissaFam(f.famille || "");
+  const cle = estPissa ? "pissaladiere" : normNom(f.titre || "");
+  if (!cle) return null;
+  let matieres = 0, poidsTotal = 0, poidsSansPrix = 0;
+  const sansPrix = [];
+  PF_ING.forEach((ing) => {
+    const q = pfNum(f[ing.qf]), px = pfNum(f[ing.pf]), kgEq = q / ing.div;
+    poidsTotal += kgEq;
+    if (q > 0 && px <= 0) { sansPrix.push(ing.label); poidsSansPrix += kgEq; }
+    matieres += kgEq * px;
+  });
+  (f.extra || []).forEach((e) => {
+    if (estProduitFini(e.label)) return;   // produit déjà fabriqué, pas une matière (CLAUDE.md 5.5)
+    const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
+    const q = pfNum(e.qty), px = pfNum(e.price);
+    const kgEq = e.unit === "piece" ? 0 : q / div;   // les pièces n'ont pas de poids connu
+    poidsTotal += kgEq;
+    if (q > 0 && px <= 0) { sansPrix.push(String(e.label || "").trim()); poidsSansPrix += kgEq; }
+    matieres += (q / div) * px;
+  });
+  const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
+  const frais = tempsTotal * (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0)
+    + tempsTotal * pfNum(f.taux_local) + pfNum(f.transport)
+    + (f.frais_extra || []).reduce((s, x) => s + pfNum(x.montant), 0);
+  let fini = pfNum(f.poids_fini_kg);
+  if (!fini && estPissa && pfNum(f.oignon_kg)) fini = pfNum(f.oignon_kg) * ((Number(rendement) || 64.3) / 100);
+  if (!fini) return null;
+  const pots = (f.pots || []).map((p) => ({ g: pfNum(p.format_g), nb: pfNum(p.nb), pid: p.pid || null, emb: pfNum(p.px_bocal) + pfNum(p.px_capuchon) + pfNum(p.px_etiquette) })).filter((p) => p.g > 0);
+  // Une confiture ne se fabrique pas à partir de rien : si les ingrédients pesés font moins de la
+  // MOITIÉ du poids fini, la recette est inexploitable. Sur les données réelles, trois fournées de
+  // melon portent « 4 g » / « 1,818 g » de melon pour 4,979 kg / 2,298 kg de confiture — des kilos
+  // saisis en grammes. Le coût tombait alors à 0,41 € pour un pot de 383 g vendu 9 € (coef 22).
+  // Même principe que fourneeComptee (§5.5) : on écarte, on ne publie pas un chiffre faux-ami.
+  const suspect = poidsTotal > 0 && poidsTotal < fini * 0.5;
+  return {
+    cle, estPissa, date: f.date || "", titre: String(f.titre || "").trim(), id: f.id || null,
+    matieres, frais, revient: matieres + frais, finiKg: fini, coutKg: (matieres + frais) / fini,
+    poidsTotal, poidsSansPrix, sansPrix, pots, suspect,
+  };
+}
+
+// Un ingrédient sans prix qui pèse lourd fausse tout : on refuse plutôt que d'annoncer un coût
+// trop bas. Sous 5 % du poids (citron, vanille, menthe), on calcule et on dit ce qui est exclu.
+const SEUIL_SANS_PRIX = 0.05;
+
+// Clé de recette d'une FICHE PRODUIT (l'autre bout de la liaison nom ↔ recette).
+const cleRecetteProduit = (p) => {
+  const nom = (p && p.name ? p.name : "").toLowerCase();
+  const estPissa = nom.includes("pissalad") || nom.includes("oignon");
+  return { cle: estPissa ? "pissaladiere" : normNom(p && p.name), estPissa };
+};
+
+// Emballage du format de fournée le plus proche du conditionnement vendu (± 5 %, 10 g mini).
+const embPourFormat = (pots, g) => {
+  if (!pots || !pots.length) return 0;
+  const proche = pots.reduce((best, x) => (Math.abs(x.g - g) < Math.abs(best.g - g) ? x : best));
+  return Math.abs(proche.g - g) <= Math.max(10, g * 0.05) ? proche.emb : 0;
+};
+
+// ===== §5.10 — HISTORIQUE DES PRIX D'ACHAT, PREMIER ENTRÉ PREMIER SORTI =====
+// Chaque fournée est une ENTRÉE datée : elle produit N unités à un coût de revient qui lui est
+// propre. Deux fournées du même produit ne coûtent pas pareil (le melon est passé de 0,81 à 5 €/kg
+// entre deux fournées) : une moyenne sur toutes les fournées écrase cet écart, et on ne voit plus
+// « la différence entre une production et une autre ».
+// Les ventes sont les SORTIES : elles consomment les lots du PLUS ANCIEN au plus récent (FIFO).
+// Le prix d'achat du produit est donc le coût du plus ancien lot encore en stock — pas une moyenne.
+// Rien n'est stocké en base : tout se déduit des fournées et des ventes déjà enregistrées.
+function lotsDepuisFournees(batches, products, rendement, sales) {
+  // 1) les entrées, par clé de recette, du plus ancien au plus récent
+  const parCle = {};
+  (batches || []).forEach((b) => {
+    const r = coutUneFournee(b.data || b, rendement);
+    if (!r) return;
+    (parCle[r.cle] = parCle[r.cle] || []).push(r);
+  });
+  Object.values(parCle).forEach((arr) => arr.sort((a, b) => String(a.date).localeCompare(String(b.date))));
+
+  // 2) les sorties : unités vendues par produit (cleProduit n'est pas disponible ici, on passe
+  //    par le pid quand il existe et par le nom normalisé sinon — même règle que §8)
+  const vendus = {};
+  const parNom = {};
+  (products || []).forEach((p) => { const n = normNom(p.name); if (n) (parNom[n] = parNom[n] || []).push(p); });
+  (sales || []).forEach((v) => (v.items || []).forEach((it) => {
+    let pid = it.pid || null;
+    if (!pid) { const c = parNom[normNom(it.name)]; if (c && c.length === 1) pid = c[0].id; }
+    if (pid) vendus[pid] = (vendus[pid] || 0) + (pfNum(it.qty) || 0);
+  }));
+
+  // 3) pour chaque produit : ses lots datés, puis le déstockage FIFO
+  const out = {};
+  (products || []).forEach((p) => {
+    const { cle, estPissa } = cleRecetteProduit(p);
+    const g = grammesUnite(p.unit, estPissa);
+    const fournees = parCle[cle] || [];
+    if (!fournees.length || !g) { out[p.id] = { etat: "sans_recette", lots: [] }; return; }
+    const lots = fournees.map((r) => {
+      const part = r.poidsTotal > 0 ? r.poidsSansPrix / r.poidsTotal : 0;
+      const emb = embPourFormat(r.pots, g);
+      // aucun format de fournée ne correspond au conditionnement vendu : le bocal, le capuchon et
+      // l'étiquette ne sont pas comptés. On le dit, au lieu d'annoncer un coût silencieusement amputé.
+      const embInconnu = emb === 0 && r.pots.length > 0;
+      const cout = Math.round(((r.coutKg * g) / 1000 + emb) * 1000) / 1000;
+      // nb d'unités produites : celui saisi sur le format correspondant, sinon déduit du poids fini
+      const memeFormat = r.pots.find((x) => Math.abs(x.g - g) <= Math.max(10, g * 0.05));
+      const nb = (memeFormat && memeFormat.nb > 0) ? memeFormat.nb : Math.floor((r.finiKg * 1000) / g);
+      return {
+        date: r.date, titre: r.titre, fourneeId: r.id, nb, cout, coutKg: r.coutKg, emb, g,
+        matieresKg: r.matieres / r.finiKg, fraisKg: r.frais / r.finiKg, finiKg: r.finiKg,
+        bloque: part > SEUIL_SANS_PRIX || r.suspect, suspect: r.suspect, embInconnu,
+        manquants: [...new Set(r.sansPrix)].filter(Boolean), part,
+        poidsTotal: r.poidsTotal, restant: 0,
+      };
+    });
+    // déstockage du plus ancien au plus récent
+    let aSortir = vendus[p.id] || 0;
+    lots.forEach((l) => { const pris = Math.min(l.nb, aSortir); l.sorti = pris; l.restant = l.nb - pris; aSortir -= pris; });
+    const enStock = lots.reduce((s, l) => s + l.restant, 0);
+    // le prix d'achat FIFO = le plus ancien lot ENCORE en stock ; tout écoulé, c'est le dernier
+    // lot produit qui donne la valeur de remplacement (c'est ce que coûterait d'en refaire).
+    // Un lot inexploitable (ingrédient sans prix trop lourd, ou recette impossible) est sauté :
+    // sinon un seul lot mal saisi imposerait son chiffre faux à tout le produit.
+    const exploitables = lots.filter((l) => !l.bloque);
+    const courant = exploitables.find((l) => l.restant > 0)
+      || exploitables[exploitables.length - 1]
+      || lots.find((l) => l.restant > 0) || lots[lots.length - 1];
+    out[p.id] = {
+      etat: courant.bloque ? "bloque" : "ok",
+      lots, enStock, vendu: vendus[p.id] || 0,
+      courant, epuise: enStock <= 0,
+      cout: Math.round(courant.cout * 100) / 100,
+      manquants: courant.manquants, part: courant.part, suspect: courant.suspect,
+      embInconnu: courant.embInconnu, nbSuspects: lots.filter((l) => l.suspect).length,
+      ecart: exploitables.length > 1 ? Math.max(...exploitables.map((l) => l.cout)) - Math.min(...exploitables.map((l) => l.cout)) : 0,
+    };
+  });
+  return out;
+}
+
+// Moyenne sur toutes les fournées d'une recette. Conservée pour le repère « coût moyen » : elle
+// répond à « combien ça me coûte en général », là où le FIFO répond à « combien m'a coûté le
+// stock que j'ai encore ». Elle se calcule désormais sur la même brique (coutUneFournee).
 function coutsDepuisFournees(batches, products, rendement) {
   const acc = {};   // clé de recette -> cumuls sur toutes les fournées comptées
   (batches || []).forEach((b) => {
-    const f = b.data || b;
-    if (!fourneeComptee(f)) return;
-    const estPissa = isPissaFam(f.famille || "");
-    const cle = estPissa ? "pissaladiere" : normNom(f.titre || "");
-    if (!cle) return;
-    let matieres = 0, poidsTotal = 0, poidsSansPrix = 0;
-    const sansPrix = [];
-    PF_ING.forEach((ing) => {
-      const q = pfNum(f[ing.qf]), px = pfNum(f[ing.pf]), kgEq = q / ing.div;
-      poidsTotal += kgEq;
-      if (q > 0 && px <= 0) { sansPrix.push(ing.label); poidsSansPrix += kgEq; }
-      matieres += kgEq * px;
-    });
-    (f.extra || []).forEach((e) => {
-      if (estProduitFini(e.label)) return;   // produit déjà fabriqué, pas une matière (CLAUDE.md 5.5)
-      const div = (EXTRA_UNITS[e.unit] || EXTRA_UNITS.piece).div;
-      const q = pfNum(e.qty), px = pfNum(e.price);
-      const kgEq = e.unit === "piece" ? 0 : q / div;   // les pièces n'ont pas de poids connu
-      poidsTotal += kgEq;
-      if (q > 0 && px <= 0) { sansPrix.push(String(e.label || "").trim()); poidsSansPrix += kgEq; }
-      matieres += (q / div) * px;
-    });
-    const tempsTotal = pfNum(f.temps_h) + pfNum(f.temps_min) / 60;
-    const frais = tempsTotal * (f.personnel || []).reduce((s, p) => s + pfNum(p.taux), 0)
-      + tempsTotal * pfNum(f.taux_local) + pfNum(f.transport)
-      + (f.frais_extra || []).reduce((s, x) => s + pfNum(x.montant), 0);
-    let fini = pfNum(f.poids_fini_kg);
-    if (!fini && estPissa && pfNum(f.oignon_kg)) fini = pfNum(f.oignon_kg) * ((Number(rendement) || 64.3) / 100);
-    if (!fini) return;
-    if (!acc[cle]) acc[cle] = { revient: 0, matieres: 0, frais: 0, finiKg: 0, nb: 0, poidsTotal: 0, poidsSansPrix: 0, sansPrix: new Set(), pots: [] };
-    const a = acc[cle];
-    a.revient += matieres + frais; a.matieres += matieres; a.frais += frais;
-    a.finiKg += fini; a.nb += 1; a.poidsTotal += poidsTotal; a.poidsSansPrix += poidsSansPrix;
-    sansPrix.forEach((s) => { if (s) a.sansPrix.add(s); });
-    (f.pots || []).forEach((p) => { const g = pfNum(p.format_g); if (g > 0) a.pots.push({ g, emb: pfNum(p.px_bocal) + pfNum(p.px_capuchon) + pfNum(p.px_etiquette) }); });
+    const r = coutUneFournee(b.data || b, rendement);
+    if (!r) return;
+    if (!acc[r.cle]) acc[r.cle] = { revient: 0, matieres: 0, frais: 0, finiKg: 0, nb: 0, poidsTotal: 0, poidsSansPrix: 0, sansPrix: new Set(), pots: [] };
+    const a = acc[r.cle];
+    a.revient += r.revient; a.matieres += r.matieres; a.frais += r.frais;
+    a.finiKg += r.finiKg; a.nb += 1; a.poidsTotal += r.poidsTotal; a.poidsSansPrix += r.poidsSansPrix;
+    r.sansPrix.forEach((x) => { if (x) a.sansPrix.add(x); });
+    r.pots.forEach((x) => a.pots.push({ g: x.g, emb: x.emb }));
   });
 
-  // Un ingrédient sans prix qui pèse lourd fausse tout : on refuse plutôt que d'annoncer un coût trop bas.
-  // Sous 5 % du poids (citron, vanille, menthe), on calcule et on dit ce qui est exclu.
-  const SEUIL_SANS_PRIX = 0.05;
   const out = [];
   (products || []).forEach((p) => {
-    const nom = (p.name || "").toLowerCase();
-    const estPissa = nom.includes("pissalad") || nom.includes("oignon");
-    const cle = estPissa ? "pissaladiere" : normNom(p.name);
+    const { cle, estPissa } = cleRecetteProduit(p);
     const a = acc[cle];
     const g = grammesUnite(p.unit, estPissa);
     if (!a || !a.finiKg || !g) { out.push({ p, etat: "sans_recette" }); return; }
@@ -4616,15 +4731,14 @@ function coutsDepuisFournees(batches, products, rendement) {
     const manquants = [...a.sansPrix];
     if (part > SEUIL_SANS_PRIX) { out.push({ p, etat: "bloque", manquants, part, nb: a.nb }); return; }
     const coutKg = a.revient / a.finiKg;
-    const proche = a.pots.length ? a.pots.reduce((best, x) => Math.abs(x.g - g) < Math.abs(best.g - g) ? x : best) : null;
-    const emb = (proche && Math.abs(proche.g - g) <= Math.max(10, g * 0.05)) ? proche.emb : 0;
+    const emb = embPourFormat(a.pots, g);
     const cost = Math.round(((coutKg * g) / 1000 + emb) * 100) / 100;
     out.push({ p, etat: "ok", cost, coutKg, emb, g, manquants, part, nb: a.nb, matieresKg: a.matieres / a.finiKg, fraisKg: a.frais / a.finiKg });
   });
   return out;
 }
 
-function ProProducts({ products, setProducts, pass, batches, rendement }) {
+function ProProducts({ products, setProducts, pass, batches, rendement, sales }) {
   // Toutes ces clés ont un dessin propre. Tant que le commerçant n'en choisit pas une,
   // l'icône suit le nom du produit (illuAuto) — voir CLAUDE.md 7.
   const ILLUS = ["fraise", "berry", "mure", "cerise", "figue", "peche", "apricot", "plum", "melon",
@@ -4717,6 +4831,9 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
   // ---- prix d'achat déduits des fournées ----
   const couts = useMemo(() => coutsDepuisFournees(batches, products, rendement), [batches, products, rendement]);
+  // §5.10 — historique daté des prix d'achat et valorisation premier entré / premier sorti
+  const fifo = useMemo(() => lotsDepuisFournees(batches, products, rendement, sales), [batches, products, rendement, sales]);
+  const [histo, setHisto] = useState(null);   // id du produit dont l'historique d'achats est ouvert
   // origine de chaque prix d'achat : fournée validée, format relié mais pas encore validé, ou saisie manuelle
   const origines = useMemo(() => origineCouts(batches, products), [batches, products]);
   const nbFournee = products.filter((p) => (origines[p.id] || {}).src === "fournee").length;
@@ -4731,14 +4848,25 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
     if (o.src === "manuel") return <span title={o.date ? `Le prix d'achat vient de cette fiche. Un format de la fournée du ${jourCourt(o.date)}${o.titre ? ` « ${o.titre} »` : ""} est relié à ce produit, mais elle n'a pas été validée : elle n'a donc encore rien poussé.` : "Aucune fournée n'est reliée à ce produit : le prix d'achat vient de cette fiche. C'est le cas normal d'un produit d'achat-revente."} style={puce(C.cream, C.line, C.soft)}>saisi à la main{o.date ? " · fournée non validée" : ""}</span>;
     return null;
   };
-  // on ne propose que ce qui change réellement quelque chose : coût calculé, différent de l'actuel
-  const aAppliquer = couts.filter((c) => c.etat === "ok" && c.cost > 0 && Math.abs(c.cost - (Number(c.p.cost) || 0)) >= 0.01);
+  // On remplit avec le prix FIFO (le plus ancien lot encore en stock), pas avec la moyenne : deux
+  // fournées du même produit ne coûtent pas pareil, et c'est le lot qu'on écoule qui fait foi.
+  // La moyenne reste affichée à côté comme repère.
+  const moyenneDe = {};
+  couts.forEach((c) => { if (c.etat === "ok") moyenneDe[c.p.id] = c; });
+  const aAppliquer = products.map((p) => {
+    const f = fifo[p.id];
+    if (!f || f.etat !== "ok" || !(f.cout > 0)) return null;
+    if (Math.abs(f.cout - (Number(p.cost) || 0)) < 0.01) return null;
+    return { p, cost: f.cout, f, moy: moyenneDe[p.id] || null };
+  }).filter(Boolean);
   const nbCalculables = aAppliquer.length;
   const bloques = couts.filter((c) => c.etat === "bloque");
+  // Combien de produits ont un historique d'achats exploitable, et combien restent vides faute de prix
+  const nbHisto = products.filter((p) => (fifo[p.id] || {}).lots && fifo[p.id].lots.length > 0).length;
   // un même ingrédient manque souvent dans plusieurs recettes : on regroupe pour dire quoi saisir
   const prixASaisir = [...new Set(bloques.flatMap((b) => b.manquants))].sort();
   const appliquerCouts = () => {
-    if (!window.confirm(`Renseigner le prix d'achat de ${nbCalculables} produit${nbCalculables > 1 ? "s" : ""} d'après vos fournées ?\n\nLe prix de vente n'est pas touché. Le coefficient est recalculé.`)) return;
+    if (!window.confirm(`Renseigner le prix d'achat de ${nbCalculables} produit${nbCalculables > 1 ? "s" : ""} d'après vos fournées ?\n\nLe prix retenu est celui du plus ancien lot encore en stock (premier entré, premier sorti).\nLe prix de vente n'est pas touché. Le coefficient est recalculé.`)) return;
     aAppliquer.forEach(({ p, cost }) => {
       apply(p.id, (x) => ({ ...x, cost, coef: (cost > 0 && Number(x.price) > 0) ? +(Number(x.price) / cost).toFixed(2) : x.coef }));
     });
@@ -4764,6 +4892,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
             <span style={puce(C.cream, C.line, C.soft)}>{nbManuel} saisis à la main</span>
             {nbLien > 0 && <span style={puce("#f6efdd", C.caramel + "44", C.caramel)}>{nbLien} fournée non validée</span>}
             {totalSansAchat > 0 && <span style={puce("#faece5", PF.warn + "44", PF.warn)}>{totalSansAchat} manquant{totalSansAchat > 1 ? "s" : ""}</span>}
+            {nbHisto > 0 && <span title="Produits dont le prix d'achat a un historique daté, fournée par fournée (premier entré, premier sorti)" style={puce("#123a5212", PF.navy + "33", PF.navy)}>{nbHisto} avec historique</span>}
           </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
@@ -4788,13 +4917,15 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
 
       {panneauCouts && (
         <div style={{ ...card(), background: C.paper, border: `1.5px solid ${PF.navy}33` }}>
-          <div style={{ ...h2 }}>Prix d&apos;achat déduits des fournées</div>
+          <div style={{ ...h2 }}>Prix d&apos;achat déduits des fournées — premier entré, premier sorti</div>
           <div style={{ fontSize: 12.5, color: C.soft, marginTop: -6, marginBottom: 12, lineHeight: 1.5 }}>
             Rien à saisir : le coût de revient vient de vos recettes — matières, main d&apos;œuvre, local, transport et frais divisés par le poids fini, plus l&apos;emballage du format. C&apos;est le même calcul que « Valider la fournée ».
+            Chaque fournée est un <b style={{ color: C.ink }}>achat daté</b> ; les ventes écoulent les fournées de la <b style={{ color: C.ink }}>plus ancienne à la plus récente</b>, et le prix retenu est celui du plus ancien lot encore en stock.
             <b style={{ color: C.ink }}> Le prix de vente n&apos;est pas touché</b> ; seul le coefficient est recalculé.
           </div>
-          {aAppliquer.map(({ p, cost, coutKg, emb, matieresKg, fraisKg, manquants, nb }, i) => {
+          {aAppliquer.map(({ p, cost, f, moy }) => {
             const pv = Number(p.price) || 0;
+            const l = f.courant;
             return (
               <div key={p.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 4 }}>
@@ -4804,11 +4935,16 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                   {pv > 0 && <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>vente {eur(pv)} · coef <b style={{ color: pv / cost >= 2 ? PF.good : PF.warn }}>{(pv / cost).toFixed(1)}</b></span>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>matières {eur2(matieresKg)}/kg</span>
-                  {fraisKg > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>main d&apos;œuvre + frais {eur2(fraisKg)}/kg</span>}
-                  {emb > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>emballage {eur2(emb)}</span>}
-                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.soft }}>{nb} fournée{nb > 1 ? "s" : ""}</span>
-                  {manquants.length > 0 && <span title="Ingrédients sans prix saisi, trop légers pour fausser le calcul" style={{ background: "#faece5", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: PF.warn }}>hors {manquants.join(", ")}</span>}
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: PF.navy }}>lot du {jourCourt(l.date)}{f.epuise ? " · dernier produit" : ""}</span>
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>matières {eur2(l.matieresKg)}/kg</span>
+                  {l.fraisKg > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>main d&apos;œuvre + frais {eur2(l.fraisKg)}/kg</span>}
+                  {l.emb > 0 && <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.ink }}>emballage {eur2(l.emb)}</span>}
+                  <span style={{ background: "#f6efdd", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.soft }}>{f.lots.length} achat{f.lots.length > 1 ? "s" : ""}</span>
+                  {moy && Math.abs(moy.cost - cost) >= 0.01 && <span title="Moyenne sur toutes les fournées de cette recette — repère, pas la valeur appliquée" style={{ background: C.cream, borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.soft }}>moyenne {eur2(moy.cost)}</span>}
+                  {f.ecart >= 0.01 && <span title="Écart entre la fournée la moins chère et la plus chère de ce produit" style={{ background: "#fff7e0", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.caramel }}>écart entre fournées {eur2(f.ecart)}</span>}
+                  {l.manquants.length > 0 && <span title="Ingrédients sans prix saisi, trop légers pour fausser le calcul" style={{ background: "#faece5", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: PF.warn }}>hors {l.manquants.join(", ")}</span>}
+                  {l.embInconnu && <span title={`Aucun format de fournée ne correspond à « ${p.unit} » : bocal, capuchon et étiquette ne sont pas comptés.`} style={{ background: "#fff7e0", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: C.caramel }}>emballage non compté</span>}
+                  {f.nbSuspects > 0 && <span title="Fournées dont les ingrédients pèsent moins de la moitié du poids fini : quantité saisie en grammes au lieu de kilos." style={{ background: "#faece5", borderRadius: 7, padding: "3px 8px", fontSize: 11, fontWeight: 700, color: PF.warn }}>{f.nbSuspects} fournée{f.nbSuspects > 1 ? "s" : ""} écartée{f.nbSuspects > 1 ? "s" : ""}</span>}
                 </div>
               </div>
             );
@@ -4893,6 +5029,11 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                         <input inputMode="decimal" value={dvalCout(p)} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
                         {badgeOrigine(p)}
+                        {(fifo[p.id] || {}).lots && fifo[p.id].lots.length > 0 && (
+                          <button onClick={() => setHisto((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Historique des prix d'achat, fournée par fournée" style={{ ...puce(histo === p.id ? PF.navy : "#123a5212", PF.navy + "33", histo === p.id ? "#fff" : PF.navy), cursor: "pointer" }}>
+                            {histo === p.id ? "✕ historique" : `⌛ ${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
+                          </button>
+                        )}
                       </div>
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>×</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -4902,6 +5043,65 @@ function ProProducts({ products, setProducts, pass, batches, rendement }) {
                       <span style={{ fontSize: 13, color: C.soft, fontWeight: 700 }}>=</span>
                       <span style={{ fontSize: 12.5, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Vente <b style={{ color: C.jam }}>{eur(p.price || 0)}</b>{p.cost > 0 && <> · marge <b style={{ color: (p.price - p.cost) >= 0 ? C.ok : "#B23B3B" }}>{eur(+(p.price - p.cost).toFixed(2))}</b></>}</span>
                     </div>
+
+                    {/* §5.10 — Historique des achats, une ligne par fournée, du plus ancien au plus
+                        récent. Deux fournées du même produit ne coûtent pas pareil : une moyenne
+                        écrase l'écart et on ne voit plus la différence entre deux productions. */}
+                    {histo === p.id && (fifo[p.id] || {}).lots && (
+                      <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${PF.navy}33`, borderRadius: 11, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 2 }}>Historique des prix d&apos;achat — premier entré, premier sorti</div>
+                        <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.45, marginBottom: 8 }}>
+                          Une ligne par fournée. Les ventes écoulent les lots du plus ancien au plus récent : le prix d&apos;achat retenu est celui du <b style={{ color: C.ink }}>plus ancien lot encore en stock</b>.
+                          {fifo[p.id].vendu > 0 ? ` ${pfNum(fifo[p.id].vendu)} ${p.unit && /plaque|part/.test(p.unit) ? "unité(s)" : "unité(s)"} vendue(s) à ce jour.` : " Aucune vente enregistrée pour ce produit."}
+                        </div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 460 }}>
+                            <thead><tr>
+                              {["Fournée", "Produit", "Vendu", "Reste", "Coût/kg", "Prix d'achat"].map((t, k) => (
+                                <th key={k} style={{ padding: "6px 7px", textAlign: k > 0 ? "right" : "left", fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: C.soft, fontWeight: 700, borderBottom: `1.5px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
+                              ))}
+                            </tr></thead>
+                            <tbody>
+                              {fifo[p.id].lots.map((l, k) => {
+                                const retenu = l === fifo[p.id].courant;
+                                return (
+                                  <tr key={k} style={{ background: retenu ? "#123a5212" : "transparent", borderBottom: `1px solid ${C.line}` }}>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontWeight: retenu ? 700 : 400 }}>
+                                      {l.date ? new Date(l.date).toLocaleDateString("fr-FR") : "—"}
+                                      {retenu && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.navy, borderRadius: 5, padding: "1px 5px" }}>RETENU</span>}
+                                    </td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.nb}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti || 0}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? PF.good : "#C9C0AE" }}>{l.restant}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{l.bloque ? <span style={{ color: "#C9C0AE" }}>—</span> : eur2(l.coutKg)}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, whiteSpace: "nowrap", color: l.bloque ? PF.warn : PF.navy }}>
+                                      {l.suspect
+                                        ? <span title={`Les ingrédients pesés font ${l.poidsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg pour ${l.finiKg.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de produit fini : une recette ne peut pas produire plus du double de ce qu'on y met. Une quantité a sans doute été saisie en grammes au lieu de kilos.`}>recette à revoir</span>
+                                        : (l.bloque ? <span title={`Sans prix : ${l.manquants.join(", ")}`}>prix manquant</span> : eur2(l.cout))}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {fifo[p.id].etat === "bloque" ? (
+                          <div style={{ marginTop: 8, fontSize: 11.5, color: PF.warn, lineHeight: 1.45 }}>
+                            {fifo[p.id].suspect
+                              ? <>⚠ Aucun lot exploitable : dans ces fournées, les ingrédients pesés font moins de la moitié du poids fini — on ne fabrique pas 5 kg de confiture avec 4 g de fruit. Une quantité a sans doute été saisie <b>en grammes au lieu de kilos</b>. Corrigez-la dans l&apos;onglet Production et la ligne se remplira toute seule.</>
+                              : <>⚠ Le lot retenu ne peut pas être chiffré : <b>{fifo[p.id].manquants.join(", ")}</b> n&apos;a pas de prix au kilo dans sa fournée et pèse {Math.round((fifo[p.id].part || 0) * 100)} % de la recette. Un coût calculé sans lui serait faux. Saisissez ce prix dans l&apos;onglet Production et la ligne se remplira toute seule.</>}
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 8, fontSize: 11.5, color: C.soft, lineHeight: 1.45 }}>
+                            Prix d&apos;achat retenu : <b style={{ color: PF.navy }}>{eur2(fifo[p.id].cout)}</b> — lot du {jourCourt(fifo[p.id].courant.date)}
+                            {fifo[p.id].epuise ? ", tous les lots étant écoulés c'est la dernière fournée qui donne la valeur de remplacement" : ""}.
+                            {fifo[p.id].ecart >= 0.01 && <> Écart entre la fournée la moins chère et la plus chère : <b style={{ color: C.caramel }}>{eur2(fifo[p.id].ecart)}</b>.</>}
+                            {fifo[p.id].nbSuspects > 0 && <> <span style={{ color: PF.warn }}>{fifo[p.id].nbSuspects} fournée{fifo[p.id].nbSuspects > 1 ? "s" : ""} écartée{fifo[p.id].nbSuspects > 1 ? "s" : ""}</span> : ingrédients saisis en grammes au lieu de kilos, à corriger en Production.</>}
+                            {fifo[p.id].embInconnu && <> <span style={{ color: C.caramel }}>Emballage non compté</span> : aucun format de fournée ne correspond à «&nbsp;{p.unit}&nbsp;». Indiquez ce format en Production (onglet «&nbsp;Contenants &amp; vente&nbsp;») pour que le bocal, le capuchon et l&apos;étiquette entrent dans le prix.</>}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {openId === p.id && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
                         <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
