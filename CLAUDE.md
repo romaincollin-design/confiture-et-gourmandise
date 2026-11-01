@@ -271,6 +271,42 @@ les fournées écrase cet écart — on ne voit plus « la différence entre une
   ne portent pas de numéro de lot. Les unités d'un lot sont « ce que cette fournée aurait produit
   dans ce conditionnement ». Ne jamais le présenter comme une traçabilité de lot (≠ §5.8).
 
+### 5.11 Stock segmenté par fournée et traçabilité du lot
+`products.stock` est **un seul nombre** : il dit combien il reste, jamais de quelle fournée. Or deux
+fournées du même produit n'ont ni le même coût (§5.10), ni la même date de fabrication, ni la même
+DLC — et en cas de contrôle il faut pouvoir dire **quel lot est en rayon**.
+- `lotsDeStock(batches, products, sales)` — **aucune migration, aucun champ ajouté**. Les ENTRÉES
+  sont déjà en base : `data.stock_applique[pid]` mémorise, fournée par fournée, combien d'unités
+  « Valider la fournée » a réellement poussées vers ce produit (c'est ce qui rend la validation
+  idempotente, §5.2). Les SORTIES sont les ventes, écoulées **du plus ancien lot au plus récent**.
+- Le lot le plus ancien encore en stock est marqué **`EN VENTE`** : c'est celui qu'on sert, donc
+  celui dont le numéro va sur l'étiquette du jour.
+- Chaque lot porte le **n° de lot**, la **date de fabrication** et la **DLC** pris sur
+  `data.hygiene` (§5.8). Un lot dont la DLC est dépassée et qui reste en stock est signalé en rouge,
+  produit par produit et dans le compteur d'en-tête.
+- Affichage : pastille **« 🏷 N lots »** à côté du champ Achat, qui déplie
+  **N° de lot · Fabriqué · DLC · Entré · Vendu · Reste**.
+- ⚠️ **Le registre ne corrige jamais `products.stock`** : il affiche l'**écart** et l'explique
+  (stock antérieur au suivi par lot, ou fournée non validée). Le stock affiché en boutique reste
+  celui de la fiche — deux sources d'autorité qui se contredisent en silence seraient pires que
+  l'écart lui-même.
+- ⚠️ **Un lot n'existe que si la fournée a été VALIDÉE avec un format relié au produit** (§5.2 bis).
+  Au 31/10/2026, **0 fournée validée** : le registre est donc vide partout, et la pastille
+  n'apparaît pas. Ce n'est pas une panne, c'est le geste qui manque.
+- Le **pop-up de validation** annonce désormais sous quel lot les unités entrent, ou prévient
+  (sans bloquer) qu'il n'y a pas de n° de lot et que la traçabilité sera donc impossible.
+- Pré-remplissage de la fiche hygiène rendu réellement automatique : le **nom du produit** vient du
+  titre de la fournée, sinon de la rubrique (plus de « Oignons confits » par défaut) ; la
+  **quantité** vient des oignons pour une pissaladière et du **poids fini** sinon ; le
+  **responsable** du premier nom saisi en personnel ; la **DLC** de la famille (`FAMILLES[].dlc`,
+  `dlcDefaut()`) — 3 jours pour une pissaladière fraîche, 365 pour un pot de confiture. Proposer
+  3 jours partout faisait saisir une date fausse, ou renoncer à la saisir.
+- ⚠️ Toutes ces durées sont des **propositions** modifiables. C'est le guide de bonnes pratiques de
+  l'atelier et la DDPP qui font foi, pas l'application (§5.8) — l'écran et la fiche imprimée le disent.
+- ⚠️ Un bloc en `overflow-x: auto` doit porter **`width: 100%` et `maxWidth: 100%`** : sans eux il
+  s'étire à la largeur de son contenu et pousse la page entière (mesuré : **+144 px** en 320 px).
+  Et la rangée « Achat » a besoin de `flexWrap` — une troisième pastille la sortait de l'écran.
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.

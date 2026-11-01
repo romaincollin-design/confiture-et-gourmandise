@@ -1292,18 +1292,18 @@ const pfParseToStorage = (typedVal, ing, chosenUnit) => {
 // pain d'épices/biscuit) partagent un dessin : la couleur les distingue, sinon les vignettes
 // sont indiscernables. Toutes ces clés ont un dessin propre (CLAUDE.md §7).
 const FAMILLES = [
-  { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "pissa", col: "#7A6A2A" },
-  { key: "grande_fournee", label: "Grande fournée", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "oignon", col: "#C25E1E" },
-  { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "fraise", col: "#C0392B" },
-  { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot", illu: "caramel", col: "#9A5E1F" },
-  { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet", illu: "caramel", col: "#B5722B" },
-  { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet", illu: "loaf", col: "#C9A14A" },
-  { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette", illu: "loaf", col: "#8A5A24" },
+  { key: "pissaladiere", label: "Pissaladière", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "pissa", col: "#7A6A2A", dlc: 3 },
+  { key: "grande_fournee", label: "Grande fournée", ingLabel: "Matières premières", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "oignon", col: "#C25E1E", dlc: 3 },
+  { key: "confiture", label: "Confiture", ingLabel: "Ingrédients", packLabels: ["Bocal", "Capuchon", "Étiquette"], unitWord: "pot", illu: "fraise", col: "#C0392B", dlc: 365 },
+  { key: "caramel_pot", label: "Caramel (pot)", ingLabel: "Ingrédients", packLabels: ["Pot (couvercle + étiquette)", "Sachet non tissé", null], unitWord: "pot", illu: "caramel", col: "#9A5E1F", dlc: 180 },
+  { key: "caramel_bonbon", label: "Caramel (bonbon)", ingLabel: "Ingrédients", packLabels: ["Sachet", "Fermoir", "Papier (emballage indiv.)"], unitWord: "sachet", illu: "caramel", col: "#B5722B", dlc: 90 },
+  { key: "biscuit", label: "Biscuit sablé", ingLabel: "Ingrédients", packLabels: ["Sachet + fermoir", null, null], unitWord: "sachet", illu: "loaf", col: "#C9A14A", dlc: 30 },
+  { key: "pain_epices", label: "Pain d'épices", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "barquette", illu: "loaf", col: "#8A5A24", dlc: 30 },
   // Le cake aux fruits confits du 17/09/2026 etait classe « Pissaladiere » faute de rubrique :
   // le formulaire lui demandait oignons, anchois et thym. On ne peut pas reclasser vers un
   // choix qui n'existe pas.
-  { key: "cake", label: "Cake / Gâteau", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "cake", illu: "cake", col: "#A9712E" },
-  { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit", illu: "potpissa", col: "#123A52" },
+  { key: "cake", label: "Cake / Gâteau", ingLabel: "Ingrédients", packLabels: ["Moule / barquette", null, "Emballage"], unitWord: "cake", illu: "cake", col: "#A9712E", dlc: 7 },
+  { key: "kit_farine", label: "Kit Farine", ingLabel: "Composition du kit", packLabels: ["Sac", null, null], unitWord: "kit", illu: "potpissa", col: "#123A52", dlc: 180 },
 ];
 const famOf = (key) => FAMILLES.find((x) => x.key === key) || FAMILLES[0];
 const isPissaFam = (famille) => famille === "pissaladiere" || famille === "grande_fournee";
@@ -1624,6 +1624,11 @@ const eur3 = (x) => (x == null || isNaN(x)) ? "—" : (Math.round(x * 1000) / 10
 // de 2 h) et règlement CE 852/2004 (traçabilité du lot). Ce sont des VALEURS PAR DÉFAUT, modifiables :
 // c'est le guide de bonnes pratiques de l'atelier et la DDPP qui font foi, pas cette application.
 const HYG = { cuissonMin: 63, refroidMaxMin: 120, refroidCible: 10, conservMax: 4, dlcJours: 3 };
+// DLC indicative par famille, en jours. Une pissaladière fraîche se garde 3 jours, un pot de
+// confiture appertisé des mois : proposer 3 jours partout faisait saisir une date fausse, ou
+// renoncer à la saisir. C'est une PROPOSITION, modifiable sur la fiche — le guide de bonnes
+// pratiques de l'atelier et la DDPP font foi, pas l'application (§5.8).
+const dlcDefaut = (famille) => { const f = famOf(famille || "pissaladiere"); return f.dlc != null ? f.dlc : HYG.dlcJours; };
 
 const hMin = (h) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(h || "").trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; };
 const dureeMin = (a, b) => { const x = hMin(a), y = hMin(b); if (x == null || y == null) return null; return y >= x ? y - x : y + 1440 - x; };
@@ -1684,14 +1689,20 @@ function FicheHygiene({ f, change, onClose, profile }) {
     if (h.initialise) return;
     const auj = new Date().toISOString().slice(0, 10);
     const d = f.date || auj;
+    // Tout ce que la fournée sait déjà est repris : nom du produit (son titre, sinon la rubrique),
+    // quantité (les oignons pour une pissaladière, le poids fini sinon), et la DLC de la famille.
+    // Le lot suit la date : AAAAMMJJ-01. Il ne reste à taper que les températures et les heures.
+    const fam = famOf(f.famille || "pissaladiere");
+    const qte = pfNum(f.oignon_kg) > 0 ? f.oignon_kg : (pfNum(f.poids_fini_kg) > 0 ? f.poids_fini_kg : "");
     change({ hygiene: {
       initialise: true, date_fab: d,
       lot: `${String(d).replace(/-/g, "")}-01`,
-      produit: (f.titre || "").trim() || "Oignons confits",
-      qte_kg: f.oignon_kg || "",
+      produit: (f.titre || "").trim() || fam.label,
+      qte_kg: qte,
       origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
-      h_refroidi: "", temp_conservation: "", dlc_jours: HYG.dlcJours, nb_bacs: "",
-      responsable: "", correctif: "",
+      h_refroidi: "", temp_conservation: "", dlc_jours: dlcDefaut(f.famille), nb_bacs: "",
+      responsable: (f.personnel || []).map((x) => (x.nom || "").trim()).filter(Boolean)[0] || "",
+      correctif: "",
     } });
     // volontairement sur la seule bascule "initialise" : on pré-remplit une fois, pas à chaque frappe
   }, [h.initialise]);
@@ -3548,6 +3559,20 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               <h2 style={{ fontFamily: SCRIPT, fontSize: 26, margin: 0, color: C.jam }}>Valider la fournée</h2>
               <p style={{ fontSize: 12.5, color: C.soft, margin: "4px 0 0" }}>Le stock et le prix d'achat de ces produits vont être mis à jour. Un prix de vente déjà fixé n'est jamais modifié.</p>
             </div>
+            {/* §5.11 — Ce qui entre en stock entre sous un numéro de lot. Sans fiche de fabrication,
+                le stock est bien mis à jour mais rien ne permet de dire, plus tard, de quelle
+                fournée vient le pot en rayon. On le signale ici, sans bloquer la validation. */}
+            {confirmValide.lignes.length > 0 && (
+              (cur.hygiene && cur.hygiene.lot)
+                ? <div style={{ fontSize: 12.5, color: C.ink, background: "#3F7A4B14", border: `1px solid ${C.ok}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
+                    Ces unités entrent en stock sous le lot <b style={{ color: C.ok }}>{cur.hygiene.lot}</b>
+                    {cur.hygiene.date_fab ? <> · fabriqué le <b>{frDate(cur.hygiene.date_fab)}</b></> : null}
+                    {pfNum(cur.hygiene.dlc_jours) > 0 && cur.hygiene.date_fab ? <> · DLC <b>{frDate(jourPlus(cur.hygiene.date_fab, pfNum(cur.hygiene.dlc_jours)))}</b></> : null}.
+                  </div>
+                : <div style={{ fontSize: 12.5, color: C.ink, background: "#f6efdd", border: `1px solid ${C.caramel}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
+                    <b style={{ color: C.caramel }}>Pas encore de n° de lot.</b> Le stock sera mis à jour quand même, mais sans traçabilité : impossible de dire ensuite de quelle fournée vient le pot en rayon. Ouvrez <b>Contrôle hygiène</b> — le numéro, la date et la DLC sont déjà proposés.
+                  </div>
+            )}
             {confirmValide.lignes.length === 0 ? (
               <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Dans l'onglet « Contenants & vente », choisissez « Ce format alimente le produit » pour chaque format avant de valider.</div>
             ) : confirmValide.lignes.map((l, i) => {
@@ -4644,16 +4669,8 @@ function lotsDepuisFournees(batches, products, rendement, sales) {
   });
   Object.values(parCle).forEach((arr) => arr.sort((a, b) => String(a.date).localeCompare(String(b.date))));
 
-  // 2) les sorties : unités vendues par produit (cleProduit n'est pas disponible ici, on passe
-  //    par le pid quand il existe et par le nom normalisé sinon — même règle que §8)
-  const vendus = {};
-  const parNom = {};
-  (products || []).forEach((p) => { const n = normNom(p.name); if (n) (parNom[n] = parNom[n] || []).push(p); });
-  (sales || []).forEach((v) => (v.items || []).forEach((it) => {
-    let pid = it.pid || null;
-    if (!pid) { const c = parNom[normNom(it.name)]; if (c && c.length === 1) pid = c[0].id; }
-    if (pid) vendus[pid] = (vendus[pid] || 0) + (pfNum(it.qty) || 0);
-  }));
+  // 2) les sorties : unités vendues par produit
+  const vendus = ventesParProduit(products, sales);
 
   // 3) pour chaque produit : ses lots datés, puis le déstockage FIFO
   const out = {};
@@ -4700,6 +4717,75 @@ function lotsDepuisFournees(batches, products, rendement, sales) {
       manquants: courant.manquants, part: courant.part, suspect: courant.suspect,
       embInconnu: courant.embInconnu, nbSuspects: lots.filter((l) => l.suspect).length,
       ecart: exploitables.length > 1 ? Math.max(...exploitables.map((l) => l.cout)) - Math.min(...exploitables.map((l) => l.cout)) : 0,
+    };
+  });
+  return out;
+}
+
+// Unités vendues par produit. Rattachement par `pid`, et à défaut par nom normalisé SEULEMENT
+// s'il est unique : « pot d'oignons » désigne 6 produits (§8), on ne devine pas.
+function ventesParProduit(products, sales) {
+  const vendus = {};
+  const parNom = {};
+  (products || []).forEach((p) => { const n = normNom(p.name); if (n) (parNom[n] = parNom[n] || []).push(p); });
+  (sales || []).forEach((v) => (v.items || []).forEach((it) => {
+    let pid = it.pid || null;
+    if (!pid) { const c = parNom[normNom(it.name)]; if (c && c.length === 1) pid = c[0].id; }
+    if (pid) vendus[pid] = (vendus[pid] || 0) + (pfNum(it.qty) || 0);
+  }));
+  return vendus;
+}
+
+// ===== §5.11 — STOCK SEGMENTÉ PAR FOURNÉE (registre des lots) =====
+// Le champ `products.stock` est UN SEUL nombre : il dit combien il reste, jamais de quelle fournée.
+// Or deux fournées du même produit n'ont ni le même coût (§5.10), ni la même date de fabrication,
+// ni la même DLC — et en cas de contrôle il faut pouvoir dire quel lot est en rayon.
+// Les ENTRÉES sont déjà en base, sans rien ajouter : `data.stock_applique[pid]` mémorise, fournée
+// par fournée, combien d'unités « Valider la fournée » a réellement poussées vers ce produit
+// (c'est ce qui rend la validation idempotente, §5.2). Les SORTIES sont les ventes.
+// On écoule du plus ancien lot au plus récent (FIFO) : le lot « en cours de vente » est donc le
+// plus ancien encore en stock, et c'est son n° de lot qui doit figurer sur l'étiquette du jour.
+// ⚠️ Un lot n'existe ici que si la fournée a été VALIDÉE avec un format relié à ce produit
+// (§5.2 bis). Tant que ce n'est pas fait, le registre est vide — et il le dit.
+function lotsDeStock(batches, products, sales) {
+  const entrees = {};
+  (batches || []).forEach((b) => {
+    const f = b.data || b;
+    const applique = f.stock_applique || {};
+    const hyg = f.hygiene || {};
+    const dateFab = hyg.date_fab || f.date || "";
+    Object.keys(applique).forEach((pid) => {
+      const n = pfNum(applique[pid]);
+      if (!(n > 0)) return;
+      (entrees[pid] = entrees[pid] || []).push({
+        date: f.date || dateFab, dateFab, fourneeId: f.id || null,
+        titre: String(f.titre || "").trim(),
+        lot: String(hyg.lot || "").trim(),
+        dlc: (hyg.initialise && dateFab && pfNum(hyg.dlc_jours) > 0) ? jourPlus(dateFab, pfNum(hyg.dlc_jours)) : "",
+        hygiene: !!hyg.initialise,
+        entre: n, sorti: 0, restant: n,
+      });
+    });
+  });
+  Object.values(entrees).forEach((arr) => arr.sort((a, b) => String(a.date).localeCompare(String(b.date))));
+
+  const vendus = ventesParProduit(products, sales);
+  const auj = new Date().toISOString().slice(0, 10);
+  const out = {};
+  (products || []).forEach((p) => {
+    const lots = entrees[p.id] || [];
+    let aSortir = vendus[p.id] || 0;
+    lots.forEach((l) => { const pris = Math.min(l.entre, aSortir); l.sorti = pris; l.restant = l.entre - pris; aSortir -= pris; });
+    const restant = lots.reduce((s, l) => s + l.restant, 0);
+    const enCours = lots.find((l) => l.restant > 0) || null;
+    const perimes = lots.filter((l) => l.restant > 0 && l.dlc && l.dlc < auj);
+    out[p.id] = {
+      lots, restant, vendu: vendus[p.id] || 0,
+      enCours, perimes,
+      sansLot: lots.filter((l) => !l.lot).length,
+      // le champ `stock` reste la référence affichée en boutique : on montre l'écart, on ne le corrige pas
+      stockFiche: Number(p.stock) || 0,
+      ecart: (Number(p.stock) || 0) - restant,
     };
   });
   return out;
@@ -4834,6 +4920,11 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
   // §5.10 — historique daté des prix d'achat et valorisation premier entré / premier sorti
   const fifo = useMemo(() => lotsDepuisFournees(batches, products, rendement, sales), [batches, products, rendement, sales]);
   const [histo, setHisto] = useState(null);   // id du produit dont l'historique d'achats est ouvert
+  // §5.11 — registre des lots : d'où vient le stock en rayon, et lequel part en premier
+  const lots = useMemo(() => lotsDeStock(batches, products, sales), [batches, products, sales]);
+  const [tracab, setTracab] = useState(null); // id du produit dont la traçabilité est ouverte
+  const nbTraces = products.filter((p) => (lots[p.id] || {}).lots && lots[p.id].lots.length > 0).length;
+  const nbPerimes = products.filter((p) => ((lots[p.id] || {}).perimes || []).length > 0).length;
   // origine de chaque prix d'achat : fournée validée, format relié mais pas encore validé, ou saisie manuelle
   const origines = useMemo(() => origineCouts(batches, products), [batches, products]);
   const nbFournee = products.filter((p) => (origines[p.id] || {}).src === "fournee").length;
@@ -4893,6 +4984,8 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
             {nbLien > 0 && <span style={puce("#f6efdd", C.caramel + "44", C.caramel)}>{nbLien} fournée non validée</span>}
             {totalSansAchat > 0 && <span style={puce("#faece5", PF.warn + "44", PF.warn)}>{totalSansAchat} manquant{totalSansAchat > 1 ? "s" : ""}</span>}
             {nbHisto > 0 && <span title="Produits dont le prix d'achat a un historique daté, fournée par fournée (premier entré, premier sorti)" style={puce("#123a5212", PF.navy + "33", PF.navy)}>{nbHisto} avec historique</span>}
+            {nbTraces > 0 && <span title="Produits dont le stock est tracé fournée par fournée (n° de lot, date de fabrication, DLC)" style={puce("#3F7A4B14", C.ok + "44", C.ok)}>{nbTraces} tracés par lot</span>}
+            {nbPerimes > 0 && <span title="Produits dont un lot encore en stock a dépassé sa DLC" style={puce("#faece5", PF.warn + "44", PF.warn)}>{nbPerimes} lot(s) périmé(s)</span>}
           </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
@@ -5023,8 +5116,8 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         <button onClick={() => remove(p.id)} className="ca-tap" title="Supprimer" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 9, padding: "9px 10px", cursor: "pointer", display: "grid", placeItems: "center" }}><Trash2 size={15} /></button>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, flexWrap: "wrap", minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
                         <span style={{ fontSize: 11, color: (!p.cost || +p.cost === 0) ? PF.warn : C.soft, fontWeight: (!p.cost || +p.cost === 0) ? 700 : 400 }}>Achat</span>
                         <input inputMode="decimal" value={dvalCout(p)} onChange={(e) => dset(p, "cost", e.target.value, (n) => onCost(p, n))} onBlur={() => dblur(p, "cost")} placeholder="manquant" style={{ ...inp(), width: 74, padding: "7px 9px", borderColor: (!p.cost || +p.cost === 0) ? PF.warn : C.line, background: (!p.cost || +p.cost === 0) ? "#faece5" : "#fff" }} />
                         <span style={{ fontSize: 11, color: C.soft }}>€</span>
@@ -5032,6 +5125,11 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         {(fifo[p.id] || {}).lots && fifo[p.id].lots.length > 0 && (
                           <button onClick={() => setHisto((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Historique des prix d'achat, fournée par fournée" style={{ ...puce(histo === p.id ? PF.navy : "#123a5212", PF.navy + "33", histo === p.id ? "#fff" : PF.navy), cursor: "pointer" }}>
                             {histo === p.id ? "✕ historique" : `⌛ ${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
+                          </button>
+                        )}
+                        {(lots[p.id] || {}).lots && lots[p.id].lots.length > 0 && (
+                          <button onClick={() => setTracab((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Traçabilité : de quelle fournée vient le stock en rayon, n° de lot et DLC" style={{ ...puce(tracab === p.id ? C.ok : "#3F7A4B14", C.ok + "44", tracab === p.id ? "#fff" : C.ok), cursor: "pointer" }}>
+                            {tracab === p.id ? "✕ traçabilité" : `🏷 ${lots[p.id].lots.length} lot${lots[p.id].lots.length > 1 ? "s" : ""}${lots[p.id].perimes.length ? " ⚠" : ""}`}
                           </button>
                         )}
                       </div>
@@ -5044,18 +5142,69 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                       <span style={{ fontSize: 12.5, color: C.ink, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 11px" }}>Vente <b style={{ color: C.jam }}>{eur(p.price || 0)}</b>{p.cost > 0 && <> · marge <b style={{ color: (p.price - p.cost) >= 0 ? C.ok : "#B23B3B" }}>{eur(+(p.price - p.cost).toFixed(2))}</b></>}</span>
                     </div>
 
+                    {/* §5.11 — Traçabilité : de quelle fournée vient ce qui est en rayon.
+                        Les entrées sont `stock_applique` (ce que la validation a réellement poussé),
+                        les sorties sont les ventes, écoulées du plus ancien lot au plus récent. */}
+                    {tracab === p.id && (lots[p.id] || {}).lots && (() => {
+                      const L = lots[p.id];
+                      return (
+                      <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${C.ok}44`, borderRadius: 11, padding: "10px 12px", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ok, marginBottom: 2 }}>Traçabilité — quel lot est en rayon</div>
+                        <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.45, marginBottom: 8 }}>
+                          Une ligne par fournée validée. Les ventes écoulent les lots du plus ancien au plus récent : le lot marqué <b style={{ color: C.ok }}>EN VENTE</b> est celui que vous servez aujourd&apos;hui, et c&apos;est son numéro qui va sur l&apos;étiquette.
+                        </div>
+                        <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 430 }}>
+                            <thead><tr>
+                              {["N° de lot", "Fabriqué", "DLC", "Entré", "Vendu", "Reste"].map((t, k) => (
+                                <th key={k} style={{ padding: "6px 7px", textAlign: k > 2 ? "right" : "left", fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: C.soft, fontWeight: 700, borderBottom: `1.5px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
+                              ))}
+                            </tr></thead>
+                            <tbody>
+                              {L.lots.map((l, k) => {
+                                const perime = l.restant > 0 && l.dlc && l.dlc < new Date().toISOString().slice(0, 10);
+                                return (
+                                  <tr key={k} style={{ background: perime ? "#faece5" : (l === L.enCours ? "#3F7A4B14" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontWeight: l === L.enCours ? 700 : 400 }}>
+                                      {l.lot || <span style={{ color: C.caramel }}>sans n° de lot</span>}
+                                      {l === L.enCours && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: C.ok, borderRadius: 5, padding: "1px 5px" }}>EN VENTE</span>}
+                                    </td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? " ⚠" : ""}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.entre}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div style={{ marginTop: 8, fontSize: 11.5, color: C.soft, lineHeight: 1.5 }}>
+                          <b style={{ color: C.ink }}>{L.restant}</b> unité(s) tracée(s) par lot, pour un stock affiché de <b style={{ color: C.ink }}>{L.stockFiche}</b>.
+                          {L.ecart !== 0 && <> <span style={{ color: C.caramel }}>Écart de {L.ecart > 0 ? "+" : ""}{L.ecart}</span> : {L.ecart > 0 ? "une partie du stock vient d'avant la mise en place du suivi par lot, ou d'une saisie à la main." : "plus d'unités vendues que de lots enregistrés — il manque une fournée validée."} Le stock affiché en boutique reste celui de la fiche ; le registre ne le corrige pas tout seul.</>}
+                          {L.sansLot > 0 && <> <span style={{ color: C.caramel }}>{L.sansLot} lot(s) sans numéro</span> : remplissez le contrôle hygiène de la fournée, le n° est proposé automatiquement.</>}
+                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700 }}>⚠ {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
+                        </div>
+                        <div style={{ marginTop: 7, fontSize: 10.5, color: C.soft, fontStyle: "italic", lineHeight: 1.45 }}>
+                          La DLC affichée est celle saisie sur la fiche de fabrication. C&apos;est votre guide de bonnes pratiques et la DDPP qui font foi, pas l&apos;application.
+                        </div>
+                      </div>
+                      );
+                    })()}
+
                     {/* §5.10 — Historique des achats, une ligne par fournée, du plus ancien au plus
                         récent. Deux fournées du même produit ne coûtent pas pareil : une moyenne
                         écrase l'écart et on ne voit plus la différence entre deux productions. */}
                     {histo === p.id && (fifo[p.id] || {}).lots && (
-                      <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${PF.navy}33`, borderRadius: 11, padding: "10px 12px" }}>
+                      <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${PF.navy}33`, borderRadius: 11, padding: "10px 12px", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
                         <div style={{ fontSize: 12.5, fontWeight: 700, color: PF.navy, marginBottom: 2 }}>Historique des prix d&apos;achat — premier entré, premier sorti</div>
                         <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.45, marginBottom: 8 }}>
                           Une ligne par fournée. Les ventes écoulent les lots du plus ancien au plus récent : le prix d&apos;achat retenu est celui du <b style={{ color: C.ink }}>plus ancien lot encore en stock</b>.
                           {fifo[p.id].vendu > 0 ? ` ${pfNum(fifo[p.id].vendu)} ${p.unit && /plaque|part/.test(p.unit) ? "unité(s)" : "unité(s)"} vendue(s) à ce jour.` : " Aucune vente enregistrée pour ce produit."}
                         </div>
-                        <div style={{ overflowX: "auto" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 460 }}>
+                        <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 430 }}>
                             <thead><tr>
                               {["Fournée", "Produit", "Vendu", "Reste", "Coût/kg", "Prix d'achat"].map((t, k) => (
                                 <th key={k} style={{ padding: "6px 7px", textAlign: k > 0 ? "right" : "left", fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: C.soft, fontWeight: 700, borderBottom: `1.5px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
