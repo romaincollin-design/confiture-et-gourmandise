@@ -307,6 +307,27 @@ DLC — et en cas de contrôle il faut pouvoir dire **quel lot est en rayon**.
   s'étire à la largeur de son contenu et pousse la page entière (mesuré : **+144 px** en 320 px).
   Et la rangée « Achat » a besoin de `flexWrap` — une troisième pastille la sortait de l'écran.
 
+### 5.12 Coffrets : un produit composé de produits du catalogue
+Un coffret est un **produit** (`products`, catégorie « Coffrets ») qui porte `products.composition` (jsonb) :
+`{ items: [{ pid, qty }], emballage: [{ label, qty, cost }], visuel }`. Écran : onglet « Coffrets »
+(`ProCoffrets`, `CoffretEditeur`, `CoffretAssembler`, au niveau module — piège du focus §5.1 ter).
+- **Coût de revient** = Σ (prix d'achat des composants × qté) + emballages. Il n'est écrit dans `products.cost`
+  que si **tous** les prix d'achat sont connus ; sinon l'écran dit « incomplet » et ne montre pas de marge (§5.4 ter).
+- **Prix de vente saisi, jamais recalculé** ; marge et coef se déduisent.
+- **Stock** : le coffret a son propre stock. « J'ai fabriqué N coffrets » = `admin_assemble_coffret` : stock coffret + N,
+  composants − qté × N, en mouvements **relatifs et atomiques** (plus d'écrasement par une valeur périmée). Une vente en
+  Caisse ne baisse ensuite que le stock du coffret. Un composant peut passer en négatif (avertissement, pas de blocage).
+- **Nouvelles RPC** (migrations `add_coffret_composition`, `coffrets_admin_products_patch_stock`) :
+  `admin_save_composition`, `admin_assemble_coffret`, `admin_products` (TOUS les produits, y compris masqués),
+  `admin_patch_product` (champs en liste blanche, **ne touche jamais au stock**), `admin_adjust_stock` (± relatif).
+- ⚠ **L'admin ne voit que les produits actifs** : `supabase.from("products")` passe par le rôle anonyme, dont la règle
+  RLS est `active = true`. Un produit masqué disparaît donc de l'admin (hors écran Coffrets, qui lit `admin_products`).
+  Les composants créés pour les coffrets sont masqués ; ils se gèrent dans l'écran Coffrets (prix d'achat, réception).
+- Créés le 23/11/2026, **masqués** (`active=false`, prix de vente 0) : coffrets Pissaladière DIY, Apéro Provence,
+  Gourmandise, Gourmandise n°2 ; composants anchois, olives, thym, tapenade, anchoïade, crackers 100 g, orangettes 100 g.
+  Rendre un coffret visible en Caisse/boutique : lui saisir un prix de vente puis cocher « Visible ».
+- Le pot d'oignons « 300 g » du coffret DIY est `pissa-pot-500` (« Pissaladière de ma mère · pot 300g »).
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -555,7 +576,7 @@ logique n'est dupliquée — une seule interface, pas deux codes à maintenir.
   poussait le badge « Espace commerçant » 13 px hors de l'écran.
 
 ### 7.3 — Comment vérifier réellement un changement d'interface ici
-Supabase est **injoignable depuis une session Claude Code** : impossible de passer le PIN, donc
+Supabase est **injoignable depuis le navigateur d'une session** (le connecteur MCP Supabase, lui, répond : lecture et migrations) : impossible de passer le PIN, donc
 impossible de charger l'admin connecté dans un navigateur. La méthode qui marche :
 `npx next start`, une page jetable qui monte `ProView` avec un jeu de produits complet, et
 Chromium (`/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell`, pas le binaire

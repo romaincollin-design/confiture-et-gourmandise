@@ -9,7 +9,7 @@ import {
 import { supabase } from "../lib/supabase";
 
 const FONT = `
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&family=Anton&family=Fraunces:ital,opsz,wght@1,9..144,900&family=Work+Sans:wght@400;600&display=swap');
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 input, textarea, select { font-family: 'Raleway', sans-serif; }
 input::placeholder, textarea::placeholder { color: #A89E89; font-weight: 400; }
@@ -130,7 +130,7 @@ NOTE:Des goûts et des saveurs d'antan. Circuit court, fait main.
 END:VCARD`;
 const VCARD_HREF = "data:text/vcard;charset=utf-8," + encodeURIComponent(VCARD);
 
-const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
+const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Coffrets", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
 const CAT_SUB = {
   Confitures: "fruits frais · locaux · sans traitement",
   "Gelées": "fruits frais · locaux · sans traitement",
@@ -757,7 +757,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
   // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
-  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["coffrets", "Coffrets", Sparkles], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
     <div className="pro-shell">
       <div className="pro-nav">
@@ -775,6 +775,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
+        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -5545,6 +5546,273 @@ function ProPromos({ promos, setPromos }) {
           <span style={{ fontSize: 12, fontWeight: 600, color: C.ok, background: "#3F7A4B14", padding: "5px 11px", borderRadius: 8 }}>actif</span>
         </div>
       ))}
+    </div>
+  );
+}
+/* ---------------- Coffrets ----------------
+   Un coffret est un PRODUIT du catalogue qui porte une composition (products.composition) :
+   { items: [{ pid, qty }], emballage: [{ label, qty, cost }], visuel }.
+   - cout = somme (prix d'achat des composants x qte) + emballages. Il n'est ecrit dans products.cost
+     que si TOUS les prix d'achat sont connus : un cout amputé gonflerait la marge (cf. 5.4 ter).
+   - le prix de vente est saisi, jamais recalcule ; coef = prix / cout.
+   - stock : le coffret a son propre stock. « J'ai fabriqué N coffrets » = stock coffret + N et
+     stock des composants - qte x N (RPC admin_assemble_coffret, mouvements relatifs et atomiques).
+     Vendre un coffret ne bouge ensuite que SON stock (les composants sont deja sortis).
+   - les composants crees pour les coffrets sont masques (active=false) : l'admin ne voit que les
+     produits actifs, donc cet ecran charge TOUT le catalogue via admin_products. */
+const COFFRET_VISUELS = {
+  pissa: { sub: "kit niçois à faire soi-même", k: "TOUT POUR 6 PARTS" },
+  apero: { sub: "confit, tapenade, anchoïade, crackers", k: "À PARTAGER" },
+  gourmandise: { sub: "pain d'épices, orangettes, cake", k: "POUR LES FÊTES" },
+  douceurs: { sub: "orangettes, caramels, caramel à tartiner", k: "À OFFRIR" },
+};
+const coffretNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
+const mapRowCoffret = (p) => ({ id: p.id, name: p.name, cat: p.cat, unit: p.unit || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, coef: Number(p.coef) || 0, stock: p.stock == null ? 0 : p.stock, active: p.active !== false, soon: !!p.soon, composition: p.composition || null });
+// cout d'une composition : { total, manquants (noms), lignes }
+function coutCoffret(compo, byId) {
+  const lignes = []; const manquants = []; let total = 0;
+  ((compo && compo.items) || []).forEach((it) => {
+    const p = byId[it.pid]; const q = coffretNum(it.qty);
+    const c = p ? p.cost : 0;
+    if (!p || !(c > 0)) manquants.push(p ? p.name : it.pid);
+    lignes.push({ pid: it.pid, name: p ? p.name : it.pid, unit: p ? p.unit : "", qty: q, cost: c, stock: p ? p.stock : 0, ligne: c * q });
+    total += c * q;
+  });
+  ((compo && compo.emballage) || []).forEach((e) => { total += coffretNum(e.cost) * coffretNum(e.qty); });
+  return { total, manquants, lignes };
+}
+// combien de coffrets peut-on encore fabriquer avec les stocks actuels, et qui limite
+function assemblable(lignes) {
+  let min = null; let lim = "";
+  lignes.forEach((l) => { if (l.qty > 0) { const n = Math.floor(Math.max(0, l.stock) / l.qty); if (min == null || n < min) { min = n; lim = l.name; } } });
+  return { n: min == null ? 0 : min, limite: lim };
+}
+function CoffretVisuel({ nom, visuel, compact }) {
+  const v = COFFRET_VISUELS[visuel] || {};
+  const court = String(nom || "").replace(/^coffret\s*/i, "").toUpperCase();
+  return (
+    <div style={{ background: "#F6EFDD", position: "relative", overflow: "hidden", minHeight: compact ? 150 : 200, fontFamily: "'Work Sans', sans-serif" }}>
+      <div style={{ background: "#123A52", borderBottom: "3px solid #F4B32C", color: "#F6EFDD", fontWeight: 600, fontSize: 9, letterSpacing: 2.4, textAlign: "center", padding: "7px 0 6px" }}>FAIT MAIN · VENCE</div>
+      <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 20 : 26, color: "#123A52", textAlign: "center", marginTop: compact ? 10 : 16, lineHeight: 1 }}>LE COFFRET</div>
+      <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 16 : 21, color: "#C65A35", textAlign: "center", marginTop: 3, lineHeight: 1.1, padding: "0 10px" }}>{court}</div>
+      {v.sub && <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 900, fontSize: compact ? 10 : 12, color: "#6D6252", textAlign: "center", marginTop: 9, padding: "0 10px" }}>{v.sub}</div>}
+      {v.k && <div style={{ fontWeight: 600, fontSize: 9, letterSpacing: 2.2, color: "#C65A35", textAlign: "center", marginTop: 8 }}>{v.k}</div>}
+      <div style={{ position: "absolute", left: 12, bottom: 8, fontWeight: 600, fontSize: 8, letterSpacing: 1.1, color: "#123A52" }}>VENCE · CÔTE D'AZUR</div>
+    </div>
+  );
+}
+// ligne d'un composant masqué : prix d'achat (modifie seulement ce champ) et reception de stock (relatif)
+function CompoRow({ p, pass, onChanged }) {
+  const [cost, setCost] = useState(p.cost > 0 ? String(p.cost).replace(".", ",") : "");
+  const [recu, setRecu] = useState("");
+  const [msg, setMsg] = useState("");
+  const saveCost = async () => {
+    const c = coffretNum(cost);
+    if (c === p.cost) return;
+    const { error } = await supabase.rpc("admin_patch_product", { pass, p_id: p.id, p_patch: { cost: c } });
+    if (error) { setMsg("⚠ non enregistré — vérifiez la connexion"); return; }
+    setMsg("✓"); onChanged({ ...p, cost: c });
+  };
+  const recevoir = async () => {
+    const d = Math.round(coffretNum(recu)); if (!d) return;
+    const { data, error } = await supabase.rpc("admin_adjust_stock", { pass, p_id: p.id, p_delta: d });
+    if (error) { setMsg("⚠ stock non modifié"); return; }
+    setRecu(""); setMsg("✓"); onChanged({ ...p, stock: typeof data === "number" ? data : p.stock + d });
+  };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) 90px 70px 120px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
+      <div><b>{p.name}</b> <span style={{ color: C.soft }}>· {p.unit}</span></div>
+      <input value={cost} onChange={(e) => setCost(e.target.value)} onBlur={saveCost} placeholder="achat HT" inputMode="decimal" style={{ ...inp(), padding: "7px 9px", fontSize: 13 }} />
+      <div style={{ fontWeight: 700, textAlign: "right" }}>{p.stock}</div>
+      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+        <input value={recu} onChange={(e) => setRecu(e.target.value)} placeholder="+ reçu" inputMode="numeric" style={{ ...inp(), padding: "7px 9px", fontSize: 13, width: 70 }} />
+        <button onClick={recevoir} className="ca-tap" style={{ border: "none", background: C.jam, color: "#fff", borderRadius: 8, padding: "7px 9px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>OK</button>
+        <span style={{ fontSize: 11, color: msg.startsWith("⚠") ? "#a6482a" : C.ok }}>{msg}</span>
+      </div>
+    </div>
+  );
+}
+function CoffretAssembler({ coffret, lignes, pass, onClose, onDone }) {
+  const [n, setN] = useState("1"); const [deduct, setDeduct] = useState(true); const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const q = Math.round(coffretNum(n));
+  const valider = async () => {
+    if (!q || busy) return;
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.rpc("admin_assemble_coffret", { pass, p_id: coffret.id, p_n: q, p_deduct: deduct });
+    setBusy(false);
+    if (error || !data) { setErr("⚠ non enregistré — vérifiez la connexion. Rien n'a été modifié."); return; }
+    onDone(data);
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#16140fa8", zIndex: 200, display: "grid", placeItems: "center", padding: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} className="ca-anim" style={{ background: "#fff", borderRadius: 16, padding: 20, width: "min(640px,100%)", maxHeight: "92vh", overflow: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{coffret.name}</div>
+          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "transparent", cursor: "pointer" }}><X size={20} /></button>
+        </div>
+        <div style={{ margin: "10px 0", fontSize: 14 }}>J'ai fabriqué <input value={n} onChange={(e) => setN(e.target.value)} inputMode="numeric" style={{ ...inp(), width: 80, display: "inline-block", margin: "0 6px" }} /> coffret(s) <span style={{ color: C.soft, fontSize: 12 }}>(un nombre négatif défait une fabrication)</span></div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr style={{ textAlign: "left", color: C.soft, fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase" }}><th style={{ padding: "6px 4px" }}>Stock concerné</th><th style={{ textAlign: "right" }}>Avant</th><th style={{ textAlign: "right" }}>Mouvement</th><th style={{ textAlign: "right" }}>Après</th></tr></thead>
+          <tbody>
+            <tr style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}><b>{coffret.name}</b></td><td style={{ textAlign: "right" }}>{coffret.stock}</td><td style={{ textAlign: "right", color: C.ok, fontWeight: 700 }}>{q >= 0 ? "+" : ""}{q}</td><td style={{ textAlign: "right", fontWeight: 700 }}>{coffret.stock + q}</td></tr>
+            {deduct && lignes.map((l) => { const apres = l.stock - Math.round(l.qty * q); return (
+              <tr key={l.pid} style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}>{l.name} <span style={{ color: C.soft }}>· {l.unit}</span></td><td style={{ textAlign: "right" }}>{l.stock}</td><td style={{ textAlign: "right", color: "#a6482a", fontWeight: 700 }}>{q > 0 ? "−" : "+"}{Math.abs(Math.round(l.qty * q))}</td><td style={{ textAlign: "right", fontWeight: 700, color: apres < 0 ? "#a6482a" : C.ink }}>{apres}{apres < 0 && <span style={{ fontSize: 11 }}> ⚠ négatif</span>}</td></tr>
+            ); })}
+          </tbody>
+        </table>
+        {deduct && lignes.some((l) => l.stock - Math.round(l.qty * q) < 0) && q > 0 && <div style={{ background: "#fff4cf", border: "1px solid #F4B32C", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, marginTop: 10 }}>Un composant passerait en négatif : son stock n'est peut-être pas à jour. Tu peux valider quand même (le chiffre se corrigera à la prochaine réception).</div>}
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: C.soft, margin: "12px 0" }}><input type="checkbox" checked={!deduct} onChange={(e) => setDeduct(!e.target.checked)} /> Ne pas déduire les composants (déjà sortis du stock)</label>
+        {err && <div style={{ color: "#a6482a", fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{err}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: "pointer" }}>Annuler</button>
+          <button onClick={valider} disabled={!q || busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: !q || busy ? "default" : "pointer", opacity: !q || busy ? .5 : 1 }}>{busy ? "Enregistrement…" : "Valider la fabrication"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
+  const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
+  const [nom, setNom] = useState(coffret.name);
+  const [items, setItems] = useState((coffret.composition.items || []).map((i) => ({ pid: i.pid, qty: String(i.qty).replace(".", ",") })));
+  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: String(e.cost).replace(".", ",") })));
+  const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
+  const [actif, setActif] = useState(coffret.active);
+  const [msg, setMsg] = useState(""); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false);
+  const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
+  const { total, manquants, lignes } = coutCoffret(compo, byId);
+  const pv = coffretNum(prix); const complet = manquants.length === 0 && compo.items.length > 0;
+  const marge = complet && pv > 0 ? pv - total : null; const coef = complet && pv > 0 && total > 0 ? pv / total : null;
+  const asb = assemblable(lignes);
+  const catalogue = all.filter((p) => !p.composition).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  const setItem = (k, patch) => setItems((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
+  const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
+  const enregistrer = async () => {
+    if (busy) return;
+    if (actif && !(pv > 0)) { setMsg("⚠ Pour rendre le coffret visible, saisis d'abord son prix de vente."); return; }
+    setBusy(true); setMsg("");
+    const patch = { name: nom, active: actif, price: pv };
+    if (complet) { patch.cost = Math.round(total * 100) / 100; patch.coef = pv > 0 ? Math.round((pv / total) * 100) / 100 : 0; }
+    const r1 = await supabase.rpc("admin_save_composition", { pass, p_id: coffret.id, p_composition: compo });
+    const r2 = await supabase.rpc("admin_patch_product", { pass, p_id: coffret.id, p_patch: patch });
+    setBusy(false);
+    if (r1.error || r2.error) { setMsg("⚠ non enregistré — vérifiez la connexion"); return; }
+    setMsg("✓ Enregistré");
+    onSaved({ ...coffret, name: nom, active: actif, price: pv, cost: patch.cost != null ? patch.cost : coffret.cost, coef: patch.coef != null ? patch.coef : coffret.coef, composition: compo });
+  };
+  const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
+  return (
+    <div className="ca-anim">
+      <button onClick={onBack} style={backBtn()}><ChevronLeft size={15} /> Coffrets</button>
+      <div style={{ margin: "8px 0 14px" }}><input value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inp(), fontFamily: SCRIPT, fontSize: 22, color: C.jam, fontWeight: 400, maxWidth: 460 }} /></div>
+      <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 270px", gap: 16, alignItems: "start" }}>
+        <div>
+          <div style={card()}>
+            <div style={h2}>Composition</div>
+            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
+              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 62px 86px 46px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: k ? `1px solid ${C.line}` : "none" }}>
+                <div style={{ minWidth: 0 }}>
+                  <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
+                    {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
+                    {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
+                  </select>
+                  <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · prix d'achat manquant</span>}</div>
+                </div>
+                <input value={it.qty} onChange={(e) => setItem(k, { qty: e.target.value })} inputMode="decimal" aria-label="Quantité" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
+                <div style={{ textAlign: "right", fontSize: 13, fontVariantNumeric: "tabular-nums", color: l && l.cost > 0 ? C.ink : "#a6482a", fontWeight: 600 }}>{l && l.cost > 0 ? eur2(l.ligne) : "manquant"}</div>
+                <Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq>
+              </div>
+            ); })}
+            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 6, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
+          </div>
+          <div style={card()}>
+            <div style={h2}>Emballage et impressions</div>
+            {emb.map((e, k) => (
+              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 56px 86px 46px", gap: 8, alignItems: "center", padding: "6px 0" }}>
+                <input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} />
+                <input value={e.qty} onChange={(ev) => setEmbl(k, { qty: ev.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
+                <input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="achat HT" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
+                <Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq>
+              </div>
+            ))}
+            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {[["Coût de revient", total > 0 ? eur2(total) + (complet ? "" : " (incomplet)") : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
+              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl === "Coût de revient" ? C.paper : C.board, color: lbl === "Coût de revient" ? C.ink : "#fff", border: lbl === "Coût de revient" ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
+                <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
+                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{val}</div>}
+              </div>
+            ))}
+          </div>
+          {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
+            <button onClick={enregistrer} disabled={busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: "pointer", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : "Enregistrer"}</button>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
+            <span style={{ fontSize: 13, fontWeight: 600, color: msg.startsWith("⚠") ? "#a6482a" : C.ok }}>{msg}</span>
+          </div>
+        </div>
+        <div>
+          <div style={{ ...card(), padding: 0, overflow: "hidden" }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
+          <div style={card()}>
+            <div style={h2}>Stock</div>
+            <div style={{ fontSize: 28, fontWeight: 700 }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
+            <button onClick={() => setAsm(true)} className="ca-tap" style={{ marginTop: 12, width: "100%", background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 700, cursor: "pointer" }}>J'ai fabriqué des coffrets</button>
+            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
+          </div>
+        </div>
+      </div>
+      {asm && <CoffretAssembler coffret={coffret} lignes={lignes} pass={pass} onClose={() => setAsm(false)} onDone={(res) => { setAsm(false); onAssembled(res); }} />}
+    </div>
+  );
+}
+function ProCoffrets({ pass, products, setProducts }) {
+  const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null);
+  const charger = async () => {
+    if (!supabase || !pass) return;
+    const { data, error } = await supabase.rpc("admin_products", { pass });
+    if (error || !Array.isArray(data)) { setErr("⚠ Impossible de charger le catalogue — vérifiez la connexion."); return; }
+    setErr(""); setAll(data.map(mapRowCoffret));
+  };
+  useEffect(() => { charger(); }, [pass]);
+  if (err) return <div style={{ ...card(), color: "#a6482a", fontWeight: 600 }}>{err} <button onClick={charger} style={{ marginLeft: 8 }}>Réessayer</button></div>;
+  if (!all) return <div style={{ color: C.soft, padding: 20 }}>Chargement des coffrets…</div>;
+  const byId = Object.fromEntries(all.map((p) => [p.id, p]));
+  const coffrets = all.filter((p) => p.composition);
+  const composants = all.filter((p) => !p.composition && !p.active);
+  const maj = (p) => setAll((l) => l.map((x) => x.id === p.id ? p : x));
+  // met a jour le stock affiche, ici ET dans le catalogue global (Caisse), sans tout recharger
+  const appliquerStocks = (res) => {
+    setAll((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
+    if (setProducts) setProducts((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
+  };
+  const cible = sel && coffrets.find((c) => c.id === sel);
+  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} />;
+  return (
+    <div className="ca-anim">
+      <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 14 }}>
+        {coffrets.map((c) => { const { total, manquants, lignes } = coutCoffret(c.composition, byId); const a = assemblable(lignes); return (
+          <div key={c.id} style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
+            <CoffretVisuel nom={c.name} visuel={c.composition.visuel} compact />
+            <div style={{ padding: "10px 14px 14px" }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name} {!c.active && <span style={{ fontSize: 11, color: C.soft, fontWeight: 600 }}>· masqué</span>}</div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 3 }}>{lignes.length} article(s) · coût {manquants.length ? "connu " : ""}<b style={{ color: C.ink }}>{eur2(total)}</b>{manquants.length > 0 && <span style={{ color: "#a6482a", fontWeight: 700 }}> · {manquants.length} prix d'achat manquant(s)</span>}</div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>Prix de vente : <b style={{ color: C.ink }}>{c.price > 0 ? eur2(c.price) : "à saisir"}</b> · stock <b style={{ color: C.ink }}>{c.stock}</b> · fabricables <b style={{ color: C.ink }}>{a.n}</b></div>
+              <button onClick={() => setSel(c.id)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Ouvrir</button>
+            </div>
+          </div>
+        ); })}
+      </div>
+      {composants.length > 0 && (
+        <div style={{ ...card(), marginTop: 16 }}>
+          <div style={h2}>Composants ajoutés pour les coffrets (masqués du catalogue)</div>
+          <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 6 }}>Renseigne le prix d'achat HT et saisis ce que tu reçois : le stock s'ajoute (il ne s'écrase jamais).</div>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) 90px 70px 120px", gap: 8, fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}><div>Article</div><div>Achat HT</div><div style={{ textAlign: "right" }}>Stock</div><div>Réception</div></div>
+          {composants.map((p) => <CompoRow key={p.id} p={p} pass={pass} onChanged={maj} />)}
+        </div>
+      )}
     </div>
   );
 }
