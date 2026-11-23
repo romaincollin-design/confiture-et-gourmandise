@@ -485,6 +485,21 @@ pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consom
 
 ---
 
+### 6.3 Écran de coordonnées : court, une main, Entrée valide
+`Coords` : un titre, une phrase, trois champs (prénom, nom, téléphone), la case de consentement, un bouton `type="submit"`
+**dans** le `<form>` (la touche Entrée / « Suivant » du clavier valide). Champs à **16 px** et 46 px de haut (sous 16 px iOS
+zoome). Erreur **par champ**, au `blur` ou à l'envoi ; téléphone français = 10 chiffres (`telValide`, 06 12…, +33…, 0033…),
+étranger = indicatif + 9 chiffres minimum. On passe à l'écran suivant **tout de suite** et `upsertClient` enregistre en
+arrière-plan ; un échec est conservé dans `ca_cust_pending` et **rejoué à la prochaine ouverture**. La case de consentement
+part de `cust.optin` et reste décochée pour un nouveau contact (un consentement précoché n'est pas valable).
+Le garde-fou de `ClientView` (`coordsOk`, ≥ 6 chiffres) reste volontairement plus souple : on n'enferme pas un client déjà inscrit.
+
+### 6.4 Fêtes : annonce → rubrique « Idées cadeaux & fêtes »
+`Shop` construit une rubrique **dérivée** (aucune donnée en plus, un produit n'est jamais dupliqué) : catégorie `Coffrets`
+ou nom contenant pain d'épices / miel / coffret. Si le titre ou le texte de l'annonce parle de Noël, de fêtes, de cadeau ou de
+pain d'épices, toucher l'annonce ouvre cette rubrique (`shopFocus`). Plus de texte de repli « fraise » : un bandeau retiré
+n'affiche rien. La clé de fermeture est un hachage du contenu complet (une annonce voisine n'est plus masquée à tort).
+
 ## 7. Style UI (respecter absolument)
 
 Palette `C` : cream `#EFE7D5`, paper `#FBF6EA`, board `#16140F`, ink `#241F17`, soft `#8C8068`,
@@ -501,6 +516,9 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
   un étranger garde son indicatif : **`+39 33 48 10 15 16`**. Affichage seul — la valeur saisie
   n'est jamais réécrite en base (c'est elle qui sert de clé dans `save_lead`, §4).
 - **Noms** : `capNom()` à l'affichage (« croci » → « Croci », « Dettori-campus » → « Dettori-Campus »).
+- **Jamais d'emoji** (règle du propriétaire, 23/11/2026) : toujours un pictogramme `lucide-react` (`Warn`, `Ok` au niveau
+  module pour les alertes et validations ; `Check`, `AlertTriangle`, `Lock`…). Vaut aussi pour les messages WhatsApp
+  générés (récap de commande, annonce de fournée). Les ornements typographiques `✦` et `♥` (note) restent.
 - **Colonnes de chiffres** : `fontVariantNumeric: "tabular-nums"`, sinon les chiffres ne s'alignent
   pas d'une ligne à l'autre. Une valeur à zéro se met en gris (`#C9C0AE`), pas en noir.
 - **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,

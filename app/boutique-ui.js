@@ -4,7 +4,7 @@ import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
-  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database, AlertTriangle, Info
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -131,7 +131,10 @@ END:VCARD`;
 const VCARD_HREF = "data:text/vcard;charset=utf-8," + encodeURIComponent(VCARD);
 
 const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Coffrets", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
+const FETES = "Idées cadeaux & fêtes";
 const CAT_SUB = {
+  [FETES]: "pain d'épices · miel · coffrets à offrir",
+  Coffrets: "prêts à offrir",
   Confitures: "fruits frais · locaux · sans traitement",
   "Gelées": "fruits frais · locaux · sans traitement",
   Gourmandises: "fait avec amour",
@@ -480,49 +483,54 @@ function Contact({ setStep, profile }) {
   );
 }
 
+// Numero francais : 10 chiffres (06 12 34 56 78, +33 6 12 34 56 78, 0033...). Etranger : indicatif + au moins 9 chiffres.
+const telValide = (t) => {
+  const brut = String(t || "").trim(); const d = brut.replace(/\D/g, "");
+  if (/^(\+|00)/.test(brut) && !/^(\+|00)33/.test(brut)) return d.length >= 9;
+  const nat = d.startsWith("0033") ? "0" + d.slice(4) : (d.startsWith("33") && brut.startsWith("+")) ? "0" + d.slice(2) : d;
+  return /^0\d{9}$/.test(nat);
+};
 function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
-  const [optin, setOptin] = useState(false);
-  const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6;
+  // le consentement part de ce qui est deja enregistre : rouvrir la fiche ne doit pas faire croire qu'on l'a retire
+  const [optin, setOptin] = useState(!!cust.optin);
+  const [touched, setTouched] = useState({});
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
-  // on garde le consentement dans cust : sinon la commande repartait avec optin absent et écrasait l'accord donné ici
-  const valider = async (next) => { const c = { ...cust, optin }; setCust(c); await upsertClient(c); setStep(next); };
+  const errs = { prenom: cust.prenom.trim() ? "" : "Votre prénom", nom: cust.nom.trim() ? "" : "Votre nom", tel: telValide(cust.tel) ? "" : "Un numéro à 10 chiffres, par exemple 06 12 34 56 78" };
+  const ok = !errs.prenom && !errs.nom && !errs.tel;
+  const suite = lead ? "leadDone" : intent === "contact" ? "contact" : "shop";
+  const touch = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
+  // on garde le consentement dans cust : sinon la commande repartait avec optin absent et écrasait l'accord donné ici.
+  // On passe à l'écran suivant tout de suite : l'enregistrement se fait en arrière-plan (et se rejoue s'il échoue).
+  const valider = () => {
+    if (!ok) { setTouched({ prenom: true, nom: true, tel: true }); return; }
+    const c = { ...cust, optin }; setCust(c); setStep(suite); upsertClient(c);
+  };
+  const libelle = lead ? <>C'est parti <Check size={16} /></> : intent === "contact" ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Voir la carte <ChevronRight size={17} /></>;
   return (
-    <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ maxWidth: 250, margin: "0 auto" }}><Hero /></div>
-        <h2 style={{ fontFamily: SCRIPT, fontSize: 34, margin: "10px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
-        <div style={{ background: "#f6efdd", borderRadius: 14, padding: "13px 15px", margin: "12px 6px 0" }}>
-          <p style={{ fontSize: 16, color: C.jam, lineHeight: 1.4, margin: 0, fontWeight: 700 }}>Passez vos commandes&nbsp;!</p>
-          <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "3px 0 0", fontWeight: 500 }}>Recevez les dernières préparations de saison&nbsp;!</p>
-        </div>
-        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "10px 14px 0" }}>et recevez en avant-première nos nouvelles fournées et préparations de saison.</p>
-        <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.5, margin: "12px 12px 0", fontWeight: 600 }}>Laissez-nous vos coordonnées 👋</p>
-        <p style={{ fontSize: 14, color: C.jam, lineHeight: 1.5, margin: "4px 14px 0", fontWeight: 700 }}>On garde le contact&nbsp;!</p>
+    <div className="ca-anim" style={{ padding: "14px 22px 28px" }}>
+      <div style={{ textAlign: "center", marginBottom: 12 }}>
+        <div style={{ maxWidth: 110, margin: "0 auto" }}><Hero /></div>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "6px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
+        <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "6px 10px 0", fontWeight: 500 }}>Laissez vos coordonnées : commandez et recevez nos fournées en avant-première.</p>
       </div>
-      <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+      <form autoComplete="on" onSubmit={(e) => { e.preventDefault(); valider(); }}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-          <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
-          <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
+          <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" autoFocus enterKeyHint="next" onBlur={touch("prenom")} error={touched.prenom ? errs.prenom : ""} />
+          <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" enterKeyHint="next" onBlur={touch("nom")} error={touched.nom ? errs.nom : ""} />
         </div>
-        <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
+        <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" ph="06 12 34 56 78" enterKeyHint="go" onBlur={touch("tel")} error={touched.tel ? errs.tel : ""} />
+        {/* Le consentement était stocké mais jamais demandé : sans cette case, aucun nouveau contact
+            n'était joignable pour annoncer une fournée, et l'audience « Consentement » de Publimail restait vide.
+            Case décochée au départ : un consentement précoché n'est pas valable. */}
+        <button type="button" onClick={() => setOptin((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 2, display: "flex", alignItems: "flex-start", gap: 10, background: optin ? "#7A2B330d" : C.cream, border: `1.5px solid ${optin ? C.jam : C.line}`, borderRadius: 13, padding: "12px 13px", cursor: "pointer", textAlign: "left" }}>
+          <span style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${optin ? C.jam : C.soft}`, background: optin ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{optin && <Check size={14} color="#fff" />}</span>
+          <span style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.45, fontWeight: 600 }}>Prévenez-moi des nouvelles fournées et des idées cadeaux<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400, marginTop: 2 }}>Par WhatsApp ou SMS, un message par fournée. Désinscription sur simple demande.</span></span>
+        </button>
+        <button type="submit" className="ca-tap" style={{ width: "100%", marginTop: 12, background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "16px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 }}>{libelle}</button>
       </form>
-      {/* Le consentement était stocké mais jamais demandé : sans cette case, aucun nouveau contact
-          n'était joignable pour annoncer une fournée, et l'audience « Consentement » de Publimail restait vide. */}
-      <button onClick={() => setOptin((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "flex-start", gap: 10, background: optin ? "#7A2B330d" : C.cream, border: `1.5px solid ${optin ? C.jam : C.line}`, borderRadius: 13, padding: "12px 13px", cursor: "pointer", textAlign: "left" }}>
-        <span style={{ width: 21, height: 21, borderRadius: 7, border: `2px solid ${optin ? C.jam : C.soft}`, background: optin ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{optin && <Check size={13} color="#fff" />}</span>
-        <span style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.45, fontWeight: 600 }}>Prévenez-moi des nouvelles fournées 🍓<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400, marginTop: 2 }}>Un message quand les confitures de saison sortent du chaudron. Sans engagement.</span></span>
-      </button>
-      <div style={{ marginTop: 10 }}>
-        {lead
-          ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>C'est parti <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-          : intent === "contact"
-            ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>{ok ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-            : <button disabled={!ok} onClick={() => valider("shop")} className="ca-tap" style={{ width: "100%", background: ok ? C.jam : C.line, color: ok ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "16px 18px", fontWeight: 700, fontSize: 15, cursor: ok ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{ok ? <>Valider et accéder à la carte <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</button>}
-      </div>
-      {!ok && <p style={{ fontSize: 12, color: C.caramel, textAlign: "center", marginTop: 10, fontWeight: 600 }}>Prénom, nom et téléphone pour continuer.</p>}
-      <p style={{ fontSize: 11, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}>🔒 Vos infos restent chez nous, jamais partagées. Email &amp; adresse plus tard, si vous commandez.</p>
+      <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}><Lock size={12} style={{ verticalAlign: "-1px" }} /> Jamais partagées. Aucun email demandé.</p>
     </div>
   );
 }
@@ -540,10 +548,15 @@ function LeadDone({ setStep, resetClient, cust }) {
   );
 }
 
-function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
+function Shop({ products, cart, add, sub1, count, total, setStep, reviews, shopFocus }) {
   const extra = [...new Set(products.filter((p) => p.active !== false && !CAT_ORDER.includes(p.cat)).map((p) => p.cat))];
-  const cats = [...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c));
-  const [open, setOpen] = useState({});
+  // sélection dérivée (aucune donnée en plus) : un produit reste dans sa vraie catégorie, on ne le duplique pas en base
+  const fetes = products.filter((p) => p.active !== false && (p.cat === "Coffrets" || /pain d.epices|miel|coffret/.test((p.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))));
+  const cats = [...(fetes.length ? [FETES] : []), ...[...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c))];
+  const veutFetes = !!shopFocus && String(shopFocus).startsWith("fetes");
+  const [open, setOpen] = useState(veutFetes && fetes.length ? { [FETES]: true } : {});
+  // l'annonce peut être touchée alors que la carte est déjà affichée : on ouvre la rubrique à chaque demande
+  useEffect(() => { if (veutFetes && fetes.length) setOpen({ [FETES]: true }); }, [shopFocus]);
   const toggle = (c) => setOpen((o) => (o[c] ? {} : { [c]: true }));
   return (
     <div className="ca-anim" style={{ padding: "4px 0 92px" }}>
@@ -556,7 +569,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
         </div>
       </div>
       {cats.map((cat) => {
-        const items = products.filter((p) => p.active !== false && p.cat === cat);
+        const items = cat === FETES ? fetes : products.filter((p) => p.active !== false && p.cat === cat);
         const isOpen = !!open[cat];
         return (
           <div key={cat} style={{ borderTop: `1px solid ${C.line}` }}>
@@ -706,7 +719,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
   };
 
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
+  const recap = `COMMANDE ${profile.name} — réf. ${o.id}\n———————————\nClient : ${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\nRetrait souhaité : ${o.pickup || "à convenir"}\nAu stand, sur le marché${!paymentEnabled ? "\nRèglement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité.`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   // pas d'ouverture automatique de WhatsApp : Safari iOS la bloque, et la commande restait alors marquée "non transmise".
@@ -728,7 +741,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
         {sent ? <Check size={18} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} /> : <MessageCircle size={18} color={C.caramel} style={{ marginTop: 1, flexShrink: 0 }} />}
         <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
           {sent
-            ? <><b>Commande transmise ✓</b> Nous vous recontactons rapidement pour confirmer.</>
+            ? <><b>Commande transmise</b> Nous vous recontactons rapidement pour confirmer.</>
             : <><b>Dernière étape obligatoire : envoyez votre commande.</b> Sans cet envoi, nous ne sommes pas prévenus et votre commande ne sera pas préparée.</>}
         </div>
       </div>
@@ -742,7 +755,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
         <div onClick={() => setAsk(false)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "22px 18px", textAlign: "center", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 4 }}>Merci {cust?.prenom || ""} !</div>
-            <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique 🍓</p>
+            <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique</p>
             <div style={{ marginBottom: 16 }}><Stars value={0} size={36} onChange={() => { setAsk(false); setStep("avis"); }} /></div>
             <BigBtn onClick={() => { setAsk(false); setStep("avis"); }}>Donner mon avis <ChevronRight size={16} /></BigBtn>
             <button onClick={() => setAsk(false)} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: "none", color: C.soft, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Plus tard</button>
@@ -1554,7 +1567,7 @@ const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 // « confiture de melon » et « CONFITURE MELONS » sont bien le même produit (5 fournées).
 // Sans titre, on retombe sur la famille : les fournées de pissaladière sans titre restent
 // ensemble au lieu de se disperser en autant de rubriques vides.
-// ⚠️ Rattachement EXACT uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
+// ATTENTION : rattachement EXACT uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
 // titre « C » reste sa propre rubrique, visible et corrigeable, au lieu de happer Caramel,
 // Citron et Crème de marron.
 const rubriqueDe = (b) => {
@@ -1829,7 +1842,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
             const d = dureeMin(h.h_fin_cuisson, h.h_refroidi), ok = d <= HYG.refroidMaxMin;
             return (
               <div style={{ background: ok ? "#eaf3ec" : "#faece5", border: `1.5px solid ${ok ? C.ok : PF.warn}`, borderRadius: 11, padding: "12px 14px", fontSize: 14, fontWeight: 700, color: ok ? C.ok : PF.warn }}>
-                {ok ? "✓" : "⚠"} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
+                {ok ? <Ok /> : <Warn />} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
               </div>
             );
           })()}
@@ -1845,7 +1858,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
         {etape === 4 && (<>
           {ctrl.map((c) => (
             <div key={c.cle} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? "✓" : "!"}</span>
+              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? <Check size={15} /> : <AlertTriangle size={15} />}</span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: C.ink }}>{c.titre}</span>
                 <span style={{ display: "block", fontSize: 12, color: C.soft }}>{c.regle}</span>
@@ -2460,7 +2473,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {selectionManuelle ? (
                 <button onClick={() => setSelectionManuelle(null)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Revenir aux dates</button>
               ) : (
-                <button onClick={() => setSelectionManuelle(new Set())} className="ca-tap" style={{ background: "#fff", border: `1px solid ${PF.navy}`, color: PF.navy, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>☑ Sélectionner des fournées à la main</button>
+                <button onClick={() => setSelectionManuelle(new Set())} className="ca-tap" style={{ background: "#fff", border: `1px solid ${PF.navy}`, color: PF.navy, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Sélectionner des fournées à la main</button>
               )}
             </div>
             {selectionManuelle ? (
@@ -2721,7 +2734,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
             {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
           </div>
-          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "⚠ non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
+          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "non enregistré — vérifiez la connexion" : (saved ? "enregistré" : "enregistrement automatique")}</div>
         </div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
@@ -2918,7 +2931,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
+                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}><Ok /> ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}><Warn /> il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
                   </span>
                 </div>
               )}
@@ -3133,7 +3146,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.45, color: R.ecartPoids > 0 ? C.soft : PF.warn }}>
               {R.ecartPoids > 0
                 ? <>Il reste {R.ecartPoids.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg non mis en {FAM.unitWord} — ajoute un format ou augmente les quantités.</>
-                : <>⚠ {Math.abs(R.ecartPoids).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de plus que le poids obtenu : les quantités saisies dépassent la fournée.</>}
+                : <><Warn /> {Math.abs(R.ecartPoids).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de plus que le poids obtenu : les quantités saisies dépassent la fournée.</>}
             </div>
           )}
         </div>
@@ -3197,7 +3210,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
                 {tempsManquant && (
-                  <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}>⚠ Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
+                  <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}><Warn /> Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
               </div>
@@ -3246,7 +3259,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                                 else { if (d < du) du = d; if (d > au) au = d; }
                                 change({ autres_du: du, autres_au: au });
                               }} className="ca-tap" style={{ background: inRange ? PF.navy : "#fff", color: inRange ? "#fff" : C.ink, border: `1px solid ${inRange ? PF.navy : C.line}`, borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                                {inRange ? "✕ " : ""}{new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                                {inRange ? <><X size={11} style={{ verticalAlign: "-1px" }} /> </> : ""}{new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
                               </button>
                             );
                           })}
@@ -3520,7 +3533,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
 
           {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
             <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: R.ecartPoids < 0 ? "#fff" : C.ink, background: R.ecartPoids < 0 ? PF.warn : "#f6efdd", borderRadius: 10, padding: "12px 14px" }}>
-              <span style={{ fontSize: 18 }}>{R.ecartPoids < 0 ? "⚠️" : "ℹ️"}</span>
+              <span style={{ fontSize: 18 }}>{R.ecartPoids < 0 ? <Warn size={18} /> : <Info size={18} />}</span>
               <span>Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"} kg) et les pots remplis ({R.poidsAlloue.toFixed(2)} kg).</span>
             </div>
           )}
@@ -3617,7 +3630,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       {annonce && (() => {
         const abonnes = (clients || []).filter((c) => c.optin);
         const nom = (profile && profile.name) || "Comme Avant";
-        const msg = `🍓 Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message 🙂`;
+        const msg = `Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message.`;
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: C.paper, borderRadius: 18, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: "22px 20px 18px" }}>
@@ -4746,7 +4759,7 @@ function ventesParProduit(products, sales) {
 // (c'est ce qui rend la validation idempotente, §5.2). Les SORTIES sont les ventes.
 // On écoule du plus ancien lot au plus récent (FIFO) : le lot « en cours de vente » est donc le
 // plus ancien encore en stock, et c'est son n° de lot qui doit figurer sur l'étiquette du jour.
-// ⚠️ Un lot n'existe ici que si la fournée a été VALIDÉE avec un format relié à ce produit
+// ATTENTION : un lot n'existe ici que si la fournée a été VALIDÉE avec un format relié à ce produit
 // (§5.2 bis). Tant que ce n'est pas fait, le registre est vide — et il le dit.
 function lotsDeStock(batches, products, sales) {
   const entrees = {};
@@ -4971,7 +4984,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
           valeur en memoire, la base garde 0, et la marge reste vide sans explication. */}
       {Object.keys(echecs).length > 0 && (
         <div style={{ background: "#faece5", border: `1.5px solid ${PF.warn}`, borderRadius: 12, padding: "11px 14px", marginBottom: 12, fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
-          <b style={{ color: PF.warn }}>⚠ Non enregistré</b> — {Object.values(echecs).slice(0, 4).join(", ")}
+          <b style={{ color: PF.warn }}><Warn /> Non enregistré</b> — {Object.values(echecs).slice(0, 4).join(", ")}
           {Object.keys(echecs).length > 4 ? ` et ${Object.keys(echecs).length - 4} autre(s)` : ""}.
           <span style={{ display: "block", marginTop: 3, color: C.soft }}>Vérifiez la connexion, puis ressaisissez la valeur — elle n'est pas en base.</span>
         </div>
@@ -4991,17 +5004,17 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
               <button onClick={() => setFiltre((v) => v === "reappro" ? null : "reappro")} className="ca-tap" style={{ border: `1.5px solid ${filtre === "reappro" ? C.jam : C.jam + "66"}`, background: filtre === "reappro" ? C.jam : "#7A2B3312", color: filtre === "reappro" ? "#fff" : C.jam, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {filtre === "reappro" ? "✕ Voir tout le catalogue" : `📦 ${totalReappro} à refaire${enRupture > 0 ? ` · ${enRupture} épuisé${enRupture > 1 ? "s" : ""}` : ""}`}
+                {filtre === "reappro" ? "Voir tout le catalogue" : `${totalReappro} à refaire${enRupture > 0 ? ` · ${enRupture} épuisé${enRupture > 1 ? "s" : ""}` : ""}`}
               </button>
             )}
             {totalSansAchat > 0 && (
               <button onClick={() => setFiltre((v) => v === "sansAchat" ? null : "sansAchat")} className="ca-tap" style={{ border: `1.5px solid ${filtreSansAchat ? PF.warn : PF.warn + "66"}`, background: filtreSansAchat ? PF.warn : "#faece5", color: filtreSansAchat ? "#fff" : PF.warn, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {filtreSansAchat ? "✕ Voir tout le catalogue" : `⚠ ${totalSansAchat} sans prix d'achat`}
+                {filtreSansAchat ? "Voir tout le catalogue" : `${totalSansAchat} sans prix d'achat`}
               </button>
             )}
             {nbCalculables > 0 && (
               <button onClick={() => setPanneauCouts((v) => !v)} className="ca-tap" style={{ border: `1.5px solid ${panneauCouts ? PF.navy : PF.navy + "66"}`, background: panneauCouts ? PF.navy : "#123a5212", color: panneauCouts ? "#fff" : PF.navy, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {panneauCouts ? "✕ Fermer" : `⚙ Calculer ${nbCalculables} prix d'achat depuis les fournées`}
+                {panneauCouts ? "Fermer" : `Calculer ${nbCalculables} prix d'achat depuis les fournées`}
               </button>
             )}
           </div>
@@ -5098,7 +5111,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{cat}</span>
                 <span style={{ fontSize: 11.5, color: C.soft, background: C.cream, padding: "3px 9px", borderRadius: 20, fontWeight: 600 }}>{items.length}</span>
-                {sansAchat > 0 && <span title="Produits sans prix d'achat renseigné" style={{ fontSize: 11, color: PF.warn, background: "#faece5", padding: "3px 9px", borderRadius: 20, fontWeight: 700 }}>⚠ {sansAchat} sans prix d'achat</span>}
+                {sansAchat > 0 && <span title="Produits sans prix d'achat renseigné" style={{ fontSize: 11, color: PF.warn, background: "#faece5", padding: "3px 9px", borderRadius: 20, fontWeight: 700 }}><Warn /> {sansAchat} sans prix d'achat</span>}
               </span>
               <ChevronDown size={18} color={C.soft} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
@@ -5110,7 +5123,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
-                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
+                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? <> <Warn size={11} /></> : null}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
                       <div><MiniLabel>Stock</MiniLabel><input inputMode="numeric" value={dval(p, "stock")} onChange={(e) => dset(p, "stock", e.target.value, (n) => updField(p.id, "stock", Math.round(n)))} onBlur={() => dblur(p, "stock")} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
                       <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
@@ -5125,12 +5138,12 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         {badgeOrigine(p)}
                         {(fifo[p.id] || {}).lots && fifo[p.id].lots.length > 0 && (
                           <button onClick={() => setHisto((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Historique des prix d'achat, fournée par fournée" style={{ ...puce(histo === p.id ? PF.navy : "#123a5212", PF.navy + "33", histo === p.id ? "#fff" : PF.navy), cursor: "pointer" }}>
-                            {histo === p.id ? "✕ historique" : `⌛ ${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
+                            {histo === p.id ? "historique" : `${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
                           </button>
                         )}
                         {(lots[p.id] || {}).lots && lots[p.id].lots.length > 0 && (
                           <button onClick={() => setTracab((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Traçabilité : de quelle fournée vient le stock en rayon, n° de lot et DLC" style={{ ...puce(tracab === p.id ? C.ok : "#3F7A4B14", C.ok + "44", tracab === p.id ? "#fff" : C.ok), cursor: "pointer" }}>
-                            {tracab === p.id ? "✕ traçabilité" : `🏷 ${lots[p.id].lots.length} lot${lots[p.id].lots.length > 1 ? "s" : ""}${lots[p.id].perimes.length ? " ⚠" : ""}`}
+                            {tracab === p.id ? "traçabilité" : `${lots[p.id].lots.length} lot${lots[p.id].lots.length > 1 ? "s" : ""}${lots[p.id].perimes.length ? " · DLC dépassée" : ""}`}
                           </button>
                         )}
                       </div>
@@ -5171,7 +5184,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                                       {l === L.enCours && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: C.ok, borderRadius: 5, padding: "1px 5px" }}>EN VENTE</span>}
                                     </td>
                                     <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? " ⚠" : ""}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? <> <Warn size={12} /></> : ""}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.entre}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
@@ -5185,7 +5198,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                           <b style={{ color: C.ink }}>{L.restant}</b> unité(s) tracée(s) par lot, pour un stock affiché de <b style={{ color: C.ink }}>{L.stockFiche}</b>.
                           {L.ecart !== 0 && <> <span style={{ color: C.caramel }}>Écart de {L.ecart > 0 ? "+" : ""}{L.ecart}</span> : {L.ecart > 0 ? "une partie du stock vient d'avant la mise en place du suivi par lot, ou d'une saisie à la main." : "plus d'unités vendues que de lots enregistrés — il manque une fournée validée."} Le stock affiché en boutique reste celui de la fiche ; le registre ne le corrige pas tout seul.</>}
                           {L.sansLot > 0 && <> <span style={{ color: C.caramel }}>{L.sansLot} lot(s) sans numéro</span> : remplissez le contrôle hygiène de la fournée, le n° est proposé automatiquement.</>}
-                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700 }}>⚠ {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
+                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700 }}><Warn /> {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
                         </div>
                         <div style={{ marginTop: 7, fontSize: 10.5, color: C.soft, fontStyle: "italic", lineHeight: 1.45 }}>
                           La DLC affichée est celle saisie sur la fiche de fabrication. C&apos;est votre guide de bonnes pratiques et la DDPP qui font foi, pas l&apos;application.
@@ -5238,8 +5251,8 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         {fifo[p.id].etat === "bloque" ? (
                           <div style={{ marginTop: 8, fontSize: 11.5, color: PF.warn, lineHeight: 1.45 }}>
                             {fifo[p.id].suspect
-                              ? <>⚠ Aucun lot exploitable : dans ces fournées, les ingrédients pesés font moins de la moitié du poids fini — on ne fabrique pas 5 kg de confiture avec 4 g de fruit. Une quantité a sans doute été saisie <b>en grammes au lieu de kilos</b>. Corrigez-la dans l&apos;onglet Production et la ligne se remplira toute seule.</>
-                              : <>⚠ Le lot retenu ne peut pas être chiffré : <b>{fifo[p.id].manquants.join(", ")}</b> n&apos;a pas de prix au kilo dans sa fournée et pèse {Math.round((fifo[p.id].part || 0) * 100)} % de la recette. Un coût calculé sans lui serait faux. Saisissez ce prix dans l&apos;onglet Production et la ligne se remplira toute seule.</>}
+                              ? <><Warn /> Aucun lot exploitable : dans ces fournées, les ingrédients pesés font moins de la moitié du poids fini — on ne fabrique pas 5 kg de confiture avec 4 g de fruit. Une quantité a sans doute été saisie <b>en grammes au lieu de kilos</b>. Corrigez-la dans l&apos;onglet Production et la ligne se remplira toute seule.</>
+                              : <><Warn /> Le lot retenu ne peut pas être chiffré : <b>{fifo[p.id].manquants.join(", ")}</b> n&apos;a pas de prix au kilo dans sa fournée et pèse {Math.round((fifo[p.id].part || 0) * 100)} % de la recette. Un coût calculé sans lui serait faux. Saisissez ce prix dans l&apos;onglet Production et la ligne se remplira toute seule.</>}
                           </div>
                         ) : (
                           <div style={{ marginTop: 8, fontSize: 11.5, color: C.soft, lineHeight: 1.45 }}>
@@ -5605,19 +5618,19 @@ function CoffretVisuel({ nom, visuel, compact }) {
 function CompoRow({ p, pass, onChanged }) {
   const [cost, setCost] = useState(p.cost > 0 ? String(p.cost).replace(".", ",") : "");
   const [recu, setRecu] = useState("");
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState(null);
   const saveCost = async () => {
     const c = coffretNum(cost);
     if (c === p.cost) return;
     const { error } = await supabase.rpc("admin_patch_product", { pass, p_id: p.id, p_patch: { cost: c } });
-    if (error) { setMsg("⚠ non enregistré — vérifiez la connexion"); return; }
-    setMsg("✓"); onChanged({ ...p, cost: c });
+    if (error) { setMsg({ bad: true, t: "Non enregistré" }); return; }
+    setMsg({ bad: false }); onChanged({ ...p, cost: c });
   };
   const recevoir = async () => {
     const d = Math.round(coffretNum(recu)); if (!d) return;
     const { data, error } = await supabase.rpc("admin_adjust_stock", { pass, p_id: p.id, p_delta: d });
-    if (error) { setMsg("⚠ stock non modifié"); return; }
-    setRecu(""); setMsg("✓"); onChanged({ ...p, stock: typeof data === "number" ? data : p.stock + d });
+    if (error) { setMsg({ bad: true, t: "Stock non modifié" }); return; }
+    setRecu(""); setMsg({ bad: false }); onChanged({ ...p, stock: typeof data === "number" ? data : p.stock + d });
   };
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) 90px 70px 120px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
@@ -5627,7 +5640,7 @@ function CompoRow({ p, pass, onChanged }) {
       <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
         <input value={recu} onChange={(e) => setRecu(e.target.value)} placeholder="+ reçu" inputMode="numeric" style={{ ...inp(), padding: "7px 9px", fontSize: 13, width: 70 }} />
         <button onClick={recevoir} className="ca-tap" style={{ border: "none", background: C.jam, color: "#fff", borderRadius: 8, padding: "7px 9px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>OK</button>
-        <span style={{ fontSize: 11, color: msg.startsWith("⚠") ? "#a6482a" : C.ok }}>{msg}</span>
+        {msg && <span style={{ fontSize: 11, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <><Warn size={12} /> {msg.t}</> : <Ok size={13} />}</span>}
       </div>
     </div>
   );
@@ -5640,7 +5653,7 @@ function CoffretAssembler({ coffret, lignes, pass, onClose, onDone }) {
     setBusy(true); setErr("");
     const { data, error } = await supabase.rpc("admin_assemble_coffret", { pass, p_id: coffret.id, p_n: q, p_deduct: deduct });
     setBusy(false);
-    if (error || !data) { setErr("⚠ non enregistré — vérifiez la connexion. Rien n'a été modifié."); return; }
+    if (error || !data) { setErr("Non enregistré — vérifiez la connexion. Rien n'a été modifié."); return; }
     onDone(data);
   };
   return (
@@ -5656,13 +5669,13 @@ function CoffretAssembler({ coffret, lignes, pass, onClose, onDone }) {
           <tbody>
             <tr style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}><b>{coffret.name}</b></td><td style={{ textAlign: "right" }}>{coffret.stock}</td><td style={{ textAlign: "right", color: C.ok, fontWeight: 700 }}>{q >= 0 ? "+" : ""}{q}</td><td style={{ textAlign: "right", fontWeight: 700 }}>{coffret.stock + q}</td></tr>
             {deduct && lignes.map((l) => { const apres = l.stock - Math.round(l.qty * q); return (
-              <tr key={l.pid} style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}>{l.name} <span style={{ color: C.soft }}>· {l.unit}</span></td><td style={{ textAlign: "right" }}>{l.stock}</td><td style={{ textAlign: "right", color: "#a6482a", fontWeight: 700 }}>{q > 0 ? "−" : "+"}{Math.abs(Math.round(l.qty * q))}</td><td style={{ textAlign: "right", fontWeight: 700, color: apres < 0 ? "#a6482a" : C.ink }}>{apres}{apres < 0 && <span style={{ fontSize: 11 }}> ⚠ négatif</span>}</td></tr>
+              <tr key={l.pid} style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}>{l.name} <span style={{ color: C.soft }}>· {l.unit}</span></td><td style={{ textAlign: "right" }}>{l.stock}</td><td style={{ textAlign: "right", color: "#a6482a", fontWeight: 700 }}>{q > 0 ? "−" : "+"}{Math.abs(Math.round(l.qty * q))}</td><td style={{ textAlign: "right", fontWeight: 700, color: apres < 0 ? "#a6482a" : C.ink }}>{apres}{apres < 0 && <span style={{ fontSize: 11 }}> <Warn size={11} /> négatif</span>}</td></tr>
             ); })}
           </tbody>
         </table>
         {deduct && lignes.some((l) => l.stock - Math.round(l.qty * q) < 0) && q > 0 && <div style={{ background: "#fff4cf", border: "1px solid #F4B32C", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, marginTop: 10 }}>Un composant passerait en négatif : son stock n'est peut-être pas à jour. Tu peux valider quand même (le chiffre se corrigera à la prochaine réception).</div>}
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: C.soft, margin: "12px 0" }}><input type="checkbox" checked={!deduct} onChange={(e) => setDeduct(!e.target.checked)} /> Ne pas déduire les composants (déjà sortis du stock)</label>
-        {err && <div style={{ color: "#a6482a", fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{err}</div>}
+        {err && <div style={{ color: "#a6482a", fontWeight: 600, fontSize: 13, marginBottom: 8 }}><Warn /> {err}</div>}
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onClose} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: "pointer" }}>Annuler</button>
           <button onClick={valider} disabled={!q || busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: !q || busy ? "default" : "pointer", opacity: !q || busy ? .5 : 1 }}>{busy ? "Enregistrement…" : "Valider la fabrication"}</button>
@@ -5678,7 +5691,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: String(e.cost).replace(".", ",") })));
   const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
   const [actif, setActif] = useState(coffret.active);
-  const [msg, setMsg] = useState(""); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false);
+  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false); const [costDraft, setCostDraft] = useState({});
   const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
   const { total, manquants, lignes } = coutCoffret(compo, byId);
   const pv = coffretNum(prix); const complet = manquants.length === 0 && compo.items.length > 0;
@@ -5689,16 +5702,25 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
   const enregistrer = async () => {
     if (busy) return;
-    if (actif && !(pv > 0)) { setMsg("⚠ Pour rendre le coffret visible, saisis d'abord son prix de vente."); return; }
-    setBusy(true); setMsg("");
+    if (actif && !(pv > 0)) { setMsg({ bad: true, t: "Pour rendre le coffret visible, saisis d'abord son prix de vente." }); return; }
+    setBusy(true); setMsg(null);
     const patch = { name: nom, active: actif, price: pv };
     if (complet) { patch.cost = Math.round(total * 100) / 100; patch.coef = pv > 0 ? Math.round((pv / total) * 100) / 100 : 0; }
     const r1 = await supabase.rpc("admin_save_composition", { pass, p_id: coffret.id, p_composition: compo });
     const r2 = await supabase.rpc("admin_patch_product", { pass, p_id: coffret.id, p_patch: patch });
     setBusy(false);
-    if (r1.error || r2.error) { setMsg("⚠ non enregistré — vérifiez la connexion"); return; }
-    setMsg("✓ Enregistré");
+    if (r1.error || r2.error) { setMsg({ bad: true, t: "Non enregistré — vérifiez la connexion" }); return; }
+    setMsg({ bad: false, t: "Coffret validé" });
     onSaved({ ...coffret, name: nom, active: actif, price: pv, cost: patch.cost != null ? patch.cost : coffret.cost, coef: patch.coef != null ? patch.coef : coffret.coef, composition: compo });
+  };
+  const saveCostPid = async (pid) => {
+    const p = byId[pid]; const raw = costDraft[pid];
+    if (!p || raw == null) return;
+    setCostDraft((d) => { const n = { ...d }; delete n[pid]; return n; });
+    const c = coffretNum(raw); if (c === p.cost) return;
+    const { error } = await supabase.rpc("admin_patch_product", { pass, p_id: pid, p_patch: { cost: c } });
+    if (error) { setMsg({ bad: true, t: "Prix d'achat non enregistré — vérifiez la connexion" }); return; }
+    onSaved({ ...p, cost: c });
   };
   const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
   return (
@@ -5710,16 +5732,17 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
           <div style={card()}>
             <div style={h2}>Composition</div>
             {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
-              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 62px 86px 46px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: k ? `1px solid ${C.line}` : "none" }}>
+              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 56px 84px 78px 38px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: k ? `1px solid ${C.line}` : "none" }}>
                 <div style={{ minWidth: 0 }}>
                   <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
                     {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
                     {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
                   </select>
-                  <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · prix d'achat manquant</span>}</div>
+                  <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
                 </div>
                 <input value={it.qty} onChange={(e) => setItem(k, { qty: e.target.value })} inputMode="decimal" aria-label="Quantité" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
-                <div style={{ textAlign: "right", fontSize: 13, fontVariantNumeric: "tabular-nums", color: l && l.cost > 0 ? C.ink : "#a6482a", fontWeight: 600 }}>{l && l.cost > 0 ? eur2(l.ligne) : "manquant"}</div>
+                <input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="achat HT" inputMode="decimal" aria-label="Prix d'achat HT" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
+                <div style={{ textAlign: "right", fontSize: 13, fontVariantNumeric: "tabular-nums", color: l && l.cost > 0 ? C.ink : "#a6482a", fontWeight: 600 }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div>
                 <Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq>
               </div>
             ); })}
@@ -5747,9 +5770,9 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
           </div>
           {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
-            <button onClick={enregistrer} disabled={busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: "pointer", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : "Enregistrer"}</button>
+            <button onClick={enregistrer} disabled={busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: "pointer", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : "Valider le coffret"}</button>
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
-            <span style={{ fontSize: 13, fontWeight: 600, color: msg.startsWith("⚠") ? "#a6482a" : C.ok }}>{msg}</span>
+            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
           </div>
         </div>
         <div>
@@ -5772,11 +5795,11 @@ function ProCoffrets({ pass, products, setProducts }) {
   const charger = async () => {
     if (!supabase || !pass) return;
     const { data, error } = await supabase.rpc("admin_products", { pass });
-    if (error || !Array.isArray(data)) { setErr("⚠ Impossible de charger le catalogue — vérifiez la connexion."); return; }
+    if (error || !Array.isArray(data)) { setErr("Impossible de charger le catalogue — vérifiez la connexion."); return; }
     setErr(""); setAll(data.map(mapRowCoffret));
   };
   useEffect(() => { charger(); }, [pass]);
-  if (err) return <div style={{ ...card(), color: "#a6482a", fontWeight: 600 }}>{err} <button onClick={charger} style={{ marginLeft: 8 }}>Réessayer</button></div>;
+  if (err) return <div style={{ ...card(), color: "#a6482a", fontWeight: 600 }}><Warn /> {err} <button onClick={charger} style={{ marginLeft: 8 }}>Réessayer</button></div>;
   if (!all) return <div style={{ color: C.soft, padding: 20 }}>Chargement des coffrets…</div>;
   const byId = Object.fromEntries(all.map((p) => [p.id, p]));
   const coffrets = all.filter((p) => p.composition);
@@ -6055,7 +6078,7 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
       XLSX.writeFile(wb, `comme-avant-sauvegarde-${stamp}.xlsx`);
-      setBk({ busy: false, msg: "Sauvegarde téléchargée ✓" });
+      setBk({ busy: false, msg: "Sauvegarde téléchargée" });
     } catch (e) {
       setBk({ busy: false, msg: "Erreur pendant l'export — réessayez." });
     }
@@ -6170,7 +6193,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
         <Field label="Titre" value={annTitle} onChange={setAnnTitle} />
         <div style={{ marginBottom: 12 }}><Lbl>Message</Lbl><textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginTop: 5 }} /></div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => saveAnn(false)} disabled={annBusy} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 700, cursor: annBusy ? "default" : "pointer", fontSize: 13.5 }}>{annBusy ? "…" : annSaved ? "Publié ✓" : "Publier l'annonce"}</button>
+          <button onClick={() => saveAnn(false)} disabled={annBusy} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 700, cursor: annBusy ? "default" : "pointer", fontSize: 13.5 }}>{annBusy ? "…" : annSaved ? "Publié" : "Publier l'annonce"}</button>
           <button onClick={() => saveAnn(true)} disabled={annBusy} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "12px 14px", fontWeight: 600, cursor: annBusy ? "default" : "pointer", fontSize: 13 }}>Retirer</button>
         </div>
       </div>
@@ -6197,7 +6220,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
       <div style={{ position: "sticky", bottom: 0, paddingTop: 10, background: `linear-gradient(transparent, ${C.cream} 30%)` }}>
         <button onClick={save} disabled={!dirty} className="ca-tap"
           style={{ width: "100%", background: dirty ? C.ok : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: dirty ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
-          <Check size={18} /> {saved ? "Modifications enregistrées ✓" : dirty ? "Valider les modifications" : "Aucune modification"}
+          <Check size={18} /> {saved ? "Modifications enregistrées" : dirty ? "Valider les modifications" : "Aucune modification"}
         </button>
       </div>
     </div>
@@ -6251,6 +6274,9 @@ const inp = () => ({ width: "100%", padding: "10px 12px", borderRadius: 10, bord
 const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid ${C.line}`, background: s === "Livrée" || s === "Retirée" ? "#3F7A4B14" : C.cream, fontSize: 12.5, fontWeight: 600, color: C.ink, cursor: "pointer" });
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }
+// Pictogrammes a la place des symboles et emojis (regle du proprietaire : jamais d'emoji)
+function Warn({ size = 13 }) { return <AlertTriangle size={size} style={{ verticalAlign: "-2px", flexShrink: 0 }} />; }
+function Ok({ size = 13 }) { return <Check size={size} style={{ verticalAlign: "-2px", flexShrink: 0 }} />; }
 function Pill({ children }) { return <span style={{ fontSize: 11.5, fontWeight: 600, color: C.soft, background: C.cream, padding: "6px 10px", borderRadius: 9, flexShrink: 0 }}>{children}</span>; }
 function Stars({ value, size = 16, onChange, color }) {
   return <span style={{ display: "inline-flex", gap: size > 24 ? 8 : 3 }}>{[1, 2, 3, 4, 5].map((n) => (
@@ -6260,7 +6286,7 @@ function Stars({ value, size = 16, onChange, color }) {
 function ShareBtn({ cust, label = "Partager Comme Avant" }) {
   const ref = cust?.email ? "?ref=" + encodeURIComponent(cust.email) : "";
   const url = "https://confiture-et-gourmandise.vercel.app/" + ref;
-  const msg = `J'ai découvert cette petite fabrique locale, Comme Avant 🍓\nIl faut que tu essayes, c'est trop bon !\nConfitures, gourmandises & produits locaux : ${url}`;
+  const msg = `J'ai découvert cette petite fabrique locale, Comme Avant\nIl faut que tu essayes, c'est trop bon !\nConfitures, gourmandises & produits locaux : ${url}`;
   const share = async () => {
     try { if (navigator.share) { await navigator.share({ title: "Comme Avant", text: msg, url }); return; } } catch (e) { return; }
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
@@ -6387,7 +6413,7 @@ function StepHead({ onBack, title, sub }) {
 function ProHead({ title, sub }) { return <div style={{ marginBottom: 18 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{title}</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{sub}</div></div>; }
 function Section({ children }) { return <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 }}>{children}</div>; }
 function Lbl({ children, htmlFor }) { return <label htmlFor={htmlFor} style={{ display: "block", marginBottom: 4, fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 600, color: C.soft }}>{children}</label>; }
-function Field({ label, value, onChange, type = "text", ph, autoComplete, name }) {
+function Field({ label, value, onChange, type = "text", ph, autoComplete, name, error, onBlur, enterKeyHint, autoFocus }) {
   const email = type === "email";
   const tel = type === "tel";
   return (
@@ -6398,14 +6424,20 @@ function Field({ label, value, onChange, type = "text", ph, autoComplete, name }
         id={name}
         name={name}
         value={value}
+        placeholder={ph}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        enterKeyHint={enterKeyHint}
+        aria-invalid={error ? true : undefined}
         inputMode={tel ? "tel" : email ? "email" : undefined}
         autoCapitalize={email ? "none" : undefined}
         autoCorrect={email ? "off" : undefined}
         spellCheck={email ? false : undefined}
-        style={inp()}
+        style={{ ...inp(), fontSize: 16, padding: "13px 14px", minHeight: 46, borderColor: error ? "#a6482a" : undefined }}
       />
+      {error && <div style={{ fontSize: 12, color: "#a6482a", fontWeight: 600, marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
@@ -6501,6 +6533,7 @@ export function BoutiquePublique() {
   const [clients, setClients] = useState([]);
   const [step, setStep] = useState("welcome");
   const [intent, setIntent] = useState("order");
+  const [shopFocus, setShopFocus] = useState(null);
   const [cust, setCust] = useState({ prenom: "", nom: "", tel: "", email: "" });
   const [returning, setReturning] = useState(false);
   useEffect(() => {
@@ -6543,6 +6576,8 @@ export function BoutiquePublique() {
     }
     return true;
   };
+  // un contact dont l'enregistrement avait échoué (réseau instable) est rejoué à la prochaine ouverture
+  useEffect(() => { try { const raw = localStorage.getItem("ca_cust_pending"); if (raw) upsertClient(JSON.parse(raw)); } catch (e) {} }, []);
   // La commande est transmise par WhatsApp : prenom + nom + telephone suffisent (email facultatif, cf. CLAUDE.md 6.1)
   const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6);
   const placeOrder = async () => {
@@ -6576,9 +6611,9 @@ export function BoutiquePublique() {
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
-      {step !== "coords" && <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />}
+      {step !== "coords" && <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setShopFocus(/no[eë]l|f[eê]te|cadeau|pain d/i.test(((announce && announce.title) || "") + " " + ((announce && announce.body) || "")) ? "fetes:" + Date.now() : null); setStep("shop"); }} />}
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
+      <ClientView {...{ shopFocus, step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
     </div>
   );
 }
@@ -6667,7 +6702,6 @@ export function EspacePro() {
 
 /* ---------------- Extras : retour client, WhatsApp, install, nouveauté ---------------- */
 // Annonce "nouveauté" (modifiable plus tard depuis l'espace pro / Supabase)
-const ANNOUNCE = { id: "2026-06-fraise", title: "Nouveauté de saison", body: "Bientôt : confiture de Fraise — édition limitée. Restez à l'affût !" };
 
 function useMounted() {
   const [m, setM] = useState(false);
@@ -6687,7 +6721,7 @@ function WhatsAppBtn({ profile }) {
   if (!mounted) return null;
   if (open) {
     return (
-      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent("💬 " + profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
+      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent(profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
         style={{ width: "100%", marginTop: 12, background: "#1FA855", color: "#fff", borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}>
         <MessageCircle size={16} /> Nous écrire sur WhatsApp
       </a>
@@ -6747,9 +6781,10 @@ function InstallTip() {
 function Announce({ title, body, onOpen }) {
   const mounted = useMounted();
   const [show, setShow] = useState(false);
-  const t = (title != null && title !== "") ? title : ANNOUNCE.title;
-  const b = (body != null && body !== "") ? body : ANNOUNCE.body;
-  const key = "ca_seen_" + (t + "|" + b).length + "_" + (t || "").slice(0, 12);
+  // plus de texte de repli : un bandeau retiré (titre et texte vides) ne doit rien afficher
+  const t = title || ""; const b = body || "";
+  let h = 0; const brut = t + "|" + b; for (let i = 0; i < brut.length; i++) h = (h * 31 + brut.charCodeAt(i)) | 0;
+  const key = "ca_seen_" + h;
   useEffect(() => { try { if (localStorage.getItem(key) !== "1") setShow(true); else setShow(false); } catch (e) { setShow(true); } }, [key]);
   if (!mounted || !show || (!t && !b)) return null;
   const close = (e) => { if (e) e.stopPropagation(); try { localStorage.setItem(key, "1"); } catch (e2) {} setShow(false); };
@@ -7181,7 +7216,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
         <div className="caisse-ticket" ref={ticketRef}>
           {tCount > 0 ? (
             <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
+              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}><Ok /> sauvegardée</span></div>
               {lines.map(([pid, l]) => (
                 <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -7199,7 +7234,7 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
                     <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>Prix unitaire</span>
                     <input inputMode="decimal" disabled={l.offert} value={l.price == null ? "" : String(l.price).replace(".", ",")} onChange={(e) => setLinePrice(pid, e.target.value.replace(",", "."))} style={{ width: 72, border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 7px", fontSize: 13, fontWeight: 700, color: l.offert ? C.soft : C.ink, background: l.offert ? "#f3ede0" : "#fff", textDecoration: l.offert ? "line-through" : "none" }} />
                     <span style={{ fontSize: 11.5, color: C.soft }}>€</span>
-                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{l.offert ? "✓ Offert" : "Offrir"}</button>
+                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{l.offert ? <><Ok size={12} /> Offert</> : "Offrir"}</button>
                   </div>
                 </div>
               ))}
