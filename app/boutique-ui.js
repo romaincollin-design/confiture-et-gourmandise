@@ -4,7 +4,8 @@ import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
-  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database,
+  Search, Printer, AlertTriangle
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -756,6 +757,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
   const [tab, setTab] = useState("caisse");
+  const [ouvrirFournee, setOuvrirFournee] = useState(null); // id d'une fournée à ouvrir dans Production
   // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
   const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
   return (
@@ -773,9 +775,9 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
             doublonnait la saisie. Les achats cumulés et le prévisionnel doivent se déduire des
             fournées, dans l'onglet Production. Composant et tables conservés le temps de la refonte. */}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
-        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
+        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -1679,7 +1681,264 @@ function imprimer(titre, corps, largeurMm) {
   setTimeout(() => { w.print(); }, 250);
 }
 
-function FicheHygiene({ f, change, onClose, profile }) {
+/* ---------------- N° de lot : unique, retrouvable, réimprimable ---------------- */
+const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const dlcDe = (h) => jourPlus(h.date_fab, h.dlc_jours == null || h.dlc_jours === "" ? HYG.dlcJours : h.dlc_jours);
+// « 2026-0922-02 », « 20260922 02 » et « 20260922-02 » désignent le même lot.
+const normLot = (s) => String(s || "").toLowerCase().replace(/[\s\-_./]/g, "");
+const fiche = (b) => (b && b.data) || b || {};
+const lotDe = (b) => String((fiche(b).hygiene || {}).lot || "").trim();
+
+// Les lots du même jour sont déjà en mémoire (admin_batches renvoie tout) : le suffixe est
+// 1 + le nombre de lots du jour. On ne RENUMÉROTE jamais un lot existant ; si un trou ou un
+// numéro saisi à la main dépasse le compte, on prend le plus grand + 1 pour rester unique.
+function prochainLot(batches, dateIso, exceptId) {
+  const pref = String(dateIso || new Date().toISOString().slice(0, 10)).replace(/-/g, "") + "-";
+  const du = (batches || []).filter((b) => !exceptId || fiche(b).id !== exceptId).map(lotDe).filter((l) => l.startsWith(pref));
+  let max = 0;
+  du.forEach((l) => { const n = parseInt(l.slice(pref.length), 10); if (n > max) max = n; });
+  return pref + String(Math.max(du.length, max) + 1).padStart(2, "0");
+}
+// Autres fournées portant déjà ce numéro (doublon = traçabilité impossible).
+const fourneesDuLot = (batches, lot, exceptId) => {
+  const n = normLot(lot);
+  if (!n) return [];
+  return (batches || []).filter((b) => (!exceptId || fiche(b).id !== exceptId) && normLot(lotDe(b)) === n);
+};
+
+// Ce que la fournée sait déjà : on ne le redemande pas.
+function hygieneInitiale(f, batches) {
+  const auj = new Date().toISOString().slice(0, 10);
+  const d = f.date || auj;
+  const fam = famOf(f.famille || "pissaladiere");
+  const qte = pfNum(f.oignon_kg) > 0 ? f.oignon_kg : (pfNum(f.poids_fini_kg) > 0 ? f.poids_fini_kg : "");
+  return {
+    initialise: true, date_fab: d,
+    lot: prochainLot(batches, d, f.id),
+    produit: (f.titre || "").trim() || fam.label,
+    qte_kg: qte,
+    origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
+    h_refroidi: "", temp_conservation: "", dlc_jours: dlcDefaut(f.famille), nb_bacs: "",
+    responsable: (f.personnel || []).map((x) => (x.nom || "").trim()).filter(Boolean)[0] || "",
+    correctif: "",
+  };
+}
+
+// Statut de la fiche d'une fournée, pour la liste et « Fiches du jour ».
+// complète = cuisson et conservation relevées (et le refroidissement pour une pissaladière).
+function statutFiche(f) {
+  const h = f.hygiene;
+  if (!h || !h.initialise) return { cle: "absente", label: "sans fiche", lot: "" };
+  const ctrl = controlesHygiene(h);
+  const lot = String(h.lot || "").trim();
+  if (ctrl.some((c) => c.rempli && !c.ok)) return { cle: "ko", label: "non conforme", lot };
+  const refroidRequis = isPissaFam(f.famille || "pissaladiere");
+  const ok = ctrl.every((c) => c.rempli || (c.cle === "refroid" && !refroidRequis));
+  return ok ? { cle: "ok", label: "complète", lot } : { cle: "todo", label: "à remplir", lot };
+}
+const STATUT_STYLE = {
+  ok: { bg: "#3F7A4B1c", fg: "#3F7A4B" }, todo: { bg: "#B5722B22", fg: "#B5722B" },
+  ko: { bg: "#a6482a22", fg: "#a6482a" }, absente: { bg: "#8C806822", fg: "#8C8068" },
+};
+function PastilleFiche({ f }) {
+  const st = statutFiche(f), c = STATUT_STYLE[st.cle];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+      {st.cle === "ok" && <Check size={12} strokeWidth={3} />}{st.cle === "ko" && <AlertTriangle size={12} />}{st.label}
+    </span>
+  );
+}
+
+// Impressions (extraites de FicheHygiene : on réimprime aussi depuis la recherche de lot).
+const ticketHTML = (h, enseigne) => `
+    <h1>${esc(enseigne)}</h1>
+    <div class="sous">${esc(h.produit)}</div>
+    <div class="bloc">
+      <div class="cap">Lot</div><div class="gros">${esc(h.lot) || "—"}</div>
+    </div>
+    <div class="bloc">
+      <div class="l"><span>Fabriqué le</span><b>${frDate(h.date_fab)}</b></div>
+      <div class="l"><span>À consommer avant le</span><b>${frDate(dlcDe(h))}</b></div>
+      <div class="l"><span>À conserver à</span><b>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${esc(h.temp_conservation)} °C` : `+${HYG.conservMax} °C max`}</b></div>
+      ${h.qte_kg ? `<div class="l"><span>Quantité</span><b>${esc(h.qte_kg)} kg</b></div>` : ""}
+      ${h.nb_bacs ? `<div class="l"><span>Bacs</span><b>${esc(h.nb_bacs)}</b></div>` : ""}
+    </div>`;
+
+const ficheHTML = (h, enseigne) => `
+    <h1>Fiche de fabrication — ${esc(h.produit)}</h1>
+    <div class="sous">${esc(enseigne)} · lot ${esc(h.lot) || "—"} · éditée le ${frDate(new Date().toISOString().slice(0, 10))}</div>
+    <table>
+      <tr><th style="width:42%">Date de fabrication</th><td>${frDate(h.date_fab)}</td></tr>
+      <tr><th>Produit</th><td>${esc(h.produit) || "—"}</td></tr>
+      <tr><th>Quantité mise en œuvre</th><td>${h.qte_kg ? `${esc(h.qte_kg)} kg` : "—"}</td></tr>
+      <tr><th>Origine de la matière première</th><td>${esc(h.origine) || "—"}</td></tr>
+      <tr><th>Début de cuisson</th><td>${esc(h.h_debut_cuisson) || "—"}</td></tr>
+      <tr><th>Fin de cuisson</th><td>${esc(h.h_fin_cuisson) || "—"}</td></tr>
+      <tr><th>Température à cœur</th><td>${h.temp_cuisson !== "" && h.temp_cuisson != null ? `${esc(h.temp_cuisson)} °C` : "—"} <span class="${Number(h.temp_cuisson) >= HYG.cuissonMin ? "ok" : "ko"}">(mini ${HYG.cuissonMin} °C)</span></td></tr>
+      <tr><th>Refroidi à ${HYG.refroidCible} °C à</th><td>${esc(h.h_refroidi) || "—"}</td></tr>
+      <tr><th>Durée de refroidissement</th><td>${fmtDuree(dureeMin(h.h_fin_cuisson, h.h_refroidi))} <span class="${(dureeMin(h.h_fin_cuisson, h.h_refroidi) || 999) <= HYG.refroidMaxMin ? "ok" : "ko"}">(maxi ${fmtDuree(HYG.refroidMaxMin)})</span></td></tr>
+      <tr><th>Température de conservation</th><td>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${esc(h.temp_conservation)} °C` : "—"} <span class="${Number(h.temp_conservation) <= HYG.conservMax ? "ok" : "ko"}">(maxi +${HYG.conservMax} °C)</span></td></tr>
+      <tr><th>À consommer avant le</th><td>${frDate(dlcDe(h))}</td></tr>
+      <tr><th>Nombre de bacs</th><td>${esc(h.nb_bacs) || "—"}</td></tr>
+      ${h.correctif ? `<tr><th>Action corrective</th><td>${esc(h.correctif)}</td></tr>` : ""}
+      <tr><th>Responsable</th><td>${esc(h.responsable) || "—"}</td></tr>
+    </table>
+    <div class="sign">Seuils de référence : arrêté du 21 décembre 2009 et règlement CE 852/2004.
+    Document interne d'autocontrôle — à conserver avec le plan de maîtrise sanitaire.<br><br>
+    Signature : ____________________</div>`;
+
+// Recherche par n° de lot. Pure : tout est déjà en mémoire (admin_batches renvoie les fournées
+// avec leur `hygiene`), aucune requête. Exact d'abord, sous-chaîne sinon (« 0922-02 » trouve
+// 20260922-02). `sales` est facultatif : sans lui on n'annonce pas de reste.
+function chercherLot(batches, products, q, sales) {
+  const nq = normLot(q);
+  if (!nq) return [];
+  const avecLot = (batches || []).map(fiche).filter((f) => normLot(lotDe(f)));
+  const exacts = avecLot.filter((f) => normLot(lotDe(f)) === nq);
+  const trouves = (exacts.length ? exacts : avecLot.filter((f) => normLot(lotDe(f)).includes(nq)))
+    .sort((a, b) => String((b.hygiene || {}).date_fab || b.date || "").localeCompare(String((a.hygiene || {}).date_fab || a.date || "")));
+  if (!trouves.length) return [];
+  const registre = sales ? lotsDeStock(batches, products, sales) : null;
+  return trouves.map((f) => {
+    const h = f.hygiene || {};
+    const alimente = Object.keys(f.stock_applique || {}).filter((pid) => pfNum(f.stock_applique[pid]) > 0).map((pid) => {
+      const p = (products || []).find((x) => x.id === pid);
+      const l = registre && registre[pid] ? registre[pid].lots.find((x) => x.fourneeId === f.id) : null;
+      return { pid, nom: p ? p.name : "produit introuvable", unit: p ? p.unit : "", entre: pfNum(f.stock_applique[pid]), restant: l ? l.restant : null };
+    });
+    return {
+      f, h, lot: lotDe(f), produit: (h.produit || f.titre || "").trim() || famOf(f.famille || "pissaladiere").label,
+      dateFab: h.date_fab || f.date || "", dlc: h.date_fab || f.date ? dlcDe({ ...h, date_fab: h.date_fab || f.date }) : "",
+      responsable: String(h.responsable || "").trim(), ctrl: controlesHygiene(h), statut: statutFiche(f), alimente,
+      doublons: fourneesDuLot(batches, lotDe(f), f.id).length,
+    };
+  });
+}
+
+// Champ « N° de lot » en haut de Production. Module-level : il garde sa saisie.
+function RechercheLot({ batches, products, sales, profile, onOuvrir }) {
+  const [q, setQ] = useState("");
+  const res = useMemo(() => chercherLot(batches, products, q, sales), [batches, products, q, sales]);
+  const enseigne = (profile && profile.name) || "Comme Avant";
+  const btn = { borderRadius: 12, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" };
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", gap: 8 }}>
+        <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "0 13px" }}>
+          <Search size={18} color={C.soft} style={{ flexShrink: 0 }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="N° de lot : 0922-02" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0 }} />
+        </label>
+        <button type="submit" className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: "none", flexShrink: 0 }}>Rechercher</button>
+      </form>
+      {normLot(q) && res.length === 0 && (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.soft, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px" }}>
+          <AlertTriangle size={16} color={C.caramel} style={{ flexShrink: 0 }} /> Aucun résultat — format AAAAMMJJ-NN
+        </div>
+      )}
+      {res.map((r) => {
+        const pill = (ok, label, na) => {
+          const col = !ok.rempli ? { bg: "#8C806822", fg: C.soft } : ok.ok ? { bg: "#3F7A4B1c", fg: C.ok } : { bg: "#a6482a22", fg: PF.warn };
+          return (
+            <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: col.bg, color: col.fg, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>
+              {label}{!ok.rempli ? ` ${na}` : ok.ok ? <Check size={13} strokeWidth={3} /> : <AlertTriangle size={13} />}
+            </span>
+          );
+        };
+        return (
+          <div key={r.f.id || r.lot} style={{ marginTop: 10, background: C.paper, border: `2px solid ${C.jam}`, borderRadius: 16, padding: "16px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 19, color: C.ink, minWidth: 0, fontVariantNumeric: "lining-nums tabular-nums" }}><b>Lot {r.lot}</b> · {r.produit}</div>
+              <PastilleFiche f={r.f} />
+            </div>
+            <div style={{ fontSize: 13, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
+              Fabriqué le {frDate(r.dateFab)} · DLC {r.dlc ? frDate(r.dlc) : "—"} · responsable : {r.responsable || "non renseigné"}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
+              {pill(r.ctrl[0], "Cuisson", "à remplir")}{pill(r.ctrl[1], "Refroidissement", "n/a")}{pill(r.ctrl[2], "Conservation", "à remplir")}
+              {r.alimente.length > 0
+                ? r.alimente.map((a) => <span key={a.pid} style={{ background: "#8C806822", color: C.soft, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>Alimente : {a.nom}{a.unit ? ` ${a.unit}` : ""}</span>)
+                : <span style={{ background: "#8C806822", color: C.soft, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>Alimente : aucun produit (fournée non validée)</span>}
+            </div>
+            {r.doublons > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: PF.warn, fontWeight: 600 }}>
+                <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Ce n° de lot est aussi porté par {r.doublons} autre{r.doublons > 1 ? "s" : ""} fournée{r.doublons > 1 ? "s" : ""} : traçabilité ambiguë.
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 14 }}>
+              <button onClick={() => onOuvrir(r.f)} className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: `1.5px solid ${C.jam}` }}>Ouvrir la fiche</button>
+              <button disabled={!r.h.initialise} onClick={() => imprimer(`Fiche ${r.lot}`, ficheHTML(r.h, enseigne))} className="ca-tap" style={{ ...btn, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, opacity: r.h.initialise ? 1 : .5, display: "inline-flex", alignItems: "center", gap: 7 }}><Printer size={16} /> Imprimer la fiche A4</button>
+              <button disabled={!r.h.initialise} onClick={() => imprimer(`Etiquette ${r.lot}`, ticketHTML(r.h, enseigne), 62)} className="ca-tap" style={{ ...btn, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, opacity: r.h.initialise ? 1 : .5, display: "inline-flex", alignItems: "center", gap: 7 }}><Printer size={16} /> Réimprimer l&apos;étiquette</button>
+            </div>
+            {r.alimente.length > 0 && (
+              <div style={{ fontSize: 12, color: C.soft, marginTop: 10, lineHeight: 1.5, fontVariantNumeric: "lining-nums tabular-nums" }}>
+                {r.alimente.map((a) => <span key={a.pid} style={{ marginRight: 12 }}>{a.nom} : {a.entre} entré{a.entre > 1 ? "s" : ""}{a.restant != null ? `, reste ${a.restant}` : ""}</span>)}
+                <br />Reste en stock selon l&apos;ordre « premier entré, premier sorti » : estimation de valorisation, pas un suivi physique par lot.
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// « Fiches du jour » : où en est le contrôle hygiène de ce qui a été fabriqué aujourd'hui.
+function FichesDuJour({ batches, onOuvrir }) {
+  const auj = new Date().toISOString().slice(0, 10);
+  const du = (batches || []).map(fiche).filter((f) => f.date === auj || (f.hygiene || {}).date_fab === auj);
+  return (
+    <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
+      <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 10 }}>Fiches du jour</div>
+      {du.length === 0 && <div style={{ fontSize: 13, color: C.soft }}>Aucune fournée aujourd&apos;hui.</div>}
+      {du.map((f, i) => {
+        const st = statutFiche(f);
+        return (
+          <button key={f.id || i} onClick={() => onOuvrir(f)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "transparent", border: "none", padding: "6px 0", cursor: "pointer", textAlign: "left", flexWrap: "wrap" }}>
+            <PastilleFiche f={f} />
+            <span style={{ fontSize: 14, color: C.ink, minWidth: 0, fontVariantNumeric: "lining-nums tabular-nums" }}>{(f.titre || "").trim() || famOf(f.famille || "pissaladiere").label}{st.lot ? ` · ${st.lot}` : ""}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Nouvelle fournée à partir de la dernière du même produit : recette, prix, formats, emballages et
+// liaisons produit sont repris ; tout ce qui est propre à UNE production repart à zéro.
+// ⚠️ `stock_applique` et `hygiene` ne sont JAMAIS copiés : le premier fait l'idempotence du stock
+// (§5.2), le second porte le lot, qui est unique (§5.11).
+function nouvelleDepuis(src) {
+  const f = JSON.parse(JSON.stringify(fiche(src)));
+  ["id", "stock_applique", "hygiene", "created_at", "updated_at"].forEach((k) => { delete f[k]; });
+  f.id = null;
+  f.date = new Date().toISOString().slice(0, 10);
+  f.poids_fini_kg = "";
+  f.pissa_nb_plaques = "";
+  f.rounds_extra = [];
+  f.estimation = false; f.exclu_stats = false;
+  f.autres_du = ""; f.autres_au = "";
+  f.pots = (f.pots || []).map((p) => ({ ...p, nb: "" }));
+  return f;
+}
+function PanneauNouvelle({ derniere, onCreer }) {
+  const [mode, setMode] = useState(derniere ? "copie" : "vide");
+  const radio = (k, label, sous, off) => (
+    <button type="button" disabled={off} onClick={() => setMode(k)} className="ca-tap" style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "5px 0", cursor: off ? "default" : "pointer", opacity: off ? .5 : 1, display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <span style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid ${mode === k ? C.jam : C.soft}`, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{mode === k && <span style={{ width: 8, height: 8, borderRadius: 4, background: C.jam }} />}</span>
+      <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 14.5, color: C.ink }}>{label}</span>{sous && <span style={{ display: "block", fontSize: 12.5, color: C.soft, marginTop: 2 }}>{sous}</span>}</span>
+    </button>
+  );
+  return (
+    <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
+      <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Plus size={17} /> Nouvelle fournée</div>
+      {derniere && radio("copie", <>Partir de la dernière « {(fiche(derniere).titre || "").trim() || famOf(fiche(derniere).famille || "pissaladiere").label} »</>, "recette, prix, formats, emballages, produit lié (ni le lot, ni le stock déjà appliqué)")}
+      {radio("vide", "Fournée vide", "Titre : liste des produits existants")}
+      <button onClick={() => onCreer(mode === "copie" ? derniere : null)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>Créer la fournée</button>
+    </div>
+  );
+}
+
+function FicheHygiene({ f, change, onClose, profile, batches }) {
   const h = f.hygiene || {};
   const set = (k, v) => change({ hygiene: { ...h, [k]: v } });
   const [etape, setEtape] = useState(0);
@@ -1687,26 +1946,12 @@ function FicheHygiene({ f, change, onClose, profile }) {
   // Pré-remplissage : tout ce que la fournée sait déjà, on ne le redemande pas.
   useEffect(() => {
     if (h.initialise) return;
-    const auj = new Date().toISOString().slice(0, 10);
-    const d = f.date || auj;
-    // Tout ce que la fournée sait déjà est repris : nom du produit (son titre, sinon la rubrique),
-    // quantité (les oignons pour une pissaladière, le poids fini sinon), et la DLC de la famille.
-    // Le lot suit la date : AAAAMMJJ-01. Il ne reste à taper que les températures et les heures.
-    const fam = famOf(f.famille || "pissaladiere");
-    const qte = pfNum(f.oignon_kg) > 0 ? f.oignon_kg : (pfNum(f.poids_fini_kg) > 0 ? f.poids_fini_kg : "");
-    change({ hygiene: {
-      initialise: true, date_fab: d,
-      lot: `${String(d).replace(/-/g, "")}-01`,
-      produit: (f.titre || "").trim() || fam.label,
-      qte_kg: qte,
-      origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
-      h_refroidi: "", temp_conservation: "", dlc_jours: dlcDefaut(f.famille), nb_bacs: "",
-      responsable: (f.personnel || []).map((x) => (x.nom || "").trim()).filter(Boolean)[0] || "",
-      correctif: "",
-    } });
+    // Tout ce que la fournée sait déjà est repris ; le lot est unique (suffixe -NN libre ce jour-là).
+    change({ hygiene: hygieneInitiale(f, batches) });
     // volontairement sur la seule bascule "initialise" : on pré-remplit une fois, pas à chaque frappe
   }, [h.initialise]);
 
+  const doublonsLot = fourneesDuLot(batches, h.lot, f.id);
   const ctrl = controlesHygiene(h);
   const remplis = ctrl.filter((c) => c.rempli);
   const nonConformes = remplis.filter((c) => !c.ok);
@@ -1742,43 +1987,6 @@ function FicheHygiene({ f, change, onClose, profile }) {
     { t: "Vérification", s: "Relecture et impression" },
   ];
 
-  const ticketHTML = () => `
-    <h1>${enseigne}</h1>
-    <div class="sous">${h.produit || ""}</div>
-    <div class="bloc">
-      <div class="cap">Lot</div><div class="gros">${h.lot || "—"}</div>
-    </div>
-    <div class="bloc">
-      <div class="l"><span>Fabriqué le</span><b>${frDate(h.date_fab)}</b></div>
-      <div class="l"><span>À consommer avant le</span><b>${frDate(dlc)}</b></div>
-      <div class="l"><span>À conserver à</span><b>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : `+${HYG.conservMax} °C max`}</b></div>
-      ${h.qte_kg ? `<div class="l"><span>Quantité</span><b>${h.qte_kg} kg</b></div>` : ""}
-      ${h.nb_bacs ? `<div class="l"><span>Bacs</span><b>${h.nb_bacs}</b></div>` : ""}
-    </div>`;
-
-  const ficheHTML = () => `
-    <h1>Fiche de fabrication — ${h.produit || ""}</h1>
-    <div class="sous">${enseigne} · lot ${h.lot || "—"} · éditée le ${frDate(new Date().toISOString().slice(0, 10))}</div>
-    <table>
-      <tr><th style="width:42%">Date de fabrication</th><td>${frDate(h.date_fab)}</td></tr>
-      <tr><th>Produit</th><td>${h.produit || "—"}</td></tr>
-      <tr><th>Quantité mise en œuvre</th><td>${h.qte_kg ? `${h.qte_kg} kg` : "—"}</td></tr>
-      <tr><th>Origine de la matière première</th><td>${h.origine || "—"}</td></tr>
-      <tr><th>Début de cuisson</th><td>${h.h_debut_cuisson || "—"}</td></tr>
-      <tr><th>Fin de cuisson</th><td>${h.h_fin_cuisson || "—"}</td></tr>
-      <tr><th>Température à cœur</th><td>${h.temp_cuisson !== "" && h.temp_cuisson != null ? `${h.temp_cuisson} °C` : "—"} <span class="${Number(h.temp_cuisson) >= HYG.cuissonMin ? "ok" : "ko"}">(mini ${HYG.cuissonMin} °C)</span></td></tr>
-      <tr><th>Refroidi à ${HYG.refroidCible} °C à</th><td>${h.h_refroidi || "—"}</td></tr>
-      <tr><th>Durée de refroidissement</th><td>${fmtDuree(dureeMin(h.h_fin_cuisson, h.h_refroidi))} <span class="${(dureeMin(h.h_fin_cuisson, h.h_refroidi) || 999) <= HYG.refroidMaxMin ? "ok" : "ko"}">(maxi ${fmtDuree(HYG.refroidMaxMin)})</span></td></tr>
-      <tr><th>Température de conservation</th><td>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : "—"} <span class="${Number(h.temp_conservation) <= HYG.conservMax ? "ok" : "ko"}">(maxi +${HYG.conservMax} °C)</span></td></tr>
-      <tr><th>À consommer avant le</th><td>${frDate(dlc)}</td></tr>
-      <tr><th>Nombre de bacs</th><td>${h.nb_bacs || "—"}</td></tr>
-      ${h.correctif ? `<tr><th>Action corrective</th><td>${h.correctif}</td></tr>` : ""}
-      <tr><th>Responsable</th><td>${h.responsable || "—"}</td></tr>
-    </table>
-    <div class="sign">Seuils de référence : arrêté du 21 décembre 2009 et règlement CE 852/2004.
-    Document interne d'autocontrôle — à conserver avec le plan de maîtrise sanitaire.<br><br>
-    Signature : ____________________</div>`;
-
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 120, background: "#16140fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 10px", overflowY: "auto" }}>
       <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px 20px", maxHeight: "min(94vh, 900px)", margin: "auto", overflowY: "auto" }}>
@@ -1802,6 +2010,13 @@ function FicheHygiene({ f, change, onClose, profile }) {
         {etape === 0 && (<>
           {champ("Date de fabrication", null, txt("date_fab", "", "date"))}
           {champ("Numéro de lot", "Proposé automatiquement. Ce numéro relie le bac au registre.", txt("lot", "20260919-01"))}
+          {doublonsLot.length > 0 && (
+            <div style={{ marginTop: -8, marginBottom: 16, background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 11, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, color: PF.warn, fontWeight: 700 }}><AlertTriangle size={15} style={{ flexShrink: 0 }} /> Ce numéro est déjà utilisé par {doublonsLot.length} autre{doublonsLot.length > 1 ? "s" : ""} fournée{doublonsLot.length > 1 ? "s" : ""}.</span>
+              Deux lots identiques rendent la traçabilité impossible.
+              <button onClick={() => set("lot", prochainLot(batches, h.date_fab, f.id))} className="ca-tap" style={{ display: "block", marginTop: 8, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Proposer le prochain numéro libre</button>
+            </div>
+          )}
           {champ("Produit", null, txt("produit", "Oignons confits"))}
           {champ("Quantité mise en œuvre (kg)", "Reprise de la fournée, modifiable.", txt("qte_kg", "0", "number"))}
           {champ("Origine des oignons", "Nom du producteur ou du fournisseur. C'est ce qui permet de remonter la filière.", txt("origine", "ex. Ferme des Collines, Vence"))}
@@ -1828,7 +2043,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
             const d = dureeMin(h.h_fin_cuisson, h.h_refroidi), ok = d <= HYG.refroidMaxMin;
             return (
               <div style={{ background: ok ? "#eaf3ec" : "#faece5", border: `1.5px solid ${ok ? C.ok : PF.warn}`, borderRadius: 11, padding: "12px 14px", fontSize: 14, fontWeight: 700, color: ok ? C.ok : PF.warn }}>
-                {ok ? "✓" : "⚠"} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>{ok ? <Check size={16} strokeWidth={3} /> : <AlertTriangle size={16} />} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}</span>
               </div>
             );
           })()}
@@ -1844,7 +2059,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
         {etape === 4 && (<>
           {ctrl.map((c) => (
             <div key={c.cle} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? "✓" : "!"}</span>
+              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? <Check size={15} strokeWidth={3} /> : <AlertTriangle size={14} />}</span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: C.ink }}>{c.titre}</span>
                 <span style={{ display: "block", fontSize: 12, color: C.soft }}>{c.regle}</span>
@@ -1864,10 +2079,10 @@ function FicheHygiene({ f, change, onClose, profile }) {
             Fabriqué le {frDate(h.date_fab)} · à consommer avant le <b>{frDate(dlc)}</b>
           </div>
 
-          <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(), 62)} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 9 }}>
+          <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(h, enseigne), 62)} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 9 }}>
             Imprimer l&apos;étiquette du bac
           </button>
-          <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML())} className="ca-tap" style={{ width: "100%", background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
+          <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML(h, enseigne))} className="ca-tap" style={{ width: "100%", background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
             Imprimer la fiche de fabrication
           </button>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 12, lineHeight: 1.5 }}>
@@ -1901,7 +2116,7 @@ function EtapeFournee({ n, titre, sous }) {
     </div>
   );
 }
-function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
+function ProProduction({ pass, products, setProducts, sales, clients, profile, ouvrirId, onOuvert }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
@@ -1917,6 +2132,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [echecSauvegarde, setEchecSauvegarde] = useState(false);
   const [etab, setEtab] = useState("prep");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
+  const [validEnCours, setValidEnCours] = useState(false); // « Confirmer » pendant les await : bouton figé
+  const [validErreur, setValidErreur] = useState(null);    // échecs de la validation, à afficher dans le pop-up
+  const [panneauNouvelle, setPanneauNouvelle] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [cumulFormat, setCumulFormat] = useState("");
@@ -1930,6 +2148,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     setBusy(false);
   };
   useEffect(() => { load(); }, []);
+  // Ouverture demandée depuis l'onglet Produits (ligne de lot cliquable) : on attend le chargement.
+  useEffect(() => {
+    if (!ouvrirId || busy) return;
+    const b = batches.find((x) => x.id === ouvrirId);
+    if (b) openEdit(b);
+    if (b || batches.length > 0) onOuvert && onOuvert();
+  }, [ouvrirId, batches, busy]);
 
   const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "part_temps", "taux_local", "transport", "poids_fini_kg", "pissa_poids_plaque", "pissa_nb_plaques", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
   const pfNorm = (f) => {
@@ -1973,43 +2198,51 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     return out;
   };
 
+  // Écrit UN produit : prix d'achat / unité / coef par `admin_patch_product` (liste blanche, ne
+  // touche jamais au stock), puis le stock en RELATIF par `admin_adjust_stock` (jamais d'écrasement
+  // par une valeur périmée). Renvoie { ok, erreur } : l'échec n'est plus avalé, sinon `stock_applique`
+  // mémorisait comme « poussé » un stock qui ne l'avait jamais été.
   const pousserVersStock = async (pid, deltaStock, nouveauCout, extra = {}) => {
-    if (!pid || !supabase || !pass) return;
+    if (!pid || !supabase || !pass) return { ok: false, erreur: "connexion indisponible" };
     const prod = (products || []).find((x) => x.id === pid);
-    if (!prod) return;
+    if (!prod) return { ok: false, erreur: "produit introuvable dans le catalogue visible (masqué ?)" };
     const cost = nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost;
     // prix de vente FIGE : on ne le remplace que si le produit n'en a pas encore (CLAUDE.md 5.2 / 5.4)
     const price = (Number(prod.price) > 0) ? prod.price : (extra.price != null ? extra.price : prod.price);
     const coef = (Number(cost) > 0 && Number(price) > 0) ? Math.round((Number(price) / Number(cost)) * 100) / 100 : prod.coef;
-    const np = {
-      ...prod,
-      stock: (Number(prod.stock) || 0) + deltaStock,
-      cost,
-      price,
-      coef,
-      unit: extra.unit != null && extra.unit !== "" ? extra.unit : prod.unit,
-    };
-    setProducts((list) => list.map((x) => x.id === pid ? np : x));
+    const unit = extra.unit != null && extra.unit !== "" ? extra.unit : prod.unit;
     try {
-      await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false });
-    } catch (e) {}
+      const r1 = await supabase.rpc("admin_patch_product", { pass, p_id: pid, p_patch: { unit: unit || "", price: Number(price) || 0, cost: Number(cost) || 0, coef: Number(coef) || 0 } });
+      if (r1.error) return { ok: false, erreur: r1.error.message || "écriture refusée" };
+      const r2 = await supabase.rpc("admin_adjust_stock", { pass, p_id: pid, p_delta: Math.round(deltaStock) });
+      if (r2.error) return { ok: false, erreur: r2.error.message || "écriture du stock refusée" };
+      const nouveauStock = typeof r2.data === "number" ? r2.data : (Number(prod.stock) || 0) + deltaStock;
+      setProducts((list) => list.map((x) => x.id === pid ? { ...prod, stock: nouveauStock, cost, price, coef, unit } : x));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, erreur: (e && e.message) || "connexion perdue" };
+    }
   };
 
+  // Renvoie le snapshot à mémoriser et la liste des échecs. Un produit dont l'écriture a échoué
+  // GARDE son ancien `stock_applique` : on pourra réessayer sans double comptage ni trou.
   const validerEtPousserStock = async (f, R) => {
     const dejaApplique = f.stock_applique || {};
-    const nouveauSnapshot = {};
+    const voulu = {};
     if (isPissaFam(f.famille || "pissaladiere") && f.pissa_plaque_pid && R.nbPlaques > 0) {
-      nouveauSnapshot[f.pissa_plaque_pid] = (nouveauSnapshot[f.pissa_plaque_pid] || 0) + R.nbPlaques;
+      voulu[f.pissa_plaque_pid] = (voulu[f.pissa_plaque_pid] || 0) + R.nbPlaques;
     }
     (f.pots || []).forEach((p, i) => {
       const pl = R.potLines[i];
-      if (p.pid && pl && pl.nb > 0) nouveauSnapshot[p.pid] = (nouveauSnapshot[p.pid] || 0) + pl.nb;
+      if (p.pid && pl && pl.nb > 0) voulu[p.pid] = (voulu[p.pid] || 0) + pl.nb;
     });
-    const pids = new Set([...Object.keys(dejaApplique), ...Object.keys(nouveauSnapshot)]);
+    const snapshot = {}, echecs = [];
+    const pids = new Set([...Object.keys(dejaApplique), ...Object.keys(voulu)]);
     for (const pid of pids) {
       const avant = dejaApplique[pid] || 0;
-      const apres = nouveauSnapshot[pid] || 0;
+      const apres = voulu[pid] || 0;
       const delta = apres - avant;
+      let ok = true;
       if (delta !== 0) {
         let cout = null, extra = {};
         if (pid === f.pissa_plaque_pid) { cout = R.coutPlaque; if (R.pxVentePlaque != null) extra.price = R.pxVentePlaque; }
@@ -2020,10 +2253,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           if (pl.pxVenteEffectif != null) extra.price = pl.pxVenteEffectif;
           if (pl.format_g) extra.unit = `pot ${pfNum(pl.format_g)}g`;
         }
-        await pousserVersStock(pid, delta, cout, extra);
+        const res = await pousserVersStock(pid, delta, cout, extra);
+        if (!res.ok) { ok = false; const prod = (products || []).find((x) => x.id === pid); echecs.push({ pid, nom: prod ? prod.name : pid, erreur: res.erreur }); }
       }
+      const retenu = ok ? apres : avant;
+      if (retenu > 0) snapshot[pid] = retenu;
     }
-    return nouveauSnapshot;
+    return { snapshot, echecs };
   };
 
   // Un enregistrement sans id est un INSERT. Si un second part avant que le premier ait renvoyé
@@ -2050,10 +2286,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
       setEchecSauvegarde(false);
       setSaved(true); setTimeout(() => setSaved(false), 1200);
+      return true;
     } catch (e) {
       // Un échec avalé en silence, sous un bandeau « enregistrement automatique », fait perdre
       // la saisie sans que personne ne le voie. On le dit à l'écran.
       setEchecSauvegarde(true);
+      return false;
     } finally {
       if (insertEnVol.current === envoi) insertEnVol.current = null;
     }
@@ -2066,8 +2304,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
   };
+  const ouvrirFicheHygiene = (f) => { openEdit(f); setHygieneOuverte(true); };
+  const derniereDe = (arr) => [...arr].filter((b) => (b.titre || "").trim()).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0] || null;
+  const rechercheLot = <RechercheLot batches={batches} products={products} sales={sales} profile={profile} onOuvrir={ouvrirFicheHygiene} />;
   const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("prep"); setView("edit"); };
-  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setView("edit"); };
+  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setValidErreur(null); setView("edit"); };
+  // src = fournée à copier (voir nouvelleDepuis), sinon fournée vide de la famille courante
+  const creerFournee = (src) => { if (src) { setCur(nouvelleDepuis(src)); setEtab("prep"); setValidErreur(null); setView("edit"); } else openNew(); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
@@ -2181,9 +2424,14 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const entrer = (key) => { setFamille(key); setSousProduit(null); setView("list"); };
     return (
       <div className="ca-anim">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2>
-          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Choisissez la rubrique, puis le produit fabriqué</div>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Retrouvez un lot, ou choisissez la rubrique puis le produit fabriqué</div>
+        </div>
+        {rechercheLot}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 11, marginBottom: 16 }}>
+          <FichesDuJour batches={batches} onOuvrir={openEdit} />
+          <PanneauNouvelle key={(derniereDe(batches) || {}).id || "aucune"} derniere={derniereDe(batches)} onCreer={creerFournee} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 8 }}>
           {FAMILLES.map((fm) => {
@@ -2283,7 +2531,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
-          <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
+          <button onClick={() => (groupe ? setPanneauNouvelle((v) => !v) : openNew())} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
         </div>
       </div>
     );
@@ -2295,6 +2543,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     if (!groupe) {
       return (
         <div className="ca-anim">
+          {rechercheLot}
           {enTete(famLabel, `${groupes.length} produit${groupes.length > 1 ? "s" : ""} · ${famBatches.length} fournée${famBatches.length > 1 ? "s" : ""}`, { on: () => setView("familles"), titre: "Changer de rubrique" })}
           {barreFamilles}
           {famille === "__autres__" && famBatches.length > 0 && (
@@ -2345,8 +2594,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     // « pot » ne vaut que pour les confitures et les pots d'oignons : on ne vend pas un cake au pot.
     // L'unité de compte est donc « unité », et le conditionnement réel est rappelé sous le titre.
     const cols = avecOignon
-      ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/unité", "PV/unité", "Marge/unité", "Coef"]
-      : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef"];
+      ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/unité", "PV/unité", "Marge/unité", "Coef", "Lot / fiche"]
+      : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef", "Lot / fiche"];
     // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
     const batchesPeriode = avecOignon ? grpBatches.filter((b) => {
       if (selectionManuelle) return selectionManuelle.has(b.id);
@@ -2381,7 +2630,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const sousTitre = `${grpBatches.length} fournée${grpBatches.length > 1 ? "s" : ""} · ${famLabel}${groupe.cond ? ` · unité : ${groupe.cond}` : ""}`;
     return (
       <div className="ca-anim">
+        {rechercheLot}
         {enTete(groupe.sansTitre ? `${groupe.label} · sans titre` : groupe.label, sousTitre, { on: () => setSousProduit(null), titre: "Retour aux produits" })}
+        {panneauNouvelle && <div style={{ marginBottom: 12 }}><PanneauNouvelle key={groupe.cle} derniere={derniereDe(grpBatches)} onCreer={(src) => { setPanneauNouvelle(false); creerFournee(src); }} /></div>}
         {groupes.length > 1 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
             <button onClick={() => setSousProduit(null)} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${C.line}`, background: "#fff", color: C.soft, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Tous ({groupes.length})</button>
@@ -2410,9 +2661,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         {grpBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>Aucune fournée.</div> : (
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: avecOignon ? 640 : 560 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: avecOignon ? 780 : 700 }}>
                 <thead><tr>
-                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: (avecOignon ? i > 2 : i > 1) ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
+                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: (avecOignon ? i > 2 : i > 1) && t !== "Lot / fiche" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
                 </tr></thead>
                 <tbody>
                   {grpBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
@@ -2436,6 +2687,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                       <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
                       <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      <td style={{ padding: "10px 8px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>
+                        <PastilleFiche f={f} />
+                        {f.hygiene && f.hygiene.lot ? <div style={{ fontSize: 11, color: C.soft, marginTop: 3 }}>{f.hygiene.lot}</div> : null}
+                      </td>
                     </tr>
                   ); })}
                 </tbody>
@@ -2711,6 +2966,31 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const numEtape = (k) => ETAPES.findIndex((e) => e.k === k) + 1;
   // Produits finis : ce qui sort réellement de la fournée, tous conditionnements confondus.
   const nbFinisTotal = (R.nbPotsTotal || 0) + (isPissa ? (R.nbPlaques || 0) : 0);
+  // Lignes du pop-up de validation, recalculées à chaque rendu : relier un format depuis le pop-up
+  // les met à jour sans le fermer. On n'annonce que ce qui va RÉELLEMENT bouger (idempotence stock_applique).
+  const construireLignes = () => {
+    const deja = cur.stock_applique || {};
+    const lignes = [];
+    if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
+      const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
+      lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, dejaApplique: deja[cur.pissa_plaque_pid] || 0, cout: R.coutPlaque, prix: R.pxVentePlaque, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
+    }
+    (cur.pots || []).forEach((p, i) => {
+      const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
+      const prod = (products || []).find((x) => x.id === p.pid);
+      lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, dejaApplique: deja[p.pid] || 0, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
+    });
+    return lignes;
+  };
+  const lignesV = confirmValide ? construireLignes() : [];
+  const suggLiaison = confirmValide ? suggestionsLiaison(cur) : [];
+  const lotDoublons = confirmValide && cur.hygiene && cur.hygiene.lot ? fourneesDuLot(batches, cur.hygiene.lot, cur.id) : [];
+  const creerLot = () => {
+    const h = cur.hygiene;
+    if (!h || !h.initialise) change({ hygiene: hygieneInitiale(cur, batches) });
+    else change({ hygiene: { ...h, lot: prochainLot(batches, h.date_fab || cur.date, cur.id) } });
+  };
+  const relierFormat = (sg) => change({ pots: (cur.pots || []).map((p, i) => i === sg.i ? { ...p, pid: sg.pid } : p) });
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -2720,7 +3000,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
             {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
           </div>
-          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "⚠ non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
+          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "Non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
         </div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
@@ -2758,7 +3038,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           </button>
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
-            <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
+            <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} list="titres-fournees" autoComplete="off" style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
+            {/* Titres déjà utilisés : choisir plutôt que retaper évite les fournées fantômes (« C ») et rattache la fournée au bon produit. */}
+            <datalist id="titres-fournees">{[...new Set(batches.map((b) => (b.titre || "").trim()).filter(Boolean))].sort().map((t) => <option key={t} value={t} />)}</datalist>
           </div>
           <div className="pf-row" style={{ marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
@@ -3519,7 +3801,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
 
           {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
             <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: R.ecartPoids < 0 ? "#fff" : C.ink, background: R.ecartPoids < 0 ? PF.warn : "#f6efdd", borderRadius: 10, padding: "12px 14px" }}>
-              <span style={{ fontSize: 18 }}>{R.ecartPoids < 0 ? "⚠️" : "ℹ️"}</span>
+              {R.ecartPoids < 0 ? <AlertTriangle size={18} style={{ flexShrink: 0 }} /> : <Package size={18} style={{ flexShrink: 0 }} />}
               <span>Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"} kg) et les pots remplis ({R.poidsAlloue.toFixed(2)} kg).</span>
             </div>
           )}
@@ -3533,23 +3815,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
       </button>
-      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
+      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} batches={batches} onClose={() => setHygieneOuverte(false)} />}
 
-      <button onClick={() => {
-        // on n'annonce que ce qui va RÉELLEMENT bouger : la validation est idempotente via stock_applique
-        const deja = cur.stock_applique || {};
-        const lignes = [];
-        if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
-          const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
-          lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, dejaApplique: deja[cur.pissa_plaque_pid] || 0, cout: R.coutPlaque, prix: R.pxVentePlaque, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
-        }
-        (cur.pots || []).forEach((p, i) => {
-          const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
-          const prod = (products || []).find((x) => x.id === p.pid);
-          lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, dejaApplique: deja[p.pid] || 0, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
-        });
-        setConfirmValide({ lignes });
-      }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
+      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
 
       {confirmValide && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -3562,20 +3830,37 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             {/* §5.11 — Ce qui entre en stock entre sous un numéro de lot. Sans fiche de fabrication,
                 le stock est bien mis à jour mais rien ne permet de dire, plus tard, de quelle
                 fournée vient le pot en rayon. On le signale ici, sans bloquer la validation. */}
-            {confirmValide.lignes.length > 0 && (
+            {lignesV.length > 0 && (
               (cur.hygiene && cur.hygiene.lot)
                 ? <div style={{ fontSize: 12.5, color: C.ink, background: "#3F7A4B14", border: `1px solid ${C.ok}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
                     Ces unités entrent en stock sous le lot <b style={{ color: C.ok }}>{cur.hygiene.lot}</b>
                     {cur.hygiene.date_fab ? <> · fabriqué le <b>{frDate(cur.hygiene.date_fab)}</b></> : null}
                     {pfNum(cur.hygiene.dlc_jours) > 0 && cur.hygiene.date_fab ? <> · DLC <b>{frDate(jourPlus(cur.hygiene.date_fab, pfNum(cur.hygiene.dlc_jours)))}</b></> : null}.
+                    {lotDoublons.length > 0 && (
+                      <div style={{ marginTop: 8, color: PF.warn, fontWeight: 700, display: "flex", gap: 7, alignItems: "flex-start" }}><AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} /> Ce n° de lot est déjà porté par {lotDoublons.length} autre{lotDoublons.length > 1 ? "s" : ""} fournée{lotDoublons.length > 1 ? "s" : ""}.
+                        <button onClick={creerLot} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "4px 9px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Prendre le prochain libre</button>
+                      </div>
+                    )}
                   </div>
                 : <div style={{ fontSize: 12.5, color: C.ink, background: "#f6efdd", border: `1px solid ${C.caramel}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
-                    <b style={{ color: C.caramel }}>Pas encore de n° de lot.</b> Le stock sera mis à jour quand même, mais sans traçabilité : impossible de dire ensuite de quelle fournée vient le pot en rayon. Ouvrez <b>Contrôle hygiène</b> — le numéro, la date et la DLC sont déjà proposés.
+                    <b style={{ color: C.caramel }}>Pas encore de n° de lot.</b> Le stock sera mis à jour quand même, mais sans traçabilité : impossible de dire ensuite de quelle fournée vient le pot en rayon. Le numéro, la date et la DLC sont proposés automatiquement.
+                    <button onClick={creerLot} className="ca-tap" style={{ display: "block", marginTop: 8, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Créer le n° de lot</button>
                   </div>
             )}
-            {confirmValide.lignes.length === 0 ? (
+            {suggLiaison.length > 0 && (
+              <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink, marginBottom: 6 }}>Formats pas encore reliés à un produit</div>
+                {suggLiaison.map((sg) => (
+                  <div key={sg.i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12.5, color: C.ink, padding: "4px 0", flexWrap: "wrap" }}>
+                    <span style={{ minWidth: 0 }}>Format {pfNum(sg.format_g)} g → <b>{sg.nom}</b>{sg.unit ? ` · ${sg.unit}` : ""}</span>
+                    <button onClick={() => relierFormat(sg)} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 8, padding: "6px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Relier le format</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {lignesV.length === 0 ? (
               <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Dans l'onglet « Contenants & vente », choisissez « Ce format alimente le produit » pour chaque format avant de valider.</div>
-            ) : confirmValide.lignes.map((l, i) => {
+            ) : lignesV.map((l, i) => {
               const delta = l.nb - (l.dejaApplique || 0);
               return (
               <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
@@ -3596,17 +3881,37 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               </div>
               );
             })}
-            <button disabled={confirmValide.lignes.length === 0} onClick={async () => {
+            {validErreur && (
+              <div role="alert" style={{ background: "#faece5", border: `1.5px solid ${PF.warn}`, borderRadius: 12, padding: "11px 13px", marginBottom: 10, fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, color: PF.warn, fontWeight: 700, marginBottom: 4 }}><AlertTriangle size={16} style={{ flexShrink: 0 }} /> La mise à jour n&apos;est pas terminée</div>
+                {validErreur.map((e, i) => <div key={i}>{e.nom ? <><b>{e.nom}</b> : </> : null}{e.erreur}</div>)}
+                <div style={{ marginTop: 5, color: C.soft }}>Ce qui a échoué n&apos;est pas noté comme appliqué : vous pouvez réessayer sans double comptage.</div>
+              </div>
+            )}
+            <button disabled={lignesV.length === 0 || validEnCours} onClick={async () => {
+              if (validEnCours) return;
+              setValidEnCours(true); setValidErreur(null);
               clearTimeout(timer.current);
-              const lignes = confirmValide.lignes;
-              const snap = await validerEtPousserStock(cur, R);
-              await persist({ ...cur, stock_applique: snap });
-              // on ne propose l'annonce que pour ce qui vient réellement d'entrer en stock
-              const nouveaux = lignes.filter((l) => (l.nb - (l.dejaApplique || 0)) > 0);
-              setConfirmValide(null);
-              if (nouveaux.length) { setAnnonce({ lignes: nouveaux }); setAnnonceCopiee(false); } else { setView("list"); }
-            }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: confirmValide.lignes.length === 0 ? C.line : C.jam, color: confirmValide.lignes.length === 0 ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: confirmValide.lignes.length === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Confirmer et mettre à jour</button>
-            <button onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
+              try {
+                const nouveaux = lignesV.filter((l) => (l.nb - (l.dejaApplique || 0)) > 0);
+                const { snapshot, echecs } = await validerEtPousserStock(cur, R);
+                // l'écran doit porter le snapshot : sinon la prochaine sauvegarde automatique réécrirait l'ancien
+                const nf = { ...cur, stock_applique: snapshot };
+                aEnregistrer.current = nf; setCur(nf);
+                const enregistre = await persist(nf);
+                const erreurs = echecs.map((e) => ({ nom: e.nom, erreur: `stock non mis à jour (${e.erreur})` }));
+                if (!enregistre) erreurs.push({ nom: "", erreur: "la fournée n'a pas pu être enregistrée (connexion). Réessayez : le stock déjà poussé ne sera pas compté deux fois." });
+                if (erreurs.length) { setValidErreur(erreurs); return; }
+                setConfirmValide(null);
+                // on ne propose l'annonce que pour ce qui vient réellement d'entrer en stock
+                if (nouveaux.length) { setAnnonce({ lignes: nouveaux }); setAnnonceCopiee(false); } else { setView("list"); }
+              } catch (e) {
+                setValidErreur([{ nom: "", erreur: (e && e.message) || "erreur inattendue" }]);
+              } finally {
+                setValidEnCours(false);
+              }
+            }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: lignesV.length === 0 || validEnCours ? C.line : C.jam, color: lignesV.length === 0 || validEnCours ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: lignesV.length === 0 || validEnCours ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{validEnCours ? "Mise à jour en cours…" : <><Check size={18} /> Confirmer et mettre à jour</>}</button>
+            <button disabled={validEnCours} onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
           </div>
         </div>
       )}
@@ -3616,7 +3921,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       {annonce && (() => {
         const abonnes = (clients || []).filter((c) => c.optin);
         const nom = (profile && profile.name) || "Comme Avant";
-        const msg = `🍓 Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message 🙂`;
+        const msg = `Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message.`;
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: C.paper, borderRadius: 18, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: "22px 20px 18px" }}>
@@ -4824,7 +5129,7 @@ function coutsDepuisFournees(batches, products, rendement) {
   return out;
 }
 
-function ProProducts({ products, setProducts, pass, batches, rendement, sales }) {
+function ProProducts({ products, setProducts, pass, batches, rendement, sales, onOuvrirFiche }) {
   // Toutes ces clés ont un dessin propre. Tant que le commerçant n'en choisit pas une,
   // l'icône suit le nom du produit (illuAuto) — voir CLAUDE.md 7.
   const ILLUS = ["fraise", "berry", "mure", "cerise", "figue", "peche", "apricot", "plum", "melon",
@@ -5129,7 +5434,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         )}
                         {(lots[p.id] || {}).lots && lots[p.id].lots.length > 0 && (
                           <button onClick={() => setTracab((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Traçabilité : de quelle fournée vient le stock en rayon, n° de lot et DLC" style={{ ...puce(tracab === p.id ? C.ok : "#3F7A4B14", C.ok + "44", tracab === p.id ? "#fff" : C.ok), cursor: "pointer" }}>
-                            {tracab === p.id ? "✕ traçabilité" : `🏷 ${lots[p.id].lots.length} lot${lots[p.id].lots.length > 1 ? "s" : ""}${lots[p.id].perimes.length ? " ⚠" : ""}`}
+                            {tracab === p.id ? <>Fermer la traçabilité</> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Tag size={12} /> {lots[p.id].lots.length} lot{lots[p.id].lots.length > 1 ? "s" : ""}{lots[p.id].perimes.length ? <AlertTriangle size={12} /> : null}</span>}
                           </button>
                         )}
                       </div>
@@ -5151,7 +5456,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                       <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${C.ok}44`, borderRadius: 11, padding: "10px 12px", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
                         <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ok, marginBottom: 2 }}>Traçabilité — quel lot est en rayon</div>
                         <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.45, marginBottom: 8 }}>
-                          Une ligne par fournée validée. Les ventes écoulent les lots du plus ancien au plus récent : le lot marqué <b style={{ color: C.ok }}>EN VENTE</b> est celui que vous servez aujourd&apos;hui, et c&apos;est son numéro qui va sur l&apos;étiquette.
+                          Une ligne par fournée validée (touchez-la pour ouvrir la fournée). Les ventes écoulent les lots du plus ancien au plus récent : le lot marqué <b style={{ color: C.ok }}>EN VENTE</b> est celui que vous servez aujourd&apos;hui, et c&apos;est son numéro qui va sur l&apos;étiquette.
                         </div>
                         <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 430 }}>
@@ -5164,13 +5469,13 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                               {L.lots.map((l, k) => {
                                 const perime = l.restant > 0 && l.dlc && l.dlc < new Date().toISOString().slice(0, 10);
                                 return (
-                                  <tr key={k} style={{ background: perime ? "#faece5" : (l === L.enCours ? "#3F7A4B14" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                                  <tr key={k} onClick={() => { if (l.fourneeId && onOuvrirFiche) onOuvrirFiche(l.fourneeId); }} title={l.fourneeId ? "Ouvrir la fournée" : undefined} className={l.fourneeId ? "ca-tap" : undefined} style={{ cursor: l.fourneeId && onOuvrirFiche ? "pointer" : "default", background: perime ? "#faece5" : (l === L.enCours ? "#3F7A4B14" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
                                     <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontWeight: l === L.enCours ? 700 : 400 }}>
                                       {l.lot || <span style={{ color: C.caramel }}>sans n° de lot</span>}
                                       {l === L.enCours && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: C.ok, borderRadius: 5, padding: "1px 5px" }}>EN VENTE</span>}
                                     </td>
                                     <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? " ⚠" : ""}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? <AlertTriangle size={12} style={{ marginLeft: 4, verticalAlign: "-1px" }} /> : null}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.entre}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
                                     <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
@@ -5184,7 +5489,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                           <b style={{ color: C.ink }}>{L.restant}</b> unité(s) tracée(s) par lot, pour un stock affiché de <b style={{ color: C.ink }}>{L.stockFiche}</b>.
                           {L.ecart !== 0 && <> <span style={{ color: C.caramel }}>Écart de {L.ecart > 0 ? "+" : ""}{L.ecart}</span> : {L.ecart > 0 ? "une partie du stock vient d'avant la mise en place du suivi par lot, ou d'une saisie à la main." : "plus d'unités vendues que de lots enregistrés — il manque une fournée validée."} Le stock affiché en boutique reste celui de la fiche ; le registre ne le corrige pas tout seul.</>}
                           {L.sansLot > 0 && <> <span style={{ color: C.caramel }}>{L.sansLot} lot(s) sans numéro</span> : remplissez le contrôle hygiène de la fournée, le n° est proposé automatiquement.</>}
-                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700 }}>⚠ {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
+                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} /> {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
                         </div>
                         <div style={{ marginTop: 7, fontSize: 10.5, color: C.soft, fontStyle: "italic", lineHeight: 1.45 }}>
                           La DLC affichée est celle saisie sur la fiche de fabrication. C&apos;est votre guide de bonnes pratiques et la DDPP qui font foi, pas l&apos;application.
