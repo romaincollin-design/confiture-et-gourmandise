@@ -27,6 +27,33 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
    "a cote" sans effet sur tout le reste de la page. backwards suffit : il n'y a aucun delai,
    et l'image finale (opacite 1, transform none) est deja l'etat naturel de l'element. */
 .ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) backwards; }
+/* Coffrets : une grille, des titres de colonnes au bureau ; sur téléphone la ligne s'empile (article en entier, puis qté / achat / total) */
+.cof-h, .cof-l { display: grid; grid-template-columns: minmax(0,1fr) 64px 92px 84px 36px; gap: 8px; align-items: end; }
+.cof-h { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 600; padding: 0 0 6px; }
+.cof-h .r { text-align: right; }
+.cof-l { padding: 8px 0 2px; border-top: 1px solid #241F1718; }
+.cof-l:first-of-type { border-top: none; }
+.cof-note { font-size: 11.5px; color: #8C8068; padding: 3px 0 8px; }
+.cof-cell { display: block; min-width: 0; }
+.cof-lab { display: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
+.cof-tot { text-align: right; font-weight: 700; font-size: 13.5px; font-variant-numeric: tabular-nums; padding-bottom: 10px; white-space: nowrap; }
+.cof-c { display: grid; grid-template-columns: minmax(110px,1.5fr) 96px 52px 160px; gap: 8px; align-items: end; padding: 8px 0; border-top: 1px solid #241F1718; }
+.cof-c .nom { padding-bottom: 10px; font-size: 13px; }
+.cof-stk { font-weight: 700; font-size: 13.5px; text-align: right; padding-bottom: 10px; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .cof-h { display: none; }
+  .cof-l { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px; align-items: start; }
+  .cof-tot { padding: 10px 0 0; text-align: left; }
+  .cof-del { padding-top: 0; }
+  .cof-l .cof-art { grid-column: 1 / 4; }
+  .cof-l .cof-del { grid-column: 4; grid-row: 1; }
+  .cof-lab { display: block; }
+  .cof-note { padding-top: 0; }
+  .cof-c { grid-template-columns: minmax(0,1fr) 56px minmax(0,1fr); }
+  .cof-c .nom { grid-column: 1 / 4; padding-bottom: 0; }
+  .cof-h2 { display: none; }
+  .cof-stk { text-align: left; }
+}
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
@@ -5604,7 +5631,7 @@ function CoffretVisuel({ nom, visuel, compact }) {
   const v = COFFRET_VISUELS[visuel] || {};
   const court = String(nom || "").replace(/^coffret\s*/i, "").toUpperCase();
   return (
-    <div style={{ background: "#F6EFDD", position: "relative", overflow: "hidden", minHeight: compact ? 150 : 200, fontFamily: "'Work Sans', sans-serif" }}>
+    <div style={{ background: "#F6EFDD", position: "relative", overflow: "hidden", minHeight: compact ? 140 : 200, fontFamily: "'Work Sans', sans-serif" }}>
       <div style={{ background: "#123A52", borderBottom: "3px solid #F4B32C", color: "#F6EFDD", fontWeight: 600, fontSize: 9, letterSpacing: 2.4, textAlign: "center", padding: "7px 0 6px" }}>FAIT MAIN · VENCE</div>
       <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 20 : 26, color: "#123A52", textAlign: "center", marginTop: compact ? 10 : 16, lineHeight: 1 }}>LE COFFRET</div>
       <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 16 : 21, color: "#C65A35", textAlign: "center", marginTop: 3, lineHeight: 1.1, padding: "0 10px" }}>{court}</div>
@@ -5633,14 +5660,16 @@ function CompoRow({ p, pass, onChanged }) {
     setRecu(""); setMsg({ bad: false }); onChanged({ ...p, stock: typeof data === "number" ? data : p.stock + d });
   };
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) 90px 70px 120px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
-      <div><b>{p.name}</b> <span style={{ color: C.soft }}>· {p.unit}</span></div>
-      <input value={cost} onChange={(e) => setCost(e.target.value)} onBlur={saveCost} placeholder="achat HT" inputMode="decimal" style={{ ...inp(), padding: "7px 9px", fontSize: 13 }} />
-      <div style={{ fontWeight: 700, textAlign: "right" }}>{p.stock}</div>
-      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-        <input value={recu} onChange={(e) => setRecu(e.target.value)} placeholder="+ reçu" inputMode="numeric" style={{ ...inp(), padding: "7px 9px", fontSize: 13, width: 70 }} />
-        <button onClick={recevoir} className="ca-tap" style={{ border: "none", background: C.jam, color: "#fff", borderRadius: 8, padding: "7px 9px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>OK</button>
-        {msg && <span style={{ fontSize: 11, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <><Warn size={12} /> {msg.t}</> : <Ok size={13} />}</span>}
+    <div className="cof-c">
+      <div className="nom"><b>{p.name}</b> <span style={{ color: C.soft }}>· {p.unit}</span></div>
+      <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={cost} onChange={(e) => setCost(e.target.value)} onBlur={saveCost} placeholder="achat HT" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+      <div className="cof-cell"><span className="cof-lab">Stock</span><div className="cof-stk">{p.stock}</div></div>
+      <div className="cof-cell"><span className="cof-lab">Réception</span>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input value={recu} onChange={(e) => setRecu(e.target.value)} placeholder="+ reçu" inputMode="numeric" style={{ ...inp(), padding: "8px 10px", fontSize: 13, minWidth: 0 }} />
+          <button onClick={recevoir} className="ca-tap" style={{ border: "none", background: C.jam, color: "#fff", borderRadius: 9, padding: "0 12px", height: 35, fontWeight: 700, cursor: "pointer", fontSize: 12.5, flexShrink: 0 }}>OK</button>
+          {msg && <span style={{ fontSize: 11, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok, flexShrink: 0 }}>{msg.bad ? <><Warn size={12} /> {msg.t}</> : <Ok size={13} />}</span>}
+        </div>
       </div>
     </div>
   );
@@ -5731,38 +5760,42 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
         <div>
           <div style={card()}>
             <div style={h2}>Composition</div>
+            <div className="cof-h"><div>Article</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
             {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
-              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 56px 84px 78px 38px", gap: 8, alignItems: "center", padding: "8px 0", borderTop: k ? `1px solid ${C.line}` : "none" }}>
-                <div style={{ minWidth: 0 }}>
-                  <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
-                    {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
-                    {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
-                  </select>
-                  <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
+              <div key={k}>
+                <div className="cof-l">
+                  <label className="cof-cell cof-art"><span className="cof-lab">Article</span>
+                    <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
+                      {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
+                      {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
+                    </select></label>
+                  <label className="cof-cell"><span className="cof-lab">Qté</span><input value={it.qty} onChange={(e) => setItem(k, { qty: e.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                  <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                  <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
+                  <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
                 </div>
-                <input value={it.qty} onChange={(e) => setItem(k, { qty: e.target.value })} inputMode="decimal" aria-label="Quantité" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
-                <input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="achat HT" inputMode="decimal" aria-label="Prix d'achat HT" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
-                <div style={{ textAlign: "right", fontSize: 13, fontVariantNumeric: "tabular-nums", color: l && l.cost > 0 ? C.ink : "#a6482a", fontWeight: 600 }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div>
-                <Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq>
+                <div className="cof-note">Stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
               </div>
             ); })}
-            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 6, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
+            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
           </div>
           <div style={card()}>
             <div style={h2}>Emballage et impressions</div>
+            <div className="cof-h"><div>Libellé</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
             {emb.map((e, k) => (
-              <div key={k} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 56px 86px 46px", gap: 8, alignItems: "center", padding: "6px 0" }}>
-                <input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} />
-                <input value={e.qty} onChange={(ev) => setEmbl(k, { qty: ev.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
-                <input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="achat HT" style={{ ...inp(), padding: "8px 9px", fontSize: 13 }} />
-                <Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq>
+              <div className="cof-l" key={k}>
+                <label className="cof-cell cof-art"><span className="cof-lab">Libellé</span><input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <label className="cof-cell"><span className="cof-lab">Qté</span><input value={e.qty} onChange={(ev) => setEmbl(k, { qty: ev.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="à saisir" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: coffretNum(e.cost) > 0 ? C.ink : C.soft }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</div></div>
+                <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
               </div>
             ))}
-            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
+            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 10, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {[["Coût de revient", total > 0 ? eur2(total) + (complet ? "" : " (incomplet)") : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
-              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl === "Coût de revient" ? C.paper : C.board, color: lbl === "Coût de revient" ? C.ink : "#fff", border: lbl === "Coût de revient" ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
+            {[[complet ? "Coût de revient" : "Coût connu", total > 0 ? eur2(total) : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
+              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl.startsWith("Coût") ? C.paper : C.board, color: lbl.startsWith("Coût") ? C.ink : "#fff", border: lbl.startsWith("Coût") ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
                 <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
                 {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{val}</div>}
               </div>
@@ -5821,8 +5854,15 @@ function ProCoffrets({ pass, products, setProducts }) {
             <CoffretVisuel nom={c.name} visuel={c.composition.visuel} compact />
             <div style={{ padding: "10px 14px 14px" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name} {!c.active && <span style={{ fontSize: 11, color: C.soft, fontWeight: 600 }}>· masqué</span>}</div>
-              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 3 }}>{lignes.length} article(s) · coût {manquants.length ? "connu " : ""}<b style={{ color: C.ink }}>{eur2(total)}</b>{manquants.length > 0 && <span style={{ color: "#a6482a", fontWeight: 700 }}> · {manquants.length} prix d'achat manquant(s)</span>}</div>
-              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>Prix de vente : <b style={{ color: C.ink }}>{c.price > 0 ? eur2(c.price) : "à saisir"}</b> · stock <b style={{ color: C.ink }}>{c.stock}</b> · fabricables <b style={{ color: C.ink }}>{a.n}</b></div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
+                {[["Coût", eur2(total)], ["Vente", c.price > 0 ? eur2(c.price) : "à saisir"], ["Stock", String(c.stock)]].map(([k, v]) => (
+                  <div key={k} style={{ background: C.cream, borderRadius: 10, padding: "7px 10px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{k}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, marginTop: 8, minHeight: 18, color: manquants.length ? "#a6482a" : C.soft, fontWeight: manquants.length ? 600 : 400 }}>{manquants.length > 0 ? <><Warn size={12} /> {manquants.length} prix d'achat à renseigner</> : `Fabricables : ${a.n}`}</div>
               <button onClick={() => setSel(c.id)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Ouvrir</button>
             </div>
           </div>
@@ -5832,7 +5872,7 @@ function ProCoffrets({ pass, products, setProducts }) {
         <div style={{ ...card(), marginTop: 16 }}>
           <div style={h2}>Composants ajoutés pour les coffrets (masqués du catalogue)</div>
           <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 6 }}>Renseigne le prix d'achat HT et saisis ce que tu reçois : le stock s'ajoute (il ne s'écrase jamais).</div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(110px,1.4fr) 90px 70px 120px", gap: 8, fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}><div>Article</div><div>Achat HT</div><div style={{ textAlign: "right" }}>Stock</div><div>Réception</div></div>
+          <div className="cof-c cof-h2" style={{ borderTop: "none", fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600, padding: "0 0 6px" }}><div>Article</div><div>Achat HT</div><div style={{ textAlign: "right" }}>Stock</div><div>Réception</div></div>
           {composants.map((p) => <CompoRow key={p.id} p={p} pass={pass} onChanged={maj} />)}
         </div>
       )}
