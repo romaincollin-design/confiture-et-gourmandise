@@ -133,7 +133,16 @@ Fermer une vente en caisse (`closeOrder`) **décrémente le stock** des produits
 (hors offerts, hors articles libres sans fiche catalogue). `Math.max(0, ...)`.
 Symétriquement : **annuler** une vente rend le stock, **modifier** une vente applique la différence,
 et **« Valider le retrait »** d'une commande en ligne décrémente le stock (la commande n'est donc
-pas à repasser en caisse — elle compte déjà dans le chiffre d'affaires).
+pas à repasser en caisse — elle compte dans le chiffre d'affaires au retrait).
+
+### 5.3 bis — Définition UNIQUE du chiffre d'affaires
+`caPeriode(sales, orders, t0, t1)` (module, avec `fluxCA`) renvoie `{ total, caisse, enLigne, nbVentes, articles, panier… }`
+et sert **le Tableau de bord, le bandeau « CA du jour » de la Caisse et l'écran « Aujourd'hui »** (`ProAujourdhui`, onglet
+par défaut). Règle : une vente en caisse compte à sa clôture ; une commande en ligne compte quand elle est **VALIDÉE**
+(statut `Remise`, bouton « Valider le retrait »), plus à sa création — un client qui ne vient jamais ne gonfle plus le CA.
+Partout on affiche « Caisse X € + commandes retirées Y € ». Les commandes pas encore retirées sont annoncées à part.
+⚠ `admin_orders` ne renvoie que `created_at` : la commande est rattachée au jour où elle a été PASSÉE, pas retirée.
+Statuts : `À préparer` → `Prête` → `Remise`. Ne jamais recompter le CA à la main dans un écran : appeler `caPeriode`.
 
 ### 5.4 Règle de prix / marge
 - Le **prix de vente est figé** (fixé par le commerçant). On ne le recalcule jamais depuis la marge.
