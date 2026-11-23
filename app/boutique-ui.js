@@ -4,7 +4,7 @@ import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
-  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database, AlertTriangle
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -32,10 +32,20 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pro-shell { display: flex; min-height: 706px; }
 .pro-nav { width: 212px; background: #FBF6EA; border-right: 1px solid #241F1718; padding: 12px; flex-shrink: 0; }
 .pro-content { flex: 1; padding: 24px 26px; max-height: 706px; overflow-y: auto; background: #EFE7D5; }
-.caisse-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-@media (min-width: 600px) { .caisse-grid { grid-template-columns: repeat(3, 1fr); } }
 .caisse-empty-ticket { display: none; }
 .caisse-mobilebar { display: none; }
+.caisse-chip { display: none; }
+/* Produits : une LISTE sur téléphone (maquette 4), une grille de cartes dès 721 px. */
+.caisse-grid { display: block; border-bottom: 1px solid #241F1718; }
+.cprod { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #241F1718; }
+.cprod-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: none; padding: 0; margin: 0; cursor: pointer; font: inherit; color: inherit; }
+.cprod-side { flex-shrink: 0; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+@media (min-width: 721px) {
+  .caisse-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-bottom: none; }
+  .cprod { flex-direction: column; align-items: stretch; background: #FBF6EA; border: 1px solid #241F1718; border-radius: 14px; padding: 12px; gap: 8px; }
+  .cprod-side { flex-direction: row; align-items: center; justify-content: space-between; margin-left: 0; }
+  .cprod-sel { border-color: #7A2B33; }
+}
 @media (min-width: 900px) {
   .caisse-work { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
   .caisse-ticket { position: sticky; top: 0; }
@@ -65,7 +75,9 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 
 @media (max-width: 720px) {
   /* Le ticket de caisse remonte au-dessus de la barre d'onglets, sinon il la recouvre. */
-  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
+  .caisse-chip { display: inline-block; }
+  .caisse-ca, .caisse-hint, .caisse-closebtn, .caisse-lbl { display: none !important; }
+  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 14px; padding: 14px 16px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
   .pro-shell { flex-direction: column; min-height: 0; }
   /* Onglets en BAS sur téléphone : au marché on tient l'appareil d'une main, le haut de
      l'écran n'est pas atteignable. Même liste, même ordre — seule la position change. */
@@ -774,7 +786,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
             fournées, dans l'onglet Production. Composant et tables conservés le temps de la refonte. */}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
-        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
+        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -4408,7 +4420,12 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
 }
 
 const STATUSES = ["À préparer", "Prête", "Remise"];
-function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
+function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setProducts }) {
+  const ordersRef = useRef(orders); ordersRef.current = orders;
+  const productsRef = useRef(products); productsRef.current = products;
+  const [erreur, setErreur] = useState(null);
+  const ctxCmd = { pass, ordersRef, productsRef, setOrders, setProducts };
+  const montrer = (r) => { if (!r) return; if (r.erreur) setErreur(r.erreur); else if (r.avertissement) setErreur(r.avertissement); };
   const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
   const [openId, setOpenId] = useState(null);
   const [edit, setEdit] = useState(null);
@@ -4418,9 +4435,13 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
     if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
     return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] };
   });
+  // Le statut « Remise » sort les articles du stock, exactement comme « Valider le retrait » en Caisse
+  // (même fonction partagée, idempotente) ; en sortir ou supprimer la commande les remet.
   const persistStatus = async (o, s) => {
-    setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: s } : x));
-    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: s }); } catch (e) {} }
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    if (courante.status === s) return;
+    if (courante.status === "Remise" && s !== "Remise" && !window.confirm(`Repasser la commande ${o.id} à « ${s} » ?\n\nLes articles seront remis en stock.`)) return;
+    montrer(await enregistrerCommande({ ...ctxCmd, o, patch: { status: s } }));
   };
   const openEdit = (o) => setEdit({ id: o.id, ref: o.id, oid: o.oid, name: o.name, items: (o.lines || []).map((l) => ({ ...l })), pickup: o.pickup || "", status: o.status || STATUSES[0] });
   const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
@@ -4429,18 +4450,20 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const saveEdit = async () => {
     if (busy) return; setBusy(true);
     const items = edit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const count = items.reduce((a, i) => a + i.qty, 0);
     if (items.length === 0) { await delOrder(); setBusy(false); return; }
-    setOrders((l) => l.map((x) => x.id === edit.id ? { ...x, lines: items, total, items: count, pickup: edit.pickup, status: edit.status } : x));
-    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: edit.oid, p_items: items, p_total: total, p_count: count, p_pickup: edit.pickup, p_status: edit.status }); } catch (e) {} }
-    setBusy(false); setEdit(null);
+    const courante = (ordersRef.current || []).find((x) => x.id === edit.id);
+    if (courante && courante.status === "Remise" && edit.status !== "Remise" && !window.confirm(`Repasser la commande ${edit.ref || edit.id} à « ${edit.status} » ?\n\nLes articles seront remis en stock.`)) { setBusy(false); return; }
+    const r = await enregistrerCommande({ ...ctxCmd, o: { id: edit.id, oid: edit.oid }, patch: { lines: items, pickup: edit.pickup, status: edit.status } });
+    montrer(r);
+    setBusy(false); if (!r || r.ok) setEdit(null);
   };
   const delOrder = async () => {
-    if (!window.confirm(`Supprimer définitivement la commande ${edit.ref || edit.id}${edit.name ? ` de ${edit.name}` : ""} ?\n\nCette action est irréversible.`)) { setBusy(false); return; }
-    setOrders((l) => l.filter((x) => x.id !== edit.id));
-    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_delete_order", { pass, p_oid: edit.oid }); } catch (e) {} }
-    setBusy(false); setEdit(null);
+    const courante = (ordersRef.current || []).find((x) => x.id === edit.id);
+    const remise = !!courante && courante.status === "Remise";
+    if (!window.confirm(`Supprimer définitivement la commande ${edit.ref || edit.id}${edit.name ? ` de ${edit.name}` : ""} ?\n\nCette action est irréversible.${remise ? "\nLes articles seront remis en stock." : ""}`)) { setBusy(false); return; }
+    const r = await enregistrerCommande({ ...ctxCmd, o: { id: edit.id, oid: edit.oid }, patch: { supprimer: true } });
+    montrer(r);
+    setBusy(false); if (!r || r.ok) setEdit(null);
   };
   const groups = {};
   orders.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
@@ -4448,6 +4471,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const waNum = (t) => (t || "").replace(/\D/g, "").replace(/^0/, "33");
   return (
     <div className="ca-anim">
+      <BandeauErreur msg={erreur} onClose={() => setErreur(null)} />
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Commandes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{orders.length} commande{orders.length > 1 ? "s" : ""} · {eur(orders.reduce((s, o) => s + o.total, 0))}</div></div>
         {onRefresh && <button onClick={onRefresh} disabled={loading} className="ca-tap" style={{ background: C.board, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: loading ? "default" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0, opacity: loading ? .6 : 1 }}>{loading ? "Actualisation…" : "↻ Actualiser"}</button>}
@@ -6356,7 +6380,7 @@ export function EspacePro() {
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email || "", prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       // on conserve pid et offert : ce sont eux qui permettent d'agréger par produit (et non par nom, cf. CLAUDE.md 8) et de sortir les offerts du CA
-      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "" })) })));
+      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "", ...(i.stockOut != null ? { stockOut: Number(i.stockOut) || 0 } : {}) })) })));
       if (!sansProduits && rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
       if (rb && rb.data && Array.isArray(rb.data.batches)) setBatches(rb.data.batches);
@@ -6595,8 +6619,142 @@ function InstallBanner({ admin = false }) {
   );
 }
 
+/* ---------------- STOCK : mouvements relatifs, partagés par la Caisse et l'onglet Commandes ---------------- */
+const MSG_NON_ENREGISTRE = "Non enregistré — vérifiez la connexion";
+const memeNomCaisse = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+// Même règle que cleProduit (ProStats), au niveau module : on résout d'abord la fiche (pid, sinon nom sans casse),
+// jamais `pid || nom` qui coupe un même produit en deux lignes (CLAUDE.md 8).
+function cleProduitDe(i, products) {
+  const list = products || [];
+  const p = (i.pid ? list.find((x) => x.id === i.pid) : null) || list.find((x) => memeNomCaisse(x.name, i.name)) || null;
+  return p ? p.id : (String(i.name || "").trim().toLowerCase() || "—");
+}
+// Quantité qui sort du stock pour une ligne : hors offerts, hors article libre sans fiche (pas de pid).
+const quantiteSortie = (it) => (it && it.pid && !it.offert && it.qty > 0 ? it.qty : 0);
+// Quantité à REMETTRE : ce que la ligne a réellement sorti. Le plancher à 0 a pu en retenir une partie
+// (stock 2, vente de 5 : 2 sortis, `stockOut: 2` mémorisé sur la ligne) ; rendre 5 créerait 3 unités fantômes.
+const quantiteRendue = (it) => { const q = quantiteSortie(it); return it && it.stockOut != null ? Math.min(q, Math.max(0, Number(it.stockOut) || 0)) : q; };
+const cumulParPid = (items, f) => { const d = {}; (items || []).forEach((it) => { const q = f(it); if (q) d[it.pid] = (d[it.pid] || 0) + q; }); return d; };
+const retoursDe = (items) => cumulParPid(items, quantiteRendue);
+const fusionneDeltas = (...maps) => { const acc = {}; maps.forEach((m) => Object.entries(m || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; })); Object.keys(acc).forEach((k) => { if (acc[k] === 0) delete acc[k]; }); return acc; };
+const stockDe = (products) => { const m = {}; (products || []).forEach((p) => { m[p.id] = Number(p.stock) || 0; }); return m; };
+// Plancher à 0 (la boutique teste `stock === 0` pour « sur commande » : un stock négatif la casserait).
+// Renvoie les lignes annotées (`stockOut` seulement si une partie a été retenue) et les deltas négatifs.
+function planSortie(items, stockInitial) {
+  const reste = { ...stockInitial };
+  const deltas = {};
+  const out = (items || []).map((it) => {
+    const n = { ...it }; delete n.stockOut;
+    const q = quantiteSortie(n);
+    if (!q || !Object.prototype.hasOwnProperty.call(reste, n.pid)) return n;
+    const dispo = Math.max(0, Number(reste[n.pid]) || 0);
+    const sortie = Math.min(q, dispo);
+    reste[n.pid] = dispo - sortie;
+    if (sortie > 0) deltas[n.pid] = (deltas[n.pid] || 0) - sortie;
+    if (sortie < q) n.stockOut = sortie;
+    return n;
+  });
+  return { items: out, deltas };
+}
+// supabase.rpc ne LÈVE PAS d'exception : il renvoie { error }. Un `catch {}` muet laissait croire
+// qu'une écriture refusée avait réussi. Renvoie l'erreur, ou null.
+async function appelerRpc(nom, args) {
+  try { const r = await supabase.rpc(nom, args); return r && r.error ? r.error : null; } catch (e) { return e || new Error("réseau"); }
+}
+// Mouvement de stock RELATIF et atomique (admin_adjust_stock), jamais l'écriture absolue d'une valeur périmée.
+// La base renvoie le nouveau stock : c'est lui qu'on affiche.
+async function appliquerStock({ pass, deltas, products, setProducts }) {
+  const ids = Object.keys(deltas || {}).filter((id) => deltas[id] !== 0);
+  const echecs = [];
+  if (ids.length === 0) return { ok: true, echecs };
+  const nomDe = (id) => ((products || []).find((p) => p.id === id) || {}).name || id;
+  const relatif = (id) => setProducts && setProducts((l) => l.map((p) => p.id === id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + deltas[id]) } : p));
+  const poser = (id, v) => setProducts && setProducts((l) => l.map((p) => p.id === id ? { ...p, stock: v } : p));
+  for (const id of ids) {
+    if (!(supabase && pass)) { relatif(id); continue; }
+    let res = null; let err = null;
+    try { res = await supabase.rpc("admin_adjust_stock", { pass, p_id: id, p_delta: deltas[id] }); err = res && res.error; } catch (e) { err = e || new Error("réseau"); }
+    if (err) { echecs.push(nomDe(id)); continue; }
+    let ns = res && res.data != null ? Number(res.data) : null;
+    if (ns != null && !isNaN(ns) && ns < 0) {
+      // stock local périmé : la base est descendue sous 0. On la ramène à 0 par un second mouvement relatif.
+      const e2 = await appelerRpc("admin_adjust_stock", { pass, p_id: id, p_delta: -ns });
+      if (!e2) ns = 0;
+    }
+    if (ns != null && !isNaN(ns)) poser(id, Math.max(0, ns)); else relatif(id);
+  }
+  return { ok: echecs.length === 0, echecs };
+}
+const MSG_STOCK = (echecs) => `Stock non mis à jour pour ${echecs.join(", ")} — corrigez-le dans Produits (${MSG_NON_ENREGISTRE.toLowerCase()}).`;
+// UNE SEULE fonction pour tout ce qui touche une commande ET son stock (Caisse « Valider le retrait »,
+// onglet Commandes, modification, suppression). Règle : seules les commandes « Remise » sont sorties du stock.
+//   -> passer à Remise sort les articles ; quitter Remise ou supprimer une Remise les remet ;
+//   -> modifier les lignes d'une Remise applique la seule différence ;
+//   -> idempotente : l'état de départ est relu au moment de l'appel et un verrou refuse le double appui,
+//      donc une commande déjà Remise ne redécrémente JAMAIS.
+// Limite connue : order_items n'a pas de colonne pour mémoriser un plancher à 0 ; pour une commande, un
+// retour rend donc la quantité commandée (écart possible seulement si le stock avait été retenu à 0).
+const _verrousCommandes = new Set();
+async function enregistrerCommande({ pass, o, patch, ordersRef, productsRef, setOrders, setProducts }) {
+  if (_verrousCommandes.has(o.id)) return { ok: false, occupe: true };
+  _verrousCommandes.add(o.id);
+  try {
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    const avant = { status: courante.status, lines: courante.lines || [] };
+    const supprimer = !!patch.supprimer;
+    const apres = supprimer ? null : { status: patch.status != null ? patch.status : avant.status, lines: patch.lines != null ? patch.lines : avant.lines };
+    const sortiAvant = avant.status === "Remise";
+    const sortiApres = !!apres && apres.status === "Remise";
+    const cle = (l) => JSON.stringify((l || []).map((i) => [i.pid || i.name, i.qty]));
+    const memesLignes = !!apres && cle(avant.lines) === cle(apres.lines);
+    const rien = !supprimer && apres.status === avant.status && patch.lines == null && patch.pickup == null;
+    if (rien) return { ok: true, rien: true };
+    // mouvements de stock
+    let deltas = {}; let lignes = apres ? apres.lines : [];
+    if (!(sortiAvant && sortiApres && memesLignes)) {
+      const retours = sortiAvant ? retoursDe(avant.lines) : {};
+      const stock = stockDe(productsRef.current);
+      Object.entries(retours).forEach(([k, v]) => { if (k in stock) stock[k] += v; });
+      const plan = sortiApres ? planSortie(apres.lines, stock) : { items: lignes, deltas: {} };
+      lignes = plan.items; deltas = fusionneDeltas(retours, plan.deltas);
+    }
+    const total = (apres ? apres.lines : []).reduce((a, i) => a + (Number(i.price) || 0) * i.qty, 0);
+    const count = (apres ? apres.lines : []).reduce((a, i) => a + i.qty, 0);
+    // affichage immédiat, annulé si la base refuse
+    setOrders((l) => supprimer ? l.filter((x) => x.id !== o.id) : l.map((x) => x.id === o.id ? { ...x, status: apres.status, paid: (sortiApres && !sortiAvant) ? true : x.paid, ...(patch.lines != null ? { lines: apres.lines, total, items: count } : {}), ...(patch.pickup != null ? { pickup: patch.pickup } : {}) } : x));
+    if (supabase && pass && o.oid) {
+      let err = null;
+      if (supprimer) err = await appelerRpc("admin_delete_order", { pass, p_oid: o.oid });
+      else if (patch.lines != null || patch.pickup != null) {
+        err = await appelerRpc("admin_update_order", { pass, p_oid: o.oid, p_items: apres.lines, p_total: total, p_count: count, p_pickup: patch.pickup != null ? patch.pickup : (courante.pickup || ""), p_status: apres.status });
+        if (!err && sortiApres && !sortiAvant) err = await appelerRpc("admin_validate_order", { pass, p_oid: o.oid });
+      } else if (sortiApres && !sortiAvant) err = await appelerRpc("admin_validate_order", { pass, p_oid: o.oid });
+      else err = await appelerRpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: apres.status });
+      if (err) {
+        setOrders((l) => l.some((x) => x.id === o.id) ? l.map((x) => x.id === o.id ? courante : x) : [courante, ...l]);
+        return { ok: false, erreur: MSG_NON_ENREGISTRE };
+      }
+    }
+    const r = await appliquerStock({ pass, deltas, products: productsRef.current, setProducts });
+    return r.ok ? { ok: true } : { ok: true, avertissement: MSG_STOCK(r.echecs) };
+  } finally { _verrousCommandes.delete(o.id); }
+}
+function BandeauErreur({ msg, onClose }) {
+  if (!msg) return null;
+  return (
+    <div role="alert" style={{ position: "sticky", top: 8, zIndex: 120, background: "#FBEDE8", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 12, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, fontWeight: 700, lineHeight: 1.35, boxShadow: "0 8px 20px -12px #16140f88" }}>
+      <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ flex: 1, minWidth: 0 }}>{msg}</span>
+      <button onClick={onClose} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.jam, cursor: "pointer", padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={16} /></button>
+    </div>
+  );
+}
+
 function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOrders }) {
   const ticketRef = useRef(null);
+  const ordersRef = useRef(orders); ordersRef.current = orders;
+  const productsRef = useRef(products); productsRef.current = products;
+  const [erreur, setErreur] = useState(null);
   const [ticket, setTicket] = useState({});
   const ticketFirstSave = useRef(true);
   useEffect(() => {
@@ -6606,11 +6764,12 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
     if (ticketFirstSave.current) { ticketFirstSave.current = false; return; }
     try { localStorage.setItem("ca_caisse_ticket", JSON.stringify(ticket)); } catch (e) {}
   }, [ticket]);
-  const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
-  const [reapproOuvert, setReapproOuvert] = useState(false);
-  const [calOuvert, setCalOuvert] = useState(false);
+  // tiroirs repliés : « cmd » (commandes en cours), « refaire » (réassort), « jour » (date rétroactive)
+  const [tiroir, setTiroir] = useState(null);
+  const basculer = (k) => setTiroir((t) => (t === k ? null : k));
+  const [histTout, setHistTout] = useState(false);
   const [retro, setRetro] = useState(false);
   const [saleDate, setSaleDate] = useState("");
   const [saleTime, setSaleTime] = useState("10:00");
@@ -6648,7 +6807,6 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
 
   const add = (p, offert) => {
     setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, offert: offert != null ? offert : (t[p.id]?.offert || false), custom: t[p.id]?.custom || p.custom || false, qty: (t[p.id]?.qty || 0) + 1 } }));
-    setFlash(p.id); setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 500);
   };
   const dec = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; const q = cur.qty - 1; const n = { ...t }; if (q <= 0) delete n[pid]; else n[pid] = { ...cur, qty: q }; return n; });
   const removeLine = (pid) => setTicket((t) => { const n = { ...t }; delete n[pid]; return n; });
@@ -6663,47 +6821,55 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + (l.offert ? 0 : l.qty * pfNum(l.price)), 0);
   const closingRef = useRef(false);
-  // deltas de stock par produit : signe -1 = sortie (vente), +1 = retour (annulation)
-  const deltasDe = (items, signe) => {
-    const d = {};
-    (items || []).forEach((it) => { if (it.pid && !it.offert && it.qty > 0) d[it.pid] = (d[it.pid] || 0) + signe * it.qty; });
-    return d;
+  const verrousVentes = useRef(new Set());
+  const stockApres = async (deltas) => {
+    const r = await appliquerStock({ pass, deltas, products: productsRef.current, setProducts });
+    if (!r.ok) setErreur(MSG_STOCK(r.echecs));
   };
-  const fusionne = (...maps) => maps.reduce((acc, m) => { Object.entries(m || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; }); return acc; }, {});
-  const ajusterStock = async (deltas) => {
-    if (!setProducts) return;
-    const ids = Object.keys(deltas).filter((id) => deltas[id] !== 0 && products.find((p) => p.id === id));
-    if (ids.length === 0) return;
-    setProducts((list) => list.map((p) => ids.includes(p.id) ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + deltas[p.id]) } : p));
-    if (supabase && pass) {
-      for (const pid of ids) {
-        const prod = products.find((p) => p.id === pid); if (!prod) continue;
-        const np = { ...prod, stock: Math.max(0, (Number(prod.stock) || 0) + deltas[pid]) };
-        try { await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }); } catch (e) {}
-      }
-    }
-  };
-  const decrementerStock = (items) => ajusterStock(deltasDe(items, -1));
+  const montrer = (r) => { if (!r) return; if (r.erreur) setErreur(r.erreur); else if (r.avertissement) setErreur(r.avertissement); };
+  const ctxCmd = { pass, ordersRef, productsRef, setOrders, setProducts };
 
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
     closingRef.current = true;
-    // on fige le conditionnement et le prix d'achat du jour sur la ligne : les fiches produit évoluent, pas l'historique
-    const items = lines.map(([pid, l]) => ({ pid, name: l.name, unit: l.unit || "", qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
-    const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
-    const ts = tsFor();
-    setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
-    setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
-    if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
-    await decrementerStock(items);
-    closingRef.current = false;
+    try {
+      // on fige le conditionnement et le prix d'achat du jour sur la ligne : les fiches produit évoluent, pas l'historique
+      const brut = lines.map(([pid, l]) => ({ pid, name: l.name, unit: l.unit || "", qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
+      const { items, deltas } = planSortie(brut, stockDe(productsRef.current));
+      const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+      const ts = tsFor();
+      const ticketAvant = ticket;
+      setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
+      setTicket({});
+      if (supabase) {
+        let err = null;
+        try { const r = await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); err = r && r.error; } catch (e) { err = e || new Error("réseau"); }
+        if (err) {
+          // la base a refusé : la vente n'existe pas. On la retire et on rend le ticket, rien ne sort du stock.
+          setSales((o) => o.filter((x) => x.id !== sid));
+          setTicket((t) => (Object.keys(t).length === 0 ? ticketAvant : t));
+          setErreur("Vente non enregistrée — vérifiez la connexion. Le ticket est conservé, réessayez.");
+          return;
+        }
+      }
+      setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
+      await stockApres(deltas);
+    } finally { closingRef.current = false; }
   };
   const cancelOrder = async (id) => {
     const v = sales.find((x) => x.id === id);
-    if (!window.confirm(`Annuler cette vente de ${eur(v ? v.total : 0)} ?\n\nElle sera supprimée et le stock des articles vendus sera remis.`)) return;
-    setSales((o) => o.filter((x) => x.id !== id));
-    if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} }
-    if (v) await ajusterStock(deltasDe(v.items, 1));
+    if (!v || verrousVentes.current.has(id)) return;
+    if (!window.confirm(`Annuler cette vente de ${eur(v.total)} ?\n\nElle sera supprimée et le stock des articles vendus sera remis.`)) return;
+    verrousVentes.current.add(id);
+    try {
+      setSales((o) => o.filter((x) => x.id !== id));
+      if (supabase && pass) {
+        const err = await appelerRpc("admin_delete_sale", { pass, p_sid: id });
+        if (err) { setSales((o) => [v, ...o].sort((a, b) => b.ts - a.ts)); setErreur("Annulation non enregistrée — vérifiez la connexion. La vente est conservée."); return; }
+      }
+      // on rend exactement ce que la vente a réellement sorti (stockOut), pas davantage
+      await stockApres(retoursDe(v.items));
+    } finally { verrousVentes.current.delete(id); }
   };
   const [edit, setEdit] = useState(null);
   const [ebusy, setEbusy] = useState(false);
@@ -6714,30 +6880,48 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const eRm = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
   const eAdd = (p) => setEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : i.name === p.name); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, qty: 1, price: p.price, cost: p.cost || 0 }] }; });
   const eSave = async () => {
-    if (ebusy) return; setEbusy(true);
-    const items = edit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const cnt = items.reduce((a, i) => a + i.qty, 0);
-    const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
-    const avant = (sales.find((x) => x.id === edit.id) || {}).items || [];
-    if (items.length === 0) {
-      setSales((l) => l.filter((x) => x.id !== edit.id));
-      if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} }
-      await ajusterStock(deltasDe(avant, 1));
-      setEbusy(false); setEdit(null); return;
-    }
-    setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
-    if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
-    // on applique au stock la seule différence entre l'ancienne et la nouvelle composition
-    await ajusterStock(fusionne(deltasDe(avant, 1), deltasDe(items, -1)));
-    setEbusy(false); setEdit(null);
+    if (ebusy || verrousVentes.current.has(edit.id)) return;
+    setEbusy(true); verrousVentes.current.add(edit.id);
+    try {
+      const saisis = edit.items.filter((i) => i.qty > 0);
+      const total = saisis.reduce((a, i) => a + i.price * i.qty, 0);
+      const cnt = saisis.reduce((a, i) => a + i.qty, 0);
+      const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
+      const avantVente = sales.find((x) => x.id === edit.id);
+      const avant = (avantVente || {}).items || [];
+      // retour exact de l'ancienne composition, puis nouvelle sortie plafonnée au stock disponible APRÈS ce retour
+      const retours = retoursDe(avant);
+      const stock = stockDe(productsRef.current);
+      Object.entries(retours).forEach(([k, v]) => { if (k in stock) stock[k] += v; });
+      const plan = planSortie(saisis, stock);
+      const items = plan.items;
+      const deltas = fusionneDeltas(retours, plan.deltas);
+      if (saisis.length === 0) {
+        setSales((l) => l.filter((x) => x.id !== edit.id));
+        if (supabase && pass) {
+          const err = await appelerRpc("admin_delete_sale", { pass, p_sid: edit.id });
+          if (err) { if (avantVente) setSales((l) => [avantVente, ...l].sort((a, b) => b.ts - a.ts)); setErreur(MSG_NON_ENREGISTRE + ". La vente est conservée."); return; }
+        }
+        await stockApres(deltas);
+        setEdit(null); return;
+      }
+      setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
+      if (supabase && pass) {
+        const err = await appelerRpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() });
+        if (err) { if (avantVente) setSales((l) => l.map((x) => x.id === edit.id ? avantVente : x)); setErreur(MSG_NON_ENREGISTRE + ". La vente n'a pas été modifiée."); return; }
+      }
+      // on applique au stock la seule différence entre l'ancienne et la nouvelle composition
+      await stockApres(deltas);
+      setEdit(null);
+    } finally { setEbusy(false); verrousVentes.current.delete(edit ? edit.id : ""); }
   };
 
+  // « Valider le retrait » : même fonction partagée que le statut « Remise » de l'onglet Commandes.
+  // Garde : une commande déjà Remise (ou en cours de traitement) ne bouge pas le stock une seconde fois.
   const validateOrder = async (o) => {
-    if (setOrders) setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: "Remise", paid: true } : x));
-    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }); } catch (e) {} }
-    // une commande remise sort du stock au même titre qu'une vente en caisse
-    await ajusterStock(deltasDe(o.lines, -1));
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    if (courante.status === "Remise") return;
+    montrer(await enregistrerCommande({ ...ctxCmd, o, patch: { status: "Remise" } }));
   };
   const pending = (orders || []).filter((o) => o.status !== "Remise");
   const pendingByDate = {};
@@ -6751,12 +6935,12 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const oAdd = (p) => setOEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : (i.name === p.name && i.unit === p.unit)); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] }; });
   const oSave = async () => {
     if (obusy) return; setObusy(true);
-    const items = oEdit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const count = items.reduce((a, i) => a + i.qty, 0);
-    if (setOrders) setOrders((l) => l.map((x) => x.id === oEdit.id ? { ...x, lines: items, total, items: count, pickup: oEdit.pickup } : x));
-    if (supabase && pass && oEdit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: oEdit.oid, p_items: items, p_total: total, p_count: count, p_pickup: oEdit.pickup, p_status: oEdit.status }); } catch (e) {} }
-    setObusy(false); setOEdit(null);
+    try {
+      const items = oEdit.items.filter((i) => i.qty > 0);
+      const r = await enregistrerCommande({ ...ctxCmd, o: { id: oEdit.id, oid: oEdit.oid }, patch: { lines: items, pickup: oEdit.pickup, status: oEdit.status } });
+      montrer(r);
+      if (!r || r.ok) setOEdit(null);
+    } finally { setObusy(false); }
   };
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -6768,8 +6952,13 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const todayTotal = todayOrders.reduce((a, o) => a + o.total, 0);
   const todayItems = todayOrders.reduce((a, o) => a + o.count, 0);
 
+  // agrégé par fiche produit (cleProduitDe), jamais par nom : 15 noms sont partagés par plusieurs produits
   const byProd = {};
-  todayOrders.forEach((o) => o.items.forEach((it) => { byProd[it.name] = byProd[it.name] || { qty: 0, sum: 0 }; byProd[it.name].qty += it.qty; byProd[it.name].sum += it.qty * it.price; }));
+  todayOrders.forEach((o) => o.items.forEach((it) => {
+    const k = cleProduitDe(it, products);
+    byProd[k] = byProd[k] || { name: ((products.find((p) => p.id === k) || {}).name) || it.name, qty: 0, sum: 0 };
+    byProd[k].qty += it.qty; byProd[k].sum += it.offert ? 0 : it.qty * it.price;
+  }));
   const prodRows = Object.entries(byProd).sort((a, b) => b[1].sum - a[1].sum);
 
   const byHour = Array(24).fill(0);
@@ -6778,38 +6967,27 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const hoursActive = byHour.map((v, h) => [h, v]).filter(([h]) => h >= 7 && h <= 20);
 
   const byDay = {};
-  sales.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += o.total; });
-  const dayRows = Object.entries(byDay);
+  sales.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0, ts: 0 }; byDay[k].count++; byDay[k].sum += o.total; byDay[k].ts = Math.max(byDay[k].ts, o.ts); });
+  const dayRowsTous = Object.entries(byDay).sort((a, b) => b[1].ts - a[1].ts);
+  const dayRows = histTout ? dayRowsTous : dayRowsTous.slice(0, 7);
 
   const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
   const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 };
+  const jourLabel = retro && saleDate ? new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "aujourd'hui";
+  const pastille = (actif, accent) => ({ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${actif ? (accent || C.jam) : C.line}`, background: actif ? "#fff" : C.paper, color: accent || C.ink, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", minHeight: 36 });
+  const chev = (ouvert) => <ChevronDown size={14} color={C.soft} style={{ transform: ouvert ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />;
 
   return (
-    <div className="ca-anim" style={{ paddingBottom: 24 }}>
-      <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
-      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
-
-      <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente · <span style={{ color: retro ? C.jam : C.ok }}>{retro && saleDate ? new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "aujourd'hui"}</span></div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {retro && <button onClick={() => { setRetro(false); setSaleDate(""); setCalOuvert(false); }} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: C.jam, color: "#fff", borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>}
-            <button onClick={() => setCalOuvert((v) => !v)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{calOuvert ? "Fermer" : "Choisir un autre jour"}</button>
-          </div>
-        </div>
-        {/* calendrier replié par défaut : en marché, on encaisse au jour même et la grille produits doit rester à portée de pouce */}
-        {calOuvert && <div style={{ marginTop: 12 }}><CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} /></div>}
-        {retro && saleDate && (
-          <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, color: C.jam, fontWeight: 700, lineHeight: 1.4 }}>Vente enregistrée pour le {new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
-              <div style={{ width: 104 }}><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></div>
-            </div>
-          </div>
-        )}
+    <div className="ca-anim caisse-root" style={{ paddingBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 2 }}>
+        <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam }}>Caisse</div>
+        <span className="caisse-chip" style={{ background: "#dcebdd", color: C.ok, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{todayOrders.length} vente{todayOrders.length > 1 ? "s" : ""} · {eur(todayTotal)}</span>
       </div>
+      <div className="caisse-hint" style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
+      <BandeauErreur msg={erreur} onClose={() => setErreur(null)} />
+      {justClosed && <div role="status" style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Vente enregistrée</div>}
 
-      <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="caisse-ca" style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>{focusIsToday ? "Aujourd'hui" : "Saisie"} · {todayK}</div>
           <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eur(todayTotal)}</div>
@@ -6820,19 +6998,63 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
         </div>
       </div>
 
-      {/* Rappel de réassort : 1 ligne repliée, pour ne pas encombrer la caisse mais ne plus découvrir
-          une rupture devant le client. Onglet Produits > « à refaire » pour la liste complète. */}
-      {aRefaire.length > 0 && (
-        <div style={{ ...card, border: `1px solid ${epuises.length ? C.jam + "55" : C.line}`, padding: 0, overflow: "hidden" }}>
-          <button onClick={() => setReapproOuvert((v) => !v)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <Package size={16} color={epuises.length ? C.jam : C.caramel} />
-              {epuises.length > 0 ? <>À refaire : <span style={{ color: C.jam }}>{epuises.length} épuisé{epuises.length > 1 ? "s" : ""}</span>{aRefaire.length > epuises.length && <span style={{ color: C.soft, fontWeight: 600 }}> · {aRefaire.length - epuises.length} bientôt</span>}</> : <>À refaire bientôt : <span style={{ color: C.caramel }}>{aRefaire.length} produit{aRefaire.length > 1 ? "s" : ""}</span></>}
-            </span>
-            <ChevronDown size={17} color={C.soft} style={{ transform: reapproOuvert ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
-          </button>
-          {reapproOuvert && (
-            <div style={{ padding: "0 14px 12px" }}>
+      <div className="caisse-work">
+        <div className="caisse-products">
+          <div className="caisse-cats" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 6, WebkitOverflowScrolling: "touch" }}>
+            {cats.map((c) => {
+              const sel = c === activeCat;
+              return (
+                <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: "none", background: sel ? "#f3e3cc" : "#ebe4d2", color: sel ? C.caramel : C.soft, borderRadius: 20, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", minHeight: 36 }}>
+                  {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="caisse-grid" style={{ marginBottom: 10 }}>
+            {catItems.map((p) => {
+              const stockVal = p.stock == null ? null : Number(p.stock);
+              const epuise = stockVal === 0;
+              const q = ticket[p.id] ? ticket[p.id].qty : 0;
+              return (
+                <div key={p.id} className={q ? "cprod cprod-sel" : "cprod"}>
+                  <button onClick={() => add(p)} className="cprod-main ca-tap" aria-label={`Ajouter ${p.name}`}>
+                    <span style={{ display: "inline-flex", flexShrink: 0 }}><Illu k={illuDe(p)} col={couleurDe(p)} s={34} /></span>
+                    <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+                      <span style={{ fontSize: 12, color: C.soft }}>{p.unit}</span>
+                      {/* le stock ne s'affiche que lorsqu'il compte : 5 ou moins */}
+                      {stockVal != null && stockVal <= 5 && (
+                        <span style={{ alignSelf: "flex-start", fontSize: 11, fontWeight: 700, borderRadius: 20, padding: "1px 8px", color: epuise ? "#a6482a" : C.caramel, background: epuise ? "#f6ddd5" : "#f3e3cc", fontVariantNumeric: "lining-nums tabular-nums" }}>{epuise ? "stock 0 · sur commande" : `stock ${stockVal}`}</span>
+                      )}
+                    </span>
+                  </button>
+                  <span className="cprod-side">
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: C.ink, fontVariantNumeric: "lining-nums tabular-nums" }}>{p.price > 0 ? eur(p.price) : "—"}</span>
+                    {q > 0 ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", background: "#e8dfc9", borderRadius: 9 }}>
+                        <button onClick={() => dec(p.id)} aria-label={`Retirer un ${p.name}`} className="ca-tap" style={{ width: 34, height: 34, border: "none", background: "transparent", color: C.jam, cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
+                        <span style={{ minWidth: 16, textAlign: "center", fontWeight: 700, fontSize: 14, fontVariantNumeric: "lining-nums tabular-nums" }}>{q}</span>
+                        <button onClick={() => add(p)} aria-label={`Ajouter un ${p.name}`} className="ca-tap" style={{ width: 34, height: 34, border: "none", background: "transparent", color: C.jam, cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
+                      </span>
+                    ) : (
+                      <button onClick={() => add(p)} aria-label={`Ajouter ${p.name}`} className="ca-tap" style={{ width: 38, height: 34, border: "none", borderRadius: 9, background: C.jam, color: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={15} /></button>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Gestion repliée : les produits d'abord. Un toucher ouvre le tiroir correspondant. */}
+          <div className="caisse-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {pending.length > 0 && <button onClick={() => basculer("cmd")} className="ca-tap" style={pastille(tiroir === "cmd", C.caramel)}>{pending.length} commande{pending.length > 1 ? "s" : ""} à préparer {chev(tiroir === "cmd")}</button>}
+            {aRefaire.length > 0 && <button onClick={() => basculer("refaire")} className="ca-tap" style={pastille(tiroir === "refaire", epuises.length ? C.jam : C.caramel)}><Package size={14} /> {aRefaire.length} à refaire {chev(tiroir === "refaire")}</button>}
+            <button onClick={() => basculer("jour")} className="ca-tap" style={pastille(tiroir === "jour" || (retro && saleDate), retro && saleDate ? C.jam : C.ink)}><Calendar size={14} color={C.jam} /> Jour : {jourLabel} {chev(tiroir === "jour")}</button>
+            <button onClick={addCustomLine} className="ca-tap" style={{ ...pastille(false, C.jam), borderStyle: "dashed" }}><Plus size={14} /> Article libre</button>
+          </div>
+
+          {tiroir === "refaire" && aRefaire.length > 0 && (
+            <div style={{ ...card, border: `1px solid ${epuises.length ? C.jam + "55" : C.line}`, padding: "6px 14px 12px" }}>
               {aRefaire.slice(0, 12).map((p) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: `1px solid ${C.line}` }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} <span style={{ color: C.soft }}>· {p.unit}</span></span>
@@ -6842,78 +7064,56 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
               {aRefaire.length > 12 && <div style={{ fontSize: 11.5, color: C.soft, paddingTop: 8 }}>+ {aRefaire.length - 12} autre(s) — voir l'onglet Produits.</div>}
             </div>
           )}
-        </div>
-      )}
 
-      {pending.length > 0 && (
-        <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
-          <div style={{ ...h2, color: C.caramel }}>Commandes en cours ({pending.length})</div>
-          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Par date. « Modifier » pour ajouter/retirer un article ; « Valider le retrait » quand le client repart (remise + payée).</div>
-          {Object.keys(pendingByDate).map((d) => (
-            <div key={d} style={{ marginBottom: 6 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, textTransform: "capitalize", margin: "6px 0 2px" }}>{d}</div>
-              {pendingByDate[d].map((o) => (
-                <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+          {tiroir === "jour" && (
+            <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente · <span style={{ color: retro ? C.jam : C.ok }}>{jourLabel}</span></div>
+                {retro && <button onClick={() => { setRetro(false); setSaleDate(""); }} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: C.jam, color: "#fff", borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>}
+              </div>
+              <div style={{ marginTop: 12 }}><CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} /></div>
+              {retro && saleDate && (
+                <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span>{o.waSent === false && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 5, padding: "2px 5px", verticalAlign: "middle" }}>NON TRANSMISE</span>}</div>
-                      <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+                    <div style={{ flex: 1, fontSize: 12.5, color: C.jam, fontWeight: 700, lineHeight: 1.4 }}>Vente enregistrée pour le {new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
+                    <div style={{ width: 104 }}><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tiroir === "cmd" && pending.length > 0 && (
+            <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
+              <div style={{ fontSize: 12, color: C.soft, marginBottom: 6 }}>Par date. « Modifier » pour ajouter/retirer un article ; « Valider le retrait » quand le client repart (remise + payée).</div>
+              {Object.keys(pendingByDate).map((d) => (
+                <div key={d} style={{ marginBottom: 6 }}>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, textTransform: "capitalize", margin: "6px 0 2px" }}>{d}</div>
+                  {pendingByDate[d].map((o) => (
+                    <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span>{o.waSent === false && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 5, padding: "2px 5px", verticalAlign: "middle" }}>NON TRANSMISE</span>}</div>
+                          <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+                        </div>
+                        <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button onClick={() => oOpen(o)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
+                        <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={14} /> Valider le retrait</button>
+                      </div>
                     </div>
-                    <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <button onClick={() => oOpen(o)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
-                    <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={14} /> Valider le retrait</button>
-                  </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      )}
-
-      <div className="caisse-work">
-        <div className="caisse-products">
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
-            {cats.map((c) => {
-              const sel = c === activeCat;
-              return (
-                <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${sel ? C.board : C.line}`, background: sel ? C.board : C.paper, color: sel ? C.chalk : C.ink, borderRadius: 20, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-                  {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
-                </button>
-              );
-            })}
-          </div>
-          <button onClick={addCustomLine} className="ca-tap" style={{ width: "100%", marginBottom: 10, background: "#fff", border: `1.5px dashed ${C.jam}`, color: C.jam, borderRadius: 14, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Plus size={16} /> Article libre (nom + prix + quantité)</button>
-          <div className="caisse-grid" style={{ marginBottom: 6 }}>
-            {catItems.map((p) => {
-              const stockVal = p.stock == null ? null : Number(p.stock);
-              const epuise = stockVal === 0;
-              const faible = stockVal != null && stockVal > 0 && stockVal <= 5;
-              return (
-              <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : (epuise ? C.jam : C.line)}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78, opacity: epuise ? 0.6 : 1 }}>
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ display: "inline-flex" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={30} /></span>
-                  {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
-                </span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-                  {stockVal != null && (
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: epuise ? "#fff" : (faible ? "#fff" : C.soft), background: epuise ? C.jam : (faible ? C.caramel : "#f0ece0"), borderRadius: 6, padding: "2px 6px", flexShrink: 0 }}>{epuise ? "épuisé" : `${stockVal}`}</span>
-                  )}
-                </span>
-                {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
-              </button>
-              );
-            })}
-          </div>
+          )}
         </div>
 
         <div className="caisse-ticket" ref={ticketRef}>
           {tCount > 0 ? (
             <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
+              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok, display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} /> sauvegardée</span></div>
               {lines.map(([pid, l]) => (
                 <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -6931,11 +7131,11 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
                     <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>Prix unitaire</span>
                     <input inputMode="decimal" disabled={l.offert} value={l.price == null ? "" : String(l.price).replace(".", ",")} onChange={(e) => setLinePrice(pid, e.target.value.replace(",", "."))} style={{ width: 72, border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 7px", fontSize: 13, fontWeight: 700, color: l.offert ? C.soft : C.ink, background: l.offert ? "#f3ede0" : "#fff", textDecoration: l.offert ? "line-through" : "none" }} />
                     <span style={{ fontSize: 11.5, color: C.soft }}>€</span>
-                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{l.offert ? "✓ Offert" : "Offrir"}</button>
+                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{l.offert && <Check size={12} />}{l.offert ? "Offert" : "Offrir"}</button>
                   </div>
                 </div>
               ))}
-              <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
+              <button onClick={closeOrder} className="caisse-closebtn ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la vente · ${tCount} art.`}</span>
                 <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
               </button>
@@ -6950,14 +7150,13 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
         </div>
       </div>
 
+      {/* La barre du bas EST le bouton d'encaissement (au-dessus de .pro-nav, cf. §7.2) */}
       {tCount > 0 && (
-        <button onClick={() => ticketRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="caisse-mobilebar ca-tap">
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700 }}><ShoppingBag size={16} /> {tCount} art.</span>
-          <span style={{ fontFamily: SCRIPT, fontSize: 19 }}>{eur(tTotal)}</span>
+        <button onClick={closeOrder} className="caisse-mobilebar ca-tap" aria-label="Encaisser">
+          <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{tCount} article{tCount > 1 ? "s" : ""} · {eur(tTotal)}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 700 }}>{retro && saleDate ? `Enregistrer le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : "Encaisser"} <Check size={17} /></span>
         </button>
       )}
-
-      {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Vente enregistrée</div>}
 
       <div style={card}>
         <div style={h2}>{focusIsToday ? "Ventes du jour" : "Ventes du " + new Date(focusTs).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
@@ -6965,21 +7164,21 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
           <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune vente fermée aujourd'hui.</div>
         ) : todayOrders.map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
+            <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0, fontVariantNumeric: "lining-nums tabular-nums" }}>{hhmm(o.ts)}</span>
             <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + " ×" + it.qty).join(", ")}</span></span>
-            <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(o.total)}</span>
-            <button onClick={() => openEdit(o)} className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Settings size={13} /> Modifier</button>
-            <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annuler</button>
+            <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(o.total)}</span>
+            <button onClick={() => openEdit(o)} aria-label="Modifier la vente" className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Settings size={13} /><span className="caisse-lbl"> Modifier</span></button>
+            <button onClick={() => cancelOrder(o.id)} aria-label="Annuler la vente" className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /><span className="caisse-lbl"> Annuler</span></button>
           </div>
         ))}
       </div>
 
       <div style={card}>
         <div style={h2}>Par produit · aujourd'hui</div>
-        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([name, v]) => (
-          <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>× {v.qty}</span></span>
-            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ color: C.ink, minWidth: 0 }}>{v.name} <span style={{ color: C.soft }}>× {v.qty}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(v.sum)}</span>
           </div>
         ))}
       </div>
@@ -6997,11 +7196,14 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
       </div>
 
       <div style={{ ...card, marginBottom: 0 }}>
-        <div style={h2}>Historique par jour</div>
+        <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span>{histTout ? "Historique par jour" : "Historique · 7 derniers jours"}</span>
+          {dayRowsTous.length > 7 && <button onClick={() => setHistTout((v) => !v)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline", textTransform: "none", letterSpacing: 0, padding: 0 }}>{histTout ? "Réduire" : `Voir tout (${dayRowsTous.length} jours)`}</button>}
+        </div>
         {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : dayRows.map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
             <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} cmd</span></span>
-            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+            <span style={{ fontWeight: 700, color: C.jam, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(v.sum)}</span>
           </div>
         ))}
       </div>
