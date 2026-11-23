@@ -133,7 +133,16 @@ Fermer une vente en caisse (`closeOrder`) **décrémente le stock** des produits
 (hors offerts, hors articles libres sans fiche catalogue). `Math.max(0, ...)`.
 Symétriquement : **annuler** une vente rend le stock, **modifier** une vente applique la différence,
 et **« Valider le retrait »** d'une commande en ligne décrémente le stock (la commande n'est donc
-pas à repasser en caisse — elle compte déjà dans le chiffre d'affaires).
+pas à repasser en caisse — elle compte dans le chiffre d'affaires au retrait).
+
+### 5.3 bis — Définition UNIQUE du chiffre d'affaires
+`caPeriode(sales, orders, t0, t1)` (module, avec `fluxCA`) renvoie `{ total, caisse, enLigne, nbVentes, articles, panier… }`
+et sert **le Tableau de bord, le bandeau « CA du jour » de la Caisse et l'écran « Aujourd'hui »** (`ProAujourdhui`, onglet
+par défaut). Règle : une vente en caisse compte à sa clôture ; une commande en ligne compte quand elle est **VALIDÉE**
+(statut `Remise`, bouton « Valider le retrait »), plus à sa création — un client qui ne vient jamais ne gonfle plus le CA.
+Partout on affiche « Caisse X € + commandes retirées Y € ». Les commandes pas encore retirées sont annoncées à part.
+⚠ `admin_orders` ne renvoie que `created_at` : la commande est rattachée au jour où elle a été PASSÉE, pas retirée.
+Statuts : `À préparer` → `Prête` → `Remise`. Ne jamais recompter le CA à la main dans un écran : appeler `caPeriode`.
 
 ### 5.4 Règle de prix / marge
 - Le **prix de vente est figé** (fixé par le commerçant). On ne le recalcule jamais depuis la marge.
@@ -307,6 +316,27 @@ DLC — et en cas de contrôle il faut pouvoir dire **quel lot est en rayon**.
   s'étire à la largeur de son contenu et pousse la page entière (mesuré : **+144 px** en 320 px).
   Et la rangée « Achat » a besoin de `flexWrap` — une troisième pastille la sortait de l'écran.
 
+### 5.12 Coffrets : un produit composé de produits du catalogue
+Un coffret est un **produit** (`products`, catégorie « Coffrets ») qui porte `products.composition` (jsonb) :
+`{ items: [{ pid, qty }], emballage: [{ label, qty, cost }], visuel }`. Écran : onglet « Coffrets »
+(`ProCoffrets`, `CoffretEditeur`, `CoffretAssembler`, au niveau module — piège du focus §5.1 ter).
+- **Coût de revient** = Σ (prix d'achat des composants × qté) + emballages. Il n'est écrit dans `products.cost`
+  que si **tous** les prix d'achat sont connus ; sinon l'écran dit « incomplet » et ne montre pas de marge (§5.4 ter).
+- **Prix de vente saisi, jamais recalculé** ; marge et coef se déduisent.
+- **Stock** : le coffret a son propre stock. « J'ai fabriqué N coffrets » = `admin_assemble_coffret` : stock coffret + N,
+  composants − qté × N, en mouvements **relatifs et atomiques** (plus d'écrasement par une valeur périmée). Une vente en
+  Caisse ne baisse ensuite que le stock du coffret. Un composant peut passer en négatif (avertissement, pas de blocage).
+- **Nouvelles RPC** (migrations `add_coffret_composition`, `coffrets_admin_products_patch_stock`) :
+  `admin_save_composition`, `admin_assemble_coffret`, `admin_products` (TOUS les produits, y compris masqués),
+  `admin_patch_product` (champs en liste blanche, **ne touche jamais au stock**), `admin_adjust_stock` (± relatif).
+- ⚠ **L'admin ne voit que les produits actifs** : `supabase.from("products")` passe par le rôle anonyme, dont la règle
+  RLS est `active = true`. Un produit masqué disparaît donc de l'admin (hors écran Coffrets, qui lit `admin_products`).
+  Les composants créés pour les coffrets sont masqués ; ils se gèrent dans l'écran Coffrets (prix d'achat, réception).
+- Créés le 23/11/2026, **masqués** (`active=false`, prix de vente 0) : coffrets Pissaladière DIY, Apéro Provence,
+  Gourmandise, Gourmandise n°2 ; composants anchois, olives, thym, tapenade, anchoïade, crackers 100 g, orangettes 100 g.
+  Rendre un coffret visible en Caisse/boutique : lui saisir un prix de vente puis cocher « Visible ».
+- Le pot d'oignons « 300 g » du coffret DIY est `pissa-pot-500` (« Pissaladière de ma mère · pot 300g »).
+
 ### 5.8 Contrôle hygiène (fiche séparée, imprimable)
 Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
 document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
@@ -464,6 +494,21 @@ pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consom
 
 ---
 
+### 6.3 Écran de coordonnées : court, une main, Entrée valide
+`Coords` : un titre, une phrase, trois champs (prénom, nom, téléphone), la case de consentement, un bouton `type="submit"`
+**dans** le `<form>` (la touche Entrée / « Suivant » du clavier valide). Champs à **16 px** et 46 px de haut (sous 16 px iOS
+zoome). Erreur **par champ**, au `blur` ou à l'envoi ; téléphone français = 10 chiffres (`telValide`, 06 12…, +33…, 0033…),
+étranger = indicatif + 9 chiffres minimum. On passe à l'écran suivant **tout de suite** et `upsertClient` enregistre en
+arrière-plan ; un échec est conservé dans `ca_cust_pending` et **rejoué à la prochaine ouverture**. La case de consentement
+part de `cust.optin` et reste décochée pour un nouveau contact (un consentement précoché n'est pas valable).
+Le garde-fou de `ClientView` (`coordsOk`, ≥ 6 chiffres) reste volontairement plus souple : on n'enferme pas un client déjà inscrit.
+
+### 6.4 Fêtes : annonce → rubrique « Idées cadeaux & fêtes »
+`Shop` construit une rubrique **dérivée** (aucune donnée en plus, un produit n'est jamais dupliqué) : catégorie `Coffrets`
+ou nom contenant pain d'épices / miel / coffret. Si le titre ou le texte de l'annonce parle de Noël, de fêtes, de cadeau ou de
+pain d'épices, toucher l'annonce ouvre cette rubrique (`shopFocus`). Plus de texte de repli « fraise » : un bandeau retiré
+n'affiche rien. La clé de fermeture est un hachage du contenu complet (une annonce voisine n'est plus masquée à tort).
+
 ## 7. Style UI (respecter absolument)
 
 Palette `C` : cream `#EFE7D5`, paper `#FBF6EA`, board `#16140F`, ink `#241F17`, soft `#8C8068`,
@@ -480,6 +525,9 @@ Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn 
   un étranger garde son indicatif : **`+39 33 48 10 15 16`**. Affichage seul — la valeur saisie
   n'est jamais réécrite en base (c'est elle qui sert de clé dans `save_lead`, §4).
 - **Noms** : `capNom()` à l'affichage (« croci » → « Croci », « Dettori-campus » → « Dettori-Campus »).
+- **Jamais d'emoji** (règle du propriétaire, 23/11/2026) : toujours un pictogramme `lucide-react` (`Warn`, `Ok` au niveau
+  module pour les alertes et validations ; `Check`, `AlertTriangle`, `Lock`…). Vaut aussi pour les messages WhatsApp
+  générés (récap de commande, annonce de fournée). Les ornements typographiques `✦` et `♥` (note) restent.
 - **Colonnes de chiffres** : `fontVariantNumeric: "tabular-nums"`, sinon les chiffres ne s'alignent
   pas d'une ligne à l'autre. Une valeur à zéro se met en gris (`#C9C0AE`), pas en noir.
 - **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,
@@ -555,7 +603,7 @@ logique n'est dupliquée — une seule interface, pas deux codes à maintenir.
   poussait le badge « Espace commerçant » 13 px hors de l'écran.
 
 ### 7.3 — Comment vérifier réellement un changement d'interface ici
-Supabase est **injoignable depuis une session Claude Code** : impossible de passer le PIN, donc
+Supabase est **injoignable depuis le navigateur d'une session** (le connecteur MCP Supabase, lui, répond : lecture et migrations) : impossible de passer le PIN, donc
 impossible de charger l'admin connecté dans un navigateur. La méthode qui marche :
 `npx next start`, une page jetable qui monte `ProView` avec un jeu de produits complet, et
 Chromium (`/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell`, pas le binaire

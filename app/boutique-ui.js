@@ -4,13 +4,16 @@ import {
   ShoppingBag, Plus, Minus, Check, MapPin, Truck, Mail, Tag, Package,
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
-  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database
+  Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database,
+  Search, Printer, AlertTriangle, Info, ArrowRight, MoreHorizontal
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 const FONT = `
-@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&family=Anton&family=Fraunces:ital,opsz,wght@1,9..144,900&family=Work+Sans:wght@400;600&display=swap');
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+/* Raleway affiche par défaut des chiffres « à l'ancienne » (le 9 descend, le 5 flotte, les colonnes ne s'alignent pas) : on impose des chiffres de même hauteur partout. */
+* { font-variant-numeric: lining-nums; }
 input, textarea, select { font-family: 'Raleway', sans-serif; }
 input::placeholder, textarea::placeholder { color: #A89E89; font-weight: 400; }
 input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outline-offset: 0; }
@@ -27,15 +30,55 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
    "a cote" sans effet sur tout le reste de la page. backwards suffit : il n'y a aucun delai,
    et l'image finale (opacite 1, transform none) est deja l'etat naturel de l'element. */
 .ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) backwards; }
+/* Coffrets : une grille, des titres de colonnes au bureau ; sur téléphone la ligne s'empile (article en entier, puis qté / achat / total) */
+.cof-h, .cof-l { display: grid; grid-template-columns: minmax(0,1fr) 112px 92px 84px 36px; gap: 8px; align-items: end; }
+.cof-h { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 600; padding: 0 0 6px; }
+.cof-h .r { text-align: right; }
+.cof-l { padding: 8px 0 2px; border-top: 1px solid #241F1718; }
+.cof-l:first-of-type { border-top: none; }
+.cof-note { font-size: 11.5px; color: #8C8068; padding: 3px 0 8px; }
+.cof-cell { display: block; min-width: 0; }
+.cof-lab { display: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
+.cof-tot { text-align: right; font-weight: 700; font-size: 13.5px; font-variant-numeric: lining-nums tabular-nums; padding-bottom: 10px; white-space: nowrap; }
+.cof-c { display: grid; grid-template-columns: minmax(110px,1.5fr) 96px 52px 160px; gap: 8px; align-items: end; padding: 8px 0; border-top: 1px solid #241F1718; }
+.cof-c .nom { padding-bottom: 10px; font-size: 13px; }
+.cof-stk { font-weight: 700; font-size: 13.5px; text-align: right; padding-bottom: 10px; font-variant-numeric: lining-nums tabular-nums; }
+@media (max-width: 720px) {
+  .cof-h { display: none; }
+  .cof-l { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px; align-items: start; }
+  .cof-tot { padding: 10px 0 0; text-align: left; }
+  .cof-del { padding-top: 0; }
+  .cof-l .cof-art { grid-column: 1 / 4; }
+  .cof-l .cof-del { grid-column: 4; grid-row: 1; }
+  .cof-lab { display: block; }
+  .cof-note { padding-top: 0; }
+  .cof-c { grid-template-columns: minmax(0,1fr) 56px minmax(0,1fr); }
+  .cof-c .nom { grid-column: 1 / 4; padding-bottom: 0; }
+  .cof-h2 { display: none; }
+  .cof-stk { text-align: left; }
+}
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
 .pro-nav { width: 212px; background: #FBF6EA; border-right: 1px solid #241F1718; padding: 12px; flex-shrink: 0; }
+.pro-tab { width: 100%; display: flex; align-items: center; gap: 10px; border: none; cursor: pointer; padding: 11px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 3px; text-align: left; background: transparent; color: #241F17; position: relative; }
+.pro-tab.on { background: #16140F; color: #F3ECD6; }
+.lbl-m, .nav-plus, .pro-plus-wrap { display: none; }
 .pro-content { flex: 1; padding: 24px 26px; max-height: 706px; overflow-y: auto; background: #EFE7D5; }
-.caisse-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-@media (min-width: 600px) { .caisse-grid { grid-template-columns: repeat(3, 1fr); } }
 .caisse-empty-ticket { display: none; }
 .caisse-mobilebar { display: none; }
+.caisse-chip { display: none; }
+/* Produits : une LISTE sur téléphone (maquette 4), une grille de cartes dès 721 px. */
+.caisse-grid { display: block; border-bottom: 1px solid #241F1718; }
+.cprod { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #241F1718; }
+.cprod-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: none; padding: 0; margin: 0; cursor: pointer; font: inherit; color: inherit; }
+.cprod-side { flex-shrink: 0; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+@media (min-width: 721px) {
+  .caisse-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-bottom: none; }
+  .cprod { flex-direction: column; align-items: stretch; background: #FBF6EA; border: 1px solid #241F1718; border-radius: 14px; padding: 12px; gap: 8px; }
+  .cprod-side { flex-direction: row; align-items: center; justify-content: space-between; margin-left: 0; }
+  .cprod-sel { border-color: #7A2B33; }
+}
 @media (min-width: 900px) {
   .caisse-work { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
   .caisse-ticket { position: sticky; top: 0; }
@@ -65,12 +108,25 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 
 @media (max-width: 720px) {
   /* Le ticket de caisse remonte au-dessus de la barre d'onglets, sinon il la recouvre. */
-  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 15px; padding: 13px 18px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
+  .caisse-chip { display: inline-block; }
+  .caisse-ca, .caisse-hint, .caisse-closebtn, .caisse-lbl { display: none !important; }
+  .caisse-mobilebar { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 60; background: #16140F; color: #F3ECD6; border: none; border-radius: 14px; padding: 14px 16px; align-items: center; justify-content: space-between; box-shadow: 0 12px 28px -10px #00000070; cursor: pointer; }
   .pro-shell { flex-direction: column; min-height: 0; }
   /* Onglets en BAS sur téléphone : au marché on tient l'appareil d'une main, le haut de
      l'écran n'est pas atteignable. Même liste, même ordre — seule la position change. */
-  .pro-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; width: 100%; display: flex; gap: 2px; overflow-x: auto; border-right: none; border-bottom: none; border-top: 1px solid #241F1718; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; box-shadow: 0 -8px 22px -14px #00000066; }
-  .pro-nav button { width: auto !important; flex-direction: column; gap: 3px !important; white-space: nowrap; margin-bottom: 0 !important; flex-shrink: 0; font-size: 10.5px !important; padding: 7px 9px !important; min-width: 60px; justify-content: center; }
+  .pro-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; width: 100%; box-sizing: border-box; display: flex; gap: 2px; overflow-x: hidden; border-right: none; border-bottom: none; border-top: 1px solid #241F1718; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 22px -14px #00000066; }
+  /* 4 onglets fixes + « Plus » (les autres sont dans la grille .pro-plus) : cinq colonnes égales, jamais de défilement */
+  .pro-nav .nav-extra, .lbl-d { display: none !important; }
+  .lbl-m { display: inline; }
+  .nav-plus { display: flex; }
+  .pro-nav button { width: auto !important; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 3px !important; white-space: nowrap; margin-bottom: 0 !important; font-size: 10.5px !important; padding: 7px 2px !important; justify-content: center; align-items: center; }
+  .pro-tab.on { background: transparent; color: #7A2B33; box-shadow: inset 0 2px 0 #7A2B33; border-radius: 0 0 10px 10px; }
+  .pro-plus-wrap { display: block; position: fixed; inset: 0; z-index: 69; background: #16140f66; }
+  .pro-plus { position: absolute; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); background: #FBF6EA; border-radius: 18px 18px 0 0; padding: 16px 14px 22px; box-shadow: 0 -12px 30px -16px #00000070; }
+  .pro-plus-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .pro-plus-item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 66px; padding: 10px 4px; background: #fff; border: 1px solid #e3d9c0; border-radius: 12px; font-size: 12px; font-weight: 600; color: #241F17; cursor: pointer; text-align: center; }
+  .pro-plus-item.on { background: #7A2B33; border-color: #7A2B33; color: #fff; }
+  .pro-badge { position: absolute; top: 5px; right: 8px; min-width: 18px; height: 18px; border-radius: 9px; background: #B5722B; color: #fff; font-size: 11px; font-style: normal; display: grid; place-items: center; padding: 0 5px; box-sizing: border-box; }
   .pro-content { max-height: none; padding: 16px 14px calc(150px + env(safe-area-inset-bottom)); }
   /* Les grilles à colonnes fixes de l'admin (fiche produit, coordonnées client, promos,
      réglages) tenaient sur 6 colonnes : illisibles sur un téléphone. */
@@ -95,6 +151,22 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 /* Sous 360 px (petits iPhone) deux colonnes deviennent illisibles : on passe à une. */
 @media (max-width: 359px) {
   .pf-ing, .pf-row, .pro-cols2 { grid-template-columns: 1fr !important; }
+}
+/* --- Tableau de bord / Aujourd'hui : chiffres alignés, puces de période --- */
+.pro-content { font-variant-numeric: lining-nums; }
+.stat-chip { display: inline-flex; align-items: center; gap: 4px; border: none; border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; background: #ebe4d2; color: #8C8068; white-space: nowrap; }
+.stat-chip.on { background: #16140F; color: #fff; }
+.stat-ic { background: transparent; border: none; padding: 0 2px; color: inherit; display: inline-grid; place-items: center; cursor: pointer; }
+.stat-ic:disabled { opacity: .35; cursor: default; }
+.stat-duo { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; margin-top: 12px; align-items: start; }
+.stat-duo.gest-open .stat-gest { grid-column: 1 / -1; }
+.stat-h1 { font-size: 30px; }
+@media (max-width: 720px) {
+  .stat-chip { padding: 8px 12px; font-size: 13px; }
+  .stat-ic { padding: 6px; }
+  .stat-duo { grid-template-columns: minmax(0, 1fr); }
+  .stat-h1 { font-size: 26px; }
+  .stat-ligne { padding: 9px 0 !important; font-size: 14px !important; }
 }
 `;
 
@@ -130,8 +202,11 @@ NOTE:Des goûts et des saveurs d'antan. Circuit court, fait main.
 END:VCARD`;
 const VCARD_HREF = "data:text/vcard;charset=utf-8," + encodeURIComponent(VCARD);
 
-const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
+const CAT_ORDER = ["Confitures", "Gelées", "Gourmandises", "Coffrets", "Salé", "Miel", "Crème de marron", "Produits locaux", "Bientôt"];
+const FETES = "Idées cadeaux & fêtes";
 const CAT_SUB = {
+  [FETES]: "pain d'épices · miel · coffrets à offrir",
+  Coffrets: "prêts à offrir",
   Confitures: "fruits frais · locaux · sans traitement",
   "Gelées": "fruits frais · locaux · sans traitement",
   Gourmandises: "fait avec amour",
@@ -480,49 +555,54 @@ function Contact({ setStep, profile }) {
   );
 }
 
+// Numero francais : 10 chiffres (06 12 34 56 78, +33 6 12 34 56 78, 0033...). Etranger : indicatif + au moins 9 chiffres.
+const telValide = (t) => {
+  const brut = String(t || "").trim(); const d = brut.replace(/\D/g, "");
+  if (/^(\+|00)/.test(brut) && !/^(\+|00)33/.test(brut)) return d.length >= 9;
+  const nat = d.startsWith("0033") ? "0" + d.slice(4) : (d.startsWith("33") && brut.startsWith("+")) ? "0" + d.slice(2) : d;
+  return /^0\d{9}$/.test(nat);
+};
 function Coords({ cust, setCust, setStep, upsertClient, intent, profile }) {
-  const [optin, setOptin] = useState(false);
-  const ok = cust.prenom.trim() && cust.nom.trim() && cust.tel.replace(/\D/g, "").length >= 6;
+  // le consentement part de ce qui est deja enregistre : rouvrir la fiche ne doit pas faire croire qu'on l'a retire
+  const [optin, setOptin] = useState(!!cust.optin);
+  const [touched, setTouched] = useState({});
   const lead = intent === "lead";
   const set = (k) => (v) => setCust({ ...cust, [k]: v });
-  // on garde le consentement dans cust : sinon la commande repartait avec optin absent et écrasait l'accord donné ici
-  const valider = async (next) => { const c = { ...cust, optin }; setCust(c); await upsertClient(c); setStep(next); };
+  const errs = { prenom: cust.prenom.trim() ? "" : "Votre prénom", nom: cust.nom.trim() ? "" : "Votre nom", tel: telValide(cust.tel) ? "" : "Un numéro à 10 chiffres, par exemple 06 12 34 56 78" };
+  const ok = !errs.prenom && !errs.nom && !errs.tel;
+  const suite = lead ? "leadDone" : intent === "contact" ? "contact" : "shop";
+  const touch = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
+  // on garde le consentement dans cust : sinon la commande repartait avec optin absent et écrasait l'accord donné ici.
+  // On passe à l'écran suivant tout de suite : l'enregistrement se fait en arrière-plan (et se rejoue s'il échoue).
+  const valider = () => {
+    if (!ok) { setTouched({ prenom: true, nom: true, tel: true }); return; }
+    const c = { ...cust, optin }; setCust(c); setStep(suite); upsertClient(c);
+  };
+  const libelle = lead ? <>C'est parti <Check size={16} /></> : intent === "contact" ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Voir la carte <ChevronRight size={17} /></>;
   return (
-    <div className="ca-anim" style={{ padding: "18px 22px 28px" }}>
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ maxWidth: 250, margin: "0 auto" }}><Hero /></div>
-        <h2 style={{ fontFamily: SCRIPT, fontSize: 34, margin: "10px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
-        <div style={{ background: "#f6efdd", borderRadius: 14, padding: "13px 15px", margin: "12px 6px 0" }}>
-          <p style={{ fontSize: 16, color: C.jam, lineHeight: 1.4, margin: 0, fontWeight: 700 }}>Passez vos commandes&nbsp;!</p>
-          <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "3px 0 0", fontWeight: 500 }}>Recevez les dernières préparations de saison&nbsp;!</p>
-        </div>
-        <p style={{ fontSize: 13.5, color: C.soft, lineHeight: 1.5, margin: "10px 14px 0" }}>et recevez en avant-première nos nouvelles fournées et préparations de saison.</p>
-        <p style={{ fontSize: 15, color: C.ink, lineHeight: 1.5, margin: "12px 12px 0", fontWeight: 600 }}>Laissez-nous vos coordonnées 👋</p>
-        <p style={{ fontSize: 14, color: C.jam, lineHeight: 1.5, margin: "4px 14px 0", fontWeight: 700 }}>On garde le contact&nbsp;!</p>
+    <div className="ca-anim" style={{ padding: "14px 22px 28px" }}>
+      <div style={{ textAlign: "center", marginBottom: 12 }}>
+        <div style={{ maxWidth: 110, margin: "0 auto" }}><Hero /></div>
+        <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: "6px 0 0", color: C.jam }}>Ravis de vous voir&nbsp;!</h2>
+        <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.45, margin: "6px 10px 0", fontWeight: 500 }}>Laissez vos coordonnées : commandez et recevez nos fournées en avant-première.</p>
       </div>
-      <form autoComplete="on" onSubmit={(e) => e.preventDefault()}>
+      <form autoComplete="on" onSubmit={(e) => { e.preventDefault(); valider(); }}>
         <input type="text" name="name" autoComplete="name" tabIndex={-1} aria-hidden="true" value={`${cust.prenom} ${cust.nom}`.trim()} onChange={(e) => { const parts = e.target.value.trim().split(/\s+/); setCust({ ...cust, prenom: parts[0] || "", nom: parts.slice(1).join(" ") }); }} style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-          <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" />
-          <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" />
+          <Field label="Prénom" value={cust.prenom} onChange={set("prenom")} name="given-name" autoComplete="given-name" autoFocus enterKeyHint="next" onBlur={touch("prenom")} error={touched.prenom ? errs.prenom : ""} />
+          <Field label="Nom" value={cust.nom} onChange={set("nom")} name="family-name" autoComplete="family-name" enterKeyHint="next" onBlur={touch("nom")} error={touched.nom ? errs.nom : ""} />
         </div>
-        <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" />
+        <Field label="Téléphone" value={cust.tel} onChange={set("tel")} type="tel" name="tel" autoComplete="tel" ph="06 12 34 56 78" enterKeyHint="go" onBlur={touch("tel")} error={touched.tel ? errs.tel : ""} />
+        {/* Le consentement était stocké mais jamais demandé : sans cette case, aucun nouveau contact
+            n'était joignable pour annoncer une fournée, et l'audience « Consentement » de Publimail restait vide.
+            Case décochée au départ : un consentement précoché n'est pas valable. */}
+        <button type="button" onClick={() => setOptin((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 2, display: "flex", alignItems: "flex-start", gap: 10, background: optin ? "#7A2B330d" : C.cream, border: `1.5px solid ${optin ? C.jam : C.line}`, borderRadius: 13, padding: "12px 13px", cursor: "pointer", textAlign: "left" }}>
+          <span style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${optin ? C.jam : C.soft}`, background: optin ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{optin && <Check size={14} color="#fff" />}</span>
+          <span style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.45, fontWeight: 600 }}>Prévenez-moi des nouvelles fournées et des idées cadeaux<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400, marginTop: 2 }}>Par WhatsApp ou SMS, un message par fournée. Désinscription sur simple demande.</span></span>
+        </button>
+        <button type="submit" className="ca-tap" style={{ width: "100%", marginTop: 12, background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "16px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 }}>{libelle}</button>
       </form>
-      {/* Le consentement était stocké mais jamais demandé : sans cette case, aucun nouveau contact
-          n'était joignable pour annoncer une fournée, et l'audience « Consentement » de Publimail restait vide. */}
-      <button onClick={() => setOptin((v) => !v)} className="ca-tap" style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "flex-start", gap: 10, background: optin ? "#7A2B330d" : C.cream, border: `1.5px solid ${optin ? C.jam : C.line}`, borderRadius: 13, padding: "12px 13px", cursor: "pointer", textAlign: "left" }}>
-        <span style={{ width: 21, height: 21, borderRadius: 7, border: `2px solid ${optin ? C.jam : C.soft}`, background: optin ? C.jam : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{optin && <Check size={13} color="#fff" />}</span>
-        <span style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.45, fontWeight: 600 }}>Prévenez-moi des nouvelles fournées 🍓<span style={{ display: "block", fontSize: 11.5, color: C.soft, fontWeight: 400, marginTop: 2 }}>Un message quand les confitures de saison sortent du chaudron. Sans engagement.</span></span>
-      </button>
-      <div style={{ marginTop: 10 }}>
-        {lead
-          ? <BigBtn disabled={!ok} onClick={() => valider("leadDone")}>{ok ? <>C'est parti <Check size={16} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-          : intent === "contact"
-            ? <BigBtn disabled={!ok} onClick={() => valider("contact")}>{ok ? <>Voir nos coordonnées <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</BigBtn>
-            : <button disabled={!ok} onClick={() => valider("shop")} className="ca-tap" style={{ width: "100%", background: ok ? C.jam : C.line, color: ok ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "16px 18px", fontWeight: 700, fontSize: 15, cursor: ok ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{ok ? <>Valider et accéder à la carte <ChevronRight size={17} /></> : <>Complétez pour continuer <Lock size={15} /></>}</button>}
-      </div>
-      {!ok && <p style={{ fontSize: 12, color: C.caramel, textAlign: "center", marginTop: 10, fontWeight: 600 }}>Prénom, nom et téléphone pour continuer.</p>}
-      <p style={{ fontSize: 11, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}>🔒 Vos infos restent chez nous, jamais partagées. Email &amp; adresse plus tard, si vous commandez.</p>
+      <p style={{ fontSize: 11.5, color: C.soft, textAlign: "center", lineHeight: 1.5, margin: "12px 8px 0" }}><Lock size={12} style={{ verticalAlign: "-1px" }} /> Jamais partagées. Aucun email demandé.</p>
     </div>
   );
 }
@@ -540,10 +620,15 @@ function LeadDone({ setStep, resetClient, cust }) {
   );
 }
 
-function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
+function Shop({ products, cart, add, sub1, count, total, setStep, reviews, shopFocus }) {
   const extra = [...new Set(products.filter((p) => p.active !== false && !CAT_ORDER.includes(p.cat)).map((p) => p.cat))];
-  const cats = [...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c));
-  const [open, setOpen] = useState({});
+  // sélection dérivée (aucune donnée en plus) : un produit reste dans sa vraie catégorie, on ne le duplique pas en base
+  const fetes = products.filter((p) => p.active !== false && (p.cat === "Coffrets" || /pain d.epices|miel|coffret/.test((p.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))));
+  const cats = [...(fetes.length ? [FETES] : []), ...[...CAT_ORDER, ...extra].filter((c) => products.some((p) => p.active !== false && p.cat === c))];
+  const veutFetes = !!shopFocus && String(shopFocus).startsWith("fetes");
+  const [open, setOpen] = useState(veutFetes && fetes.length ? { [FETES]: true } : {});
+  // l'annonce peut être touchée alors que la carte est déjà affichée : on ouvre la rubrique à chaque demande
+  useEffect(() => { if (veutFetes && fetes.length) setOpen({ [FETES]: true }); }, [shopFocus]);
   const toggle = (c) => setOpen((o) => (o[c] ? {} : { [c]: true }));
   return (
     <div className="ca-anim" style={{ padding: "4px 0 92px" }}>
@@ -556,7 +641,7 @@ function Shop({ products, cart, add, sub1, count, total, setStep, reviews }) {
         </div>
       </div>
       {cats.map((cat) => {
-        const items = products.filter((p) => p.active !== false && p.cat === cat);
+        const items = cat === FETES ? fetes : products.filter((p) => p.active !== false && p.cat === cat);
         const isOpen = !!open[cat];
         return (
           <div key={cat} style={{ borderTop: `1px solid ${C.line}` }}>
@@ -706,7 +791,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
   };
 
   const lignes = o.lines.map((l) => `• ${l.qty}x ${l.name} (${l.unit}) — ${eur(l.price * l.qty)}`).join("\n");
-  const recap = `🛒 COMMANDE ${profile.name} — réf. ${o.id}\n———————————\n👤 ${cust?.prenom || ""} ${cust?.nom || ""}\n📞 ${cust?.tel || ""}\n✉️ ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\n📅 Retrait souhaité : ${o.pickup || "à convenir"}\n📍 Au stand, sur le marché${!paymentEnabled ? "\n💶 Règlement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité 🙂`;
+  const recap = `COMMANDE ${profile.name} — réf. ${o.id}\n———————————\nClient : ${cust?.prenom || ""} ${cust?.nom || ""}\nTél : ${cust?.tel || ""}\nEmail : ${cust?.email || ""}\n———————————\nBonjour ! Je souhaite passer commande :\n\n${lignes}\n\nTotal : ${eur(o.total)}\nRetrait souhaité : ${o.pickup || "à convenir"}\nAu stand, sur le marché${!paymentEnabled ? "\nRèglement à l'enlèvement" : ""}\n\nMerci de me confirmer la disponibilité.`;
   const wa = `https://wa.me/${profile.wa}?text=${encodeURIComponent(recap)}`;
   const mailto = `mailto:${profile.email}?subject=${encodeURIComponent("Commande " + profile.name + " " + o.id)}&body=${encodeURIComponent(recap)}`;
   // pas d'ouverture automatique de WhatsApp : Safari iOS la bloque, et la commande restait alors marquée "non transmise".
@@ -728,7 +813,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
         {sent ? <Check size={18} color={C.ok} style={{ marginTop: 1, flexShrink: 0 }} /> : <MessageCircle size={18} color={C.caramel} style={{ marginTop: 1, flexShrink: 0 }} />}
         <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
           {sent
-            ? <><b>Commande transmise ✓</b> Nous vous recontactons rapidement pour confirmer.</>
+            ? <><b>Commande transmise</b> Nous vous recontactons rapidement pour confirmer.</>
             : <><b>Dernière étape obligatoire : envoyez votre commande.</b> Sans cet envoi, nous ne sommes pas prévenus et votre commande ne sera pas préparée.</>}
         </div>
       </div>
@@ -742,7 +827,7 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
         <div onClick={() => setAsk(false)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "22px 18px", textAlign: "center", boxShadow: "0 24px 60px -16px #000" }}>
             <div style={{ fontFamily: SCRIPT, fontSize: 25, color: C.jam, marginBottom: 4 }}>Merci {cust?.prenom || ""} !</div>
-            <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique 🍓</p>
+            <p style={{ fontSize: 14, color: C.ink, lineHeight: 1.5, margin: "0 0 14px" }}>Votre plaisir compte. Donnez une note et un mot — ça aide beaucoup la petite fabrique</p>
             <div style={{ marginBottom: 16 }}><Stars value={0} size={36} onChange={() => { setAsk(false); setStep("avis"); }} /></div>
             <BigBtn onClick={() => { setAsk(false); setStep("avis"); }}>Donner mon avis <ChevronRight size={16} /></BigBtn>
             <button onClick={() => setAsk(false)} className="ca-tap" style={{ width: "100%", marginTop: 10, background: "transparent", border: "none", color: C.soft, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Plus tard</button>
@@ -753,19 +838,273 @@ function Done({ lastOrder, resetClient, paymentEnabled, cust, profile, setStep }
   );
 }
 
+/* ---------------- Définition unique du chiffre d'affaires ----------------
+   Une SEULE règle, partagée par le Tableau de bord, le bandeau « CA du jour » de la Caisse et
+   l'écran « Aujourd'hui » : sinon chaque écran donnait un chiffre différent pour la même journée.
+   - une vente en caisse compte à sa clôture (elle n'existe qu'une fois fermée) ;
+   - une commande en ligne compte quand l'admin l'a VALIDÉE (« Valider le retrait » → statut « Remise »),
+     pas à sa création : un client qui ne vient jamais ne gonfle plus le chiffre d'affaires.
+   Statuts d'une commande (STATUSES, ProOrders) : « À préparer » → « Prête » → « Remise ».
+   ⚠ La commande n'a pas de date de validation en base (admin_orders ne renvoie que created_at) :
+   elle est rattachée au jour où elle a été PASSÉE. Une commande passée samedi et retirée dimanche
+   compte donc samedi. */
+const STATUT_RETIRE = "Remise";
+const fluxCA = (sales, orders) => {
+  const out = [];
+  (sales || []).forEach((s) => out.push({ kind: "caisse", ts: Number(s.ts), total: Number(s.total) || 0, items: s.items || [], nb: Number(s.count) || 0 }));
+  (orders || []).forEach((o) => { if (o.status !== STATUT_RETIRE) return; out.push({ kind: "enLigne", ts: Number(o.ts), total: Number(o.total) || 0, items: o.lines || [], nb: Number(o.items) || 0 }); });
+  return out;
+};
+function caPeriode(sales, orders, t0, t1) {
+  const a = +t0, b = +t1;
+  const r = { total: 0, caisse: 0, enLigne: 0, nbVentes: 0, nbCaisse: 0, nbEnLigne: 0, articles: 0, articlesEnLigne: 0, panier: 0 };
+  fluxCA(sales, orders).forEach((f) => {
+    if (!(f.ts >= a && f.ts < b)) return;
+    const q = (f.items || []).reduce((s, i) => s + (Number(i.qty) || 0), 0) || f.nb;
+    r.total += f.total; r.nbVentes += 1; r.articles += q;
+    if (f.kind === "caisse") { r.caisse += f.total; r.nbCaisse += 1; }
+    else { r.enLigne += f.total; r.nbEnLigne += 1; r.articlesEnLigne += q; }
+  });
+  r.panier = r.nbVentes ? r.total / r.nbVentes : 0;
+  return r;
+}
+// Montant à la française, espace des milliers : 1 240 €, 21,4 €. Pas de décimale quand le compte est rond.
+const eurF = (n, max = 2) => {
+  const k = Math.pow(10, max); const v = Math.round((Number(n) || 0) * k) / k;
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: Number.isInteger(v) ? 0 : max, maximumFractionDigits: max }).replace(/ /g, " ") + " €";
+};
+const NUM = { fontVariantNumeric: "lining-nums tabular-nums" };
+
+/* Tuile de chiffre (maquette 5) : libellé, valeur, ligne de contexte. Module : jamais définie dans un composant. */
+function Tuile({ label, value, sub, variante }) {
+  const jam = variante === "jam", dk = variante === "dk";
+  return (
+    <div style={{ flex: "1 1 130px", minWidth: 130, boxSizing: "border-box", background: jam ? C.jam : dk ? C.board : C.paper, color: jam || dk ? "#fff" : C.ink, border: jam || dk ? "none" : "1px solid #e3d9c0", borderRadius: 12, padding: "10px 14px" }}>
+      <div style={{ fontSize: 10.5, letterSpacing: "1.5px", textTransform: "uppercase", fontWeight: 600, color: jam ? "#e8c9cd" : dk ? "#cfc6b0" : C.soft }}>{label}</div>
+      <div style={{ ...NUM, fontSize: 21, fontWeight: 600, marginTop: 1 }}>{value}</div>
+      {sub ? <div style={{ ...NUM, fontSize: 12, lineHeight: 1.4, color: jam ? "#f1dde0" : C.soft }}>{sub}</div> : null}
+    </div>
+  );
+}
+
+/* Ligne repliable du bloc « Gestion ». */
+function LigneGestion({ titre, ouvert, onToggle, children }) {
+  return (
+    <div>
+      <button onClick={onToggle} aria-expanded={!!ouvert} className="ca-tap stat-ligne" style={{ display: "flex", width: "100%", alignItems: "center", gap: 6, background: "transparent", border: "none", padding: "5px 0", cursor: "pointer", textAlign: "left", color: C.soft, fontSize: 13, fontWeight: 500 }}>
+        <ChevronRight size={14} style={{ flexShrink: 0, transform: ouvert ? "rotate(90deg)" : "none", transition: "transform .2s" }} /> <span>{titre}</span>
+      </button>
+      {ouvert && <div style={{ padding: "6px 0 12px" }}>{children}</div>}
+    </div>
+  );
+}
+
+/* Courbe SVG inline du CA cumulé : période en cours (trait plein) contre période précédente (pointillé).
+   Largeur mesurée : en viewBox fixe, la police tombait à 5 px sur un téléphone.
+   cur / prev : CA par sous-période (heure, jour, mois…). nowIdx : dernière sous-période écoulée (null = période finie). */
+const lissage = (pts) => {
+  const n = pts.length;
+  if (n < 3) return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const dx = [], m = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
+    if (s > 9) { const tau = 3 / Math.sqrt(s); t[i] = tau * a * m[i]; t[i + 1] = tau * b * m[i]; }
+  }
+  let d = "M" + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+  for (let i = 0; i < n - 1; i++) {
+    d += " C" + (pts[i][0] + dx[i] / 3).toFixed(1) + " " + (pts[i][1] + t[i] * dx[i] / 3).toFixed(1) + " " + (pts[i + 1][0] - dx[i] / 3).toFixed(1) + " " + (pts[i + 1][1] - t[i + 1] * dx[i] / 3).toFixed(1) + " " + pts[i + 1][0].toFixed(1) + " " + pts[i + 1][1].toFixed(1);
+  }
+  return d;
+};
+const maxJoli = (v) => {
+  if (!(v > 0)) return 3;
+  const brut = v / 3, mag = Math.pow(10, Math.floor(Math.log10(brut)));
+  const pas = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((k) => k * mag).find((x) => x >= brut - 1e-9) || 10 * mag;
+  return pas * 3;
+};
+function GraphiqueCA({ cur, prev, nowIdx, ticks, legende, titres, onPick }) {
+  const ref = useRef(null);
+  const [w, setW] = useState(720);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const set = () => setW(Math.max(260, Math.round(el.getBoundingClientRect().width)));
+    set();
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(set); ro.observe(el); } else window.addEventListener("resize", set);
+    return () => { if (ro) ro.disconnect(); else window.removeEventListener("resize", set); };
+  }, []);
+  const n = cur.length;
+  const cumul = (arr, k) => { const out = [0]; let s = 0; for (let i = 0; i < k; i++) { s += Number(arr[i]) || 0; out.push(s); } return out; };
+  const kCur = nowIdx == null ? n : Math.max(0, Math.min(n, nowIdx + 1));
+  const C1 = cumul(cur, kCur);
+  const P1 = prev ? cumul(prev, Math.min(prev.length, n)) : null;
+  const vmax = Math.max(0, ...C1, ...(P1 || []));
+  const H = w < 480 ? 176 : 200, padL = 46, padR = 12, padT = 12, padB = 26;
+  const ymax = maxJoli(vmax);
+  const X = (i) => padL + (i / n) * (w - padL - padR);
+  const Y = (v) => padT + (1 - v / ymax) * (H - padT - padB);
+  const ptsCur = C1.map((v, i) => [X(i), Y(v)]);
+  const ptsPrev = P1 ? P1.map((v, i) => [X(i), Y(v)]) : null;
+  const last = ptsCur[ptsCur.length - 1];
+  const grille = [0, 1, 2, 3].map((k) => (ymax * k) / 3);
+  // étiquettes d'axe : on écarte celles qui se chevauchent (38 px mini entre deux)
+  const etiq = []; let dernierX = -1e9;
+  ticks.forEach((t) => { const x = X(t.pos); if (x - dernierX >= 38) { etiq.push({ ...t, x }); dernierX = x; } });
+  const fmtY = (v) => Math.round(v).toLocaleString("fr-FR").replace(/ /g, " ");
+  if (vmax <= 0) return <div style={{ fontSize: 13, color: C.soft, padding: "14px 0" }}>Aucune vente sur cette période.</div>;
+  return (
+    <div ref={ref} style={{ width: "100%", maxWidth: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: "4px 18px", fontSize: 12, color: C.ink, margin: "0 0 2px" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke={C.jam} strokeWidth="3.5" /></svg>{legende[0]}</span>
+        {P1 && <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><svg width="26" height="8" aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke={C.caramel} strokeWidth="2.5" strokeDasharray="6 6" /></svg>{legende[1]}</span>}
+      </div>
+      <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label="Chiffre d'affaires cumulé" style={{ display: "block", maxWidth: "100%", overflow: "hidden" }}>
+        {grille.map((v, k) => (
+          <g key={k}>
+            <line x1={padL} x2={w - padR} y1={Y(v)} y2={Y(v)} stroke="#e3d9c0" />
+            <text x={padL - 8} y={Y(v) + 4} textAnchor="end" fontSize="11" fill={C.soft} style={NUM}>{fmtY(v)}</text>
+          </g>
+        ))}
+        {etiq.map((t, k) => (
+          <text key={k} x={t.x} y={H - 7} textAnchor={t.x < padL + 8 ? "start" : t.x > w - padR - 14 ? "end" : "middle"} fontSize="11" fill={C.soft} style={NUM}>{t.lab}</text>
+        ))}
+        {ptsPrev && <path d={lissage(ptsPrev)} fill="none" stroke={C.caramel} strokeWidth="2.5" strokeDasharray="6 6" strokeLinecap="round" />}
+        <path d={lissage(ptsCur)} fill="none" stroke={C.jam} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={last[0]} cy={last[1]} r="5" fill={C.jam} />
+        {onPick && cur.map((v, i) => v > 0 ? (
+          <rect key={i} x={X(i)} y={padT} width={Math.max(2, X(i + 1) - X(i))} height={H - padT - padB} fill="transparent" style={{ cursor: "pointer" }} onClick={() => onPick(i)}><title>{(titres && titres[i]) || ""}</title></rect>
+        ) : null)}
+      </svg>
+    </div>
+  );
+}
+
+/* ---------------- Écran d'accueil « Aujourd'hui » ----------------
+   Tout ce qui compte à l'ouverture, sans fouiller : composé uniquement de données déjà chargées par ProView. */
+function ProAujourdhui({ sales, orders, products, onGo }) {
+  const now = new Date();
+  const j0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const j1 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const p0 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+  const ecoule = now - j0;
+  const auj = caPeriode(sales, orders, j0, j1);
+  // même jour de la semaine dernière, mesuré sur la MÊME durée écoulée : comparer une matinée à une journée entière fausserait l'écart
+  const prec = caPeriode(sales, orders, p0, new Date(+p0 + ecoule));
+  const jourNom = j0.toLocaleDateString("fr-FR", { weekday: "long" });
+  const ecart = prec.total > 0 ? Math.round(((auj.total - prec.total) / prec.total) * 100) : null;
+  const dateTxt = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const enCours = (orders || []).filter((o) => o.status !== STATUT_RETIRE).sort((a, b) => ((a.status === "Prête") - (b.status === "Prête")) || (a.ts - b.ts));
+  const nbPretes = enCours.filter((o) => o.status === "Prête").length;
+  const nbAPreparer = enCours.length - nbPretes;
+  const aRefaire = (products || []).filter((p) => p.active !== false && !p.soon && (Number(p.stock) || 0) <= 5).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+  const dernieres = [...(sales || [])].sort((a, b) => b.ts - a.ts).slice(0, 5);
+  const heure = (ts) => {
+    const d = new Date(ts); const hm = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return d >= j0 ? hm : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }) + " " + hm;
+  };
+  const lbl = { fontSize: 10.5, letterSpacing: "1.3px", fontWeight: 600, color: C.soft, textTransform: "uppercase" };
+  const carte = { background: C.paper, borderRadius: 14, padding: "14px 16px", border: "none", textAlign: "left", font: "inherit", color: C.ink, minWidth: 0 };
+  return (
+    <div className="ca-anim" style={{ maxWidth: 820, paddingBottom: 24, ...NUM }}>
+      <div style={{ fontSize: 12.5, color: C.soft, fontWeight: 600 }}>Aujourd&apos;hui · {dateTxt}</div>
+      <div style={{ background: C.jam, color: "#fff", borderRadius: 14, padding: "14px 16px", marginTop: 8 }}>
+        <div style={{ fontSize: 10.5, letterSpacing: "1.5px", fontWeight: 600, color: "#e8c9cd" }}>CHIFFRE D&apos;AFFAIRES DU JOUR</div>
+        <div style={{ fontSize: 34, fontWeight: 600, lineHeight: 1.2 }}>{eurF(auj.total)}</div>
+        <div style={{ fontSize: 12.5, color: "#f1dde0", lineHeight: 1.45 }}>
+          Caisse {eurF(auj.caisse)} + commandes retirées {eurF(auj.enLigne)}<br />
+          {auj.nbVentes} vente{auj.nbVentes > 1 ? "s" : ""} · panier moyen {auj.nbVentes ? eurF(auj.panier) : "—"}
+          {ecart != null ? <> · <b>{ecart >= 0 ? "▲ +" : "▼ −"}{Math.abs(ecart)} %</b> vs {jourNom} dernier à la même heure</> : (auj.total > 0 ? <> · aucune vente {jourNom} dernier à cette heure</> : null)}
+        </div>
+      </div>
+      <button onClick={() => onGo("caisse")} className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: 13, fontSize: 15, fontWeight: 600, cursor: "pointer", margin: "10px 0" }}>Encaisser <ArrowRight size={17} /></button>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 10 }}>
+        <button onClick={() => onGo("commandes")} className="ca-tap" style={{ ...carte, cursor: "pointer" }}>
+          <div style={lbl}>À préparer</div>
+          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{nbAPreparer}</b> commande{nbAPreparer > 1 ? "s" : ""}</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
+            {enCours.length === 0 ? "Rien en attente" : enCours.slice(0, 3).map((o) => <div key={o.id} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{capNom(o.name) || "Client"} · {o.pickup || o.date}{o.status === "Prête" ? " · prête" : ""}</div>)}
+            {enCours.length > 3 && <div>+ {enCours.length - 3} autre{enCours.length - 3 > 1 ? "s" : ""}{nbPretes > 0 ? ` (dont ${nbPretes} prête${nbPretes > 1 ? "s" : ""} à remettre)` : ""}</div>}
+          </div>
+        </button>
+        <button onClick={() => onGo("produits")} className="ca-tap" style={{ ...carte, cursor: "pointer" }}>
+          <div style={lbl}>À refaire</div>
+          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{aRefaire.length}</b> produit{aRefaire.length > 1 ? "s" : ""}</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
+            {aRefaire.length === 0 ? "Stocks suffisants" : aRefaire.slice(0, 3).map((p) => <div key={p.id} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} · {Number(p.stock) || 0}</div>)}
+            {aRefaire.length > 3 && <div>+ {aRefaire.length - 3} autre{aRefaire.length - 3 > 1 ? "s" : ""}</div>}
+          </div>
+        </button>
+      </div>
+      <div style={{ ...carte, marginTop: 10 }}>
+        <div style={lbl}>Dernières ventes</div>
+        {dernieres.length === 0 ? <div style={{ fontSize: 13, color: C.soft, paddingTop: 8 }}>Aucune vente enregistrée.</div> : dernieres.map((s, i) => {
+          const txt = (s.items || []).map((x) => `${x.qty} × ${x.name}`).join(", ");
+          return (
+            <div key={s.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: `1px solid ${C.line}`, marginTop: i === 0 ? 6 : 0, fontSize: 13 }}>
+              <span style={{ color: C.soft, flexShrink: 0 }}>{heure(s.ts)}</span>
+              <span title={txt} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{txt || `${s.count || 0} article(s)`}</span>
+              <b style={{ flexShrink: 0, fontWeight: 600 }}>{eurF(s.total)}</b>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- PRO ---------------- */
 function ProView({ sales, setSales, orders, setOrders, products, setProducts, clients, promos, setPromos, paymentEnabled, setPaymentEnabled, profile, setProfile, onLogout, onRefresh, loading, pass, visits, batches, rendement }) {
-  const [tab, setTab] = useState("caisse");
-  // ordre pensé pour le marché : ce qui sert au stand d'abord, la gestion de fond ensuite
-  const NAV = [["caisse", "Caisse", CreditCard], ["commandes", "Commandes", ShoppingBag], ["produits", "Produits", Package], ["stats", "Tableau de bord", TrendingUp], ["gestion", "Production", Percent], ["clients", "Clients (CRM)", Users], ["fournisseurs", "Fournisseurs", Truck], ["publimail", "Publimail", Mail], ["promos", "Promos", Tag], ["profil", "Enseigne", Store], ["reglages", "Réglages", Settings]];
+  // l'accueil est « Aujourd'hui » : la Caisse est à un toucher (gros bouton « Encaisser » + onglet)
+  const [tab, setTab] = useState("aujourdhui");
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [ouvrirFournee, setOuvrirFournee] = useState(null); // id d'une fournée à ouvrir dans Production
+  const go = (k) => { setTab(k); setPlusOpen(false); };
+  // [clé, libellé bureau, libellé mobile, icône, fixe sur mobile]. Sur téléphone : 4 onglets fixes + « Plus ».
+  // Le composant Coffrets est ajouté par une autre branche : l'entrée n'apparaît que s'il existe.
+  const aCoffrets = true;
+  const NAV = [
+    ["aujourdhui", "Aujourd'hui", "Aujourd'hui", Calendar, true],
+    ["caisse", "Caisse", "Caisse", CreditCard, true],
+    ["commandes", "Commandes", "Commandes", ShoppingBag, false],
+    ["produits", "Produits", "Produits", Package, true],
+    ...(aCoffrets ? [["coffrets", "Coffrets", "Coffrets", Sparkles, false]] : []),
+    ["stats", "Tableau de bord", "Chiffres", TrendingUp, true],
+    ["gestion", "Production", "Production", Percent, false],
+    ["clients", "Clients (CRM)", "Clients", Users, false],
+    ["fournisseurs", "Fournisseurs", "Fournisseurs", Truck, false],
+    ["publimail", "Publimail", "Publimail", Mail, false],
+    ["promos", "Promos", "Promos", Tag, false],
+    ["profil", "Enseigne", "Enseigne", Store, false],
+    ["reglages", "Réglages", "Réglages", Settings, false],
+  ];
+  const extras = NAV.filter((n) => !n[4]);
+  const nbAPreparer = (orders || []).filter((o) => o.status !== STATUT_RETIRE).length;
+  const plusActif = extras.some((n) => n[0] === tab);
   return (
     <div className="pro-shell">
       <div className="pro-nav">
-        {NAV.map(([k, lbl, Ic]) => (
-          <button key={k} onClick={() => setTab(k)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, border: "none", cursor: "pointer", padding: "11px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 3, textAlign: "left", background: tab === k ? C.board : "transparent", color: tab === k ? C.chalk : C.ink }}><Ic size={16} /> {lbl}</button>
+        {NAV.map(([k, lbl, lblM, Ic, fixe]) => (
+          <button key={k} onClick={() => go(k)} className={`ca-tap pro-tab${tab === k && !plusOpen ? " on" : ""}${fixe ? "" : " nav-extra"}`} aria-current={tab === k ? "page" : undefined}><Ic size={16} /> <span className="lbl-d">{lbl}</span><span className="lbl-m">{lblM}</span></button>
         ))}
+        <button onClick={() => setPlusOpen((v) => !v)} className={`ca-tap pro-tab nav-plus${plusActif || plusOpen ? " on" : ""}`} aria-expanded={plusOpen} aria-label="Plus d'onglets"><MoreHorizontal size={16} /> <span className="lbl-m">Plus</span></button>
       </div>
+      {plusOpen && (
+        <div className="pro-plus-wrap" onClick={() => setPlusOpen(false)}>
+          <div className="pro-plus ca-anim" onClick={(e) => e.stopPropagation()}>
+            <div className="pro-plus-grid">
+              {extras.map(([k, lbl, , Ic]) => (
+                <button key={k} onClick={() => go(k)} className={`ca-tap pro-plus-item${tab === k ? " on" : ""}`}><Ic size={20} /><span>{lbl}</span>{k === "commandes" && nbAPreparer > 0 && <i className="pro-badge">{nbAPreparer}</i>}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="ca-scroll pro-content">
+        {tab === "aujourdhui" && <ProAujourdhui {...{ sales, orders, products, onGo: go }} />}
         {tab === "caisse" && <ProCaisse {...{ products, setProducts, sales, setSales, pass, orders, setOrders }} />}
         {tab === "stats" && <ProStats {...{ sales, orders, visits, clients, products, batches, rendement, onRefresh, loading }} />}
         {/* Onglet Matières retiré de la navigation : la fournée EST déjà la déclaration d'achat
@@ -773,9 +1112,10 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
             doublonnait la saisie. Les achats cumulés et le prévisionnel doivent se déduire des
             fournées, dans l'onglet Production. Composant et tables conservés le temps de la refonte. */}
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
-        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} />}
-        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} />}
+        {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
+        {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
+        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -1553,7 +1893,7 @@ const normNom = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 // « confiture de melon » et « CONFITURE MELONS » sont bien le même produit (5 fournées).
 // Sans titre, on retombe sur la famille : les fournées de pissaladière sans titre restent
 // ensemble au lieu de se disperser en autant de rubriques vides.
-// ⚠️ Rattachement EXACT uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
+// ATTENTION : rattachement EXACT uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
 // titre « C » reste sa propre rubrique, visible et corrigeable, au lieu de happer Caramel,
 // Citron et Crème de marron.
 const rubriqueDe = (b) => {
@@ -1679,7 +2019,264 @@ function imprimer(titre, corps, largeurMm) {
   setTimeout(() => { w.print(); }, 250);
 }
 
-function FicheHygiene({ f, change, onClose, profile }) {
+/* ---------------- N° de lot : unique, retrouvable, réimprimable ---------------- */
+const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const dlcDe = (h) => jourPlus(h.date_fab, h.dlc_jours == null || h.dlc_jours === "" ? HYG.dlcJours : h.dlc_jours);
+// « 2026-0922-02 », « 20260922 02 » et « 20260922-02 » désignent le même lot.
+const normLot = (s) => String(s || "").toLowerCase().replace(/[\s\-_./]/g, "");
+const fiche = (b) => (b && b.data) || b || {};
+const lotDe = (b) => String((fiche(b).hygiene || {}).lot || "").trim();
+
+// Les lots du même jour sont déjà en mémoire (admin_batches renvoie tout) : le suffixe est
+// 1 + le nombre de lots du jour. On ne RENUMÉROTE jamais un lot existant ; si un trou ou un
+// numéro saisi à la main dépasse le compte, on prend le plus grand + 1 pour rester unique.
+function prochainLot(batches, dateIso, exceptId) {
+  const pref = String(dateIso || new Date().toISOString().slice(0, 10)).replace(/-/g, "") + "-";
+  const du = (batches || []).filter((b) => !exceptId || fiche(b).id !== exceptId).map(lotDe).filter((l) => l.startsWith(pref));
+  let max = 0;
+  du.forEach((l) => { const n = parseInt(l.slice(pref.length), 10); if (n > max) max = n; });
+  return pref + String(Math.max(du.length, max) + 1).padStart(2, "0");
+}
+// Autres fournées portant déjà ce numéro (doublon = traçabilité impossible).
+const fourneesDuLot = (batches, lot, exceptId) => {
+  const n = normLot(lot);
+  if (!n) return [];
+  return (batches || []).filter((b) => (!exceptId || fiche(b).id !== exceptId) && normLot(lotDe(b)) === n);
+};
+
+// Ce que la fournée sait déjà : on ne le redemande pas.
+function hygieneInitiale(f, batches) {
+  const auj = new Date().toISOString().slice(0, 10);
+  const d = f.date || auj;
+  const fam = famOf(f.famille || "pissaladiere");
+  const qte = pfNum(f.oignon_kg) > 0 ? f.oignon_kg : (pfNum(f.poids_fini_kg) > 0 ? f.poids_fini_kg : "");
+  return {
+    initialise: true, date_fab: d,
+    lot: prochainLot(batches, d, f.id),
+    produit: (f.titre || "").trim() || fam.label,
+    qte_kg: qte,
+    origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
+    h_refroidi: "", temp_conservation: "", dlc_jours: dlcDefaut(f.famille), nb_bacs: "",
+    responsable: (f.personnel || []).map((x) => (x.nom || "").trim()).filter(Boolean)[0] || "",
+    correctif: "",
+  };
+}
+
+// Statut de la fiche d'une fournée, pour la liste et « Fiches du jour ».
+// complète = cuisson et conservation relevées (et le refroidissement pour une pissaladière).
+function statutFiche(f) {
+  const h = f.hygiene;
+  if (!h || !h.initialise) return { cle: "absente", label: "sans fiche", lot: "" };
+  const ctrl = controlesHygiene(h);
+  const lot = String(h.lot || "").trim();
+  if (ctrl.some((c) => c.rempli && !c.ok)) return { cle: "ko", label: "non conforme", lot };
+  const refroidRequis = isPissaFam(f.famille || "pissaladiere");
+  const ok = ctrl.every((c) => c.rempli || (c.cle === "refroid" && !refroidRequis));
+  return ok ? { cle: "ok", label: "complète", lot } : { cle: "todo", label: "à remplir", lot };
+}
+const STATUT_STYLE = {
+  ok: { bg: "#3F7A4B1c", fg: "#3F7A4B" }, todo: { bg: "#B5722B22", fg: "#B5722B" },
+  ko: { bg: "#a6482a22", fg: "#a6482a" }, absente: { bg: "#8C806822", fg: "#8C8068" },
+};
+function PastilleFiche({ f }) {
+  const st = statutFiche(f), c = STATUT_STYLE[st.cle];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: c.bg, color: c.fg, borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+      {st.cle === "ok" && <Check size={12} strokeWidth={3} />}{st.cle === "ko" && <AlertTriangle size={12} />}{st.label}
+    </span>
+  );
+}
+
+// Impressions (extraites de FicheHygiene : on réimprime aussi depuis la recherche de lot).
+const ticketHTML = (h, enseigne) => `
+    <h1>${esc(enseigne)}</h1>
+    <div class="sous">${esc(h.produit)}</div>
+    <div class="bloc">
+      <div class="cap">Lot</div><div class="gros">${esc(h.lot) || "—"}</div>
+    </div>
+    <div class="bloc">
+      <div class="l"><span>Fabriqué le</span><b>${frDate(h.date_fab)}</b></div>
+      <div class="l"><span>À consommer avant le</span><b>${frDate(dlcDe(h))}</b></div>
+      <div class="l"><span>À conserver à</span><b>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${esc(h.temp_conservation)} °C` : `+${HYG.conservMax} °C max`}</b></div>
+      ${h.qte_kg ? `<div class="l"><span>Quantité</span><b>${esc(h.qte_kg)} kg</b></div>` : ""}
+      ${h.nb_bacs ? `<div class="l"><span>Bacs</span><b>${esc(h.nb_bacs)}</b></div>` : ""}
+    </div>`;
+
+const ficheHTML = (h, enseigne) => `
+    <h1>Fiche de fabrication — ${esc(h.produit)}</h1>
+    <div class="sous">${esc(enseigne)} · lot ${esc(h.lot) || "—"} · éditée le ${frDate(new Date().toISOString().slice(0, 10))}</div>
+    <table>
+      <tr><th style="width:42%">Date de fabrication</th><td>${frDate(h.date_fab)}</td></tr>
+      <tr><th>Produit</th><td>${esc(h.produit) || "—"}</td></tr>
+      <tr><th>Quantité mise en œuvre</th><td>${h.qte_kg ? `${esc(h.qte_kg)} kg` : "—"}</td></tr>
+      <tr><th>Origine de la matière première</th><td>${esc(h.origine) || "—"}</td></tr>
+      <tr><th>Début de cuisson</th><td>${esc(h.h_debut_cuisson) || "—"}</td></tr>
+      <tr><th>Fin de cuisson</th><td>${esc(h.h_fin_cuisson) || "—"}</td></tr>
+      <tr><th>Température à cœur</th><td>${h.temp_cuisson !== "" && h.temp_cuisson != null ? `${esc(h.temp_cuisson)} °C` : "—"} <span class="${Number(h.temp_cuisson) >= HYG.cuissonMin ? "ok" : "ko"}">(mini ${HYG.cuissonMin} °C)</span></td></tr>
+      <tr><th>Refroidi à ${HYG.refroidCible} °C à</th><td>${esc(h.h_refroidi) || "—"}</td></tr>
+      <tr><th>Durée de refroidissement</th><td>${fmtDuree(dureeMin(h.h_fin_cuisson, h.h_refroidi))} <span class="${(dureeMin(h.h_fin_cuisson, h.h_refroidi) || 999) <= HYG.refroidMaxMin ? "ok" : "ko"}">(maxi ${fmtDuree(HYG.refroidMaxMin)})</span></td></tr>
+      <tr><th>Température de conservation</th><td>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${esc(h.temp_conservation)} °C` : "—"} <span class="${Number(h.temp_conservation) <= HYG.conservMax ? "ok" : "ko"}">(maxi +${HYG.conservMax} °C)</span></td></tr>
+      <tr><th>À consommer avant le</th><td>${frDate(dlcDe(h))}</td></tr>
+      <tr><th>Nombre de bacs</th><td>${esc(h.nb_bacs) || "—"}</td></tr>
+      ${h.correctif ? `<tr><th>Action corrective</th><td>${esc(h.correctif)}</td></tr>` : ""}
+      <tr><th>Responsable</th><td>${esc(h.responsable) || "—"}</td></tr>
+    </table>
+    <div class="sign">Seuils de référence : arrêté du 21 décembre 2009 et règlement CE 852/2004.
+    Document interne d'autocontrôle — à conserver avec le plan de maîtrise sanitaire.<br><br>
+    Signature : ____________________</div>`;
+
+// Recherche par n° de lot. Pure : tout est déjà en mémoire (admin_batches renvoie les fournées
+// avec leur `hygiene`), aucune requête. Exact d'abord, sous-chaîne sinon (« 0922-02 » trouve
+// 20260922-02). `sales` est facultatif : sans lui on n'annonce pas de reste.
+function chercherLot(batches, products, q, sales) {
+  const nq = normLot(q);
+  if (!nq) return [];
+  const avecLot = (batches || []).map(fiche).filter((f) => normLot(lotDe(f)));
+  const exacts = avecLot.filter((f) => normLot(lotDe(f)) === nq);
+  const trouves = (exacts.length ? exacts : avecLot.filter((f) => normLot(lotDe(f)).includes(nq)))
+    .sort((a, b) => String((b.hygiene || {}).date_fab || b.date || "").localeCompare(String((a.hygiene || {}).date_fab || a.date || "")));
+  if (!trouves.length) return [];
+  const registre = sales ? lotsDeStock(batches, products, sales) : null;
+  return trouves.map((f) => {
+    const h = f.hygiene || {};
+    const alimente = Object.keys(f.stock_applique || {}).filter((pid) => pfNum(f.stock_applique[pid]) > 0).map((pid) => {
+      const p = (products || []).find((x) => x.id === pid);
+      const l = registre && registre[pid] ? registre[pid].lots.find((x) => x.fourneeId === f.id) : null;
+      return { pid, nom: p ? p.name : "produit introuvable", unit: p ? p.unit : "", entre: pfNum(f.stock_applique[pid]), restant: l ? l.restant : null };
+    });
+    return {
+      f, h, lot: lotDe(f), produit: (h.produit || f.titre || "").trim() || famOf(f.famille || "pissaladiere").label,
+      dateFab: h.date_fab || f.date || "", dlc: h.date_fab || f.date ? dlcDe({ ...h, date_fab: h.date_fab || f.date }) : "",
+      responsable: String(h.responsable || "").trim(), ctrl: controlesHygiene(h), statut: statutFiche(f), alimente,
+      doublons: fourneesDuLot(batches, lotDe(f), f.id).length,
+    };
+  });
+}
+
+// Champ « N° de lot » en haut de Production. Module-level : il garde sa saisie.
+function RechercheLot({ batches, products, sales, profile, onOuvrir }) {
+  const [q, setQ] = useState("");
+  const res = useMemo(() => chercherLot(batches, products, q, sales), [batches, products, q, sales]);
+  const enseigne = (profile && profile.name) || "Comme Avant";
+  const btn = { borderRadius: 12, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" };
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", gap: 8 }}>
+        <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "0 13px" }}>
+          <Search size={18} color={C.soft} style={{ flexShrink: 0 }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="N° de lot : 0922-02" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0 }} />
+        </label>
+        <button type="submit" className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: "none", flexShrink: 0 }}>Rechercher</button>
+      </form>
+      {normLot(q) && res.length === 0 && (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.soft, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px" }}>
+          <AlertTriangle size={16} color={C.caramel} style={{ flexShrink: 0 }} /> Aucun résultat — format AAAAMMJJ-NN
+        </div>
+      )}
+      {res.map((r) => {
+        const pill = (ok, label, na) => {
+          const col = !ok.rempli ? { bg: "#8C806822", fg: C.soft } : ok.ok ? { bg: "#3F7A4B1c", fg: C.ok } : { bg: "#a6482a22", fg: PF.warn };
+          return (
+            <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: col.bg, color: col.fg, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>
+              {label}{!ok.rempli ? ` ${na}` : ok.ok ? <Check size={13} strokeWidth={3} /> : <AlertTriangle size={13} />}
+            </span>
+          );
+        };
+        return (
+          <div key={r.f.id || r.lot} style={{ marginTop: 10, background: C.paper, border: `2px solid ${C.jam}`, borderRadius: 16, padding: "16px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 19, color: C.ink, minWidth: 0, fontVariantNumeric: "lining-nums tabular-nums" }}><b>Lot {r.lot}</b> · {r.produit}</div>
+              <PastilleFiche f={r.f} />
+            </div>
+            <div style={{ fontSize: 13, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
+              Fabriqué le {frDate(r.dateFab)} · DLC {r.dlc ? frDate(r.dlc) : "—"} · responsable : {r.responsable || "non renseigné"}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
+              {pill(r.ctrl[0], "Cuisson", "à remplir")}{pill(r.ctrl[1], "Refroidissement", "n/a")}{pill(r.ctrl[2], "Conservation", "à remplir")}
+              {r.alimente.length > 0
+                ? r.alimente.map((a) => <span key={a.pid} style={{ background: "#8C806822", color: C.soft, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>Alimente : {a.nom}{a.unit ? ` ${a.unit}` : ""}</span>)
+                : <span style={{ background: "#8C806822", color: C.soft, borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600 }}>Alimente : aucun produit (fournée non validée)</span>}
+            </div>
+            {r.doublons > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: PF.warn, fontWeight: 600 }}>
+                <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Ce n° de lot est aussi porté par {r.doublons} autre{r.doublons > 1 ? "s" : ""} fournée{r.doublons > 1 ? "s" : ""} : traçabilité ambiguë.
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 14 }}>
+              <button onClick={() => onOuvrir(r.f)} className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: `1.5px solid ${C.jam}` }}>Ouvrir la fiche</button>
+              <button disabled={!r.h.initialise} onClick={() => imprimer(`Fiche ${r.lot}`, ficheHTML(r.h, enseigne))} className="ca-tap" style={{ ...btn, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, opacity: r.h.initialise ? 1 : .5, display: "inline-flex", alignItems: "center", gap: 7 }}><Printer size={16} /> Imprimer la fiche A4</button>
+              <button disabled={!r.h.initialise} onClick={() => imprimer(`Etiquette ${r.lot}`, ticketHTML(r.h, enseigne), 62)} className="ca-tap" style={{ ...btn, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, opacity: r.h.initialise ? 1 : .5, display: "inline-flex", alignItems: "center", gap: 7 }}><Printer size={16} /> Réimprimer l&apos;étiquette</button>
+            </div>
+            {r.alimente.length > 0 && (
+              <div style={{ fontSize: 12, color: C.soft, marginTop: 10, lineHeight: 1.5, fontVariantNumeric: "lining-nums tabular-nums" }}>
+                {r.alimente.map((a) => <span key={a.pid} style={{ marginRight: 12 }}>{a.nom} : {a.entre} entré{a.entre > 1 ? "s" : ""}{a.restant != null ? `, reste ${a.restant}` : ""}</span>)}
+                <br />Reste en stock selon l&apos;ordre « premier entré, premier sorti » : estimation de valorisation, pas un suivi physique par lot.
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// « Fiches du jour » : où en est le contrôle hygiène de ce qui a été fabriqué aujourd'hui.
+function FichesDuJour({ batches, onOuvrir }) {
+  const auj = new Date().toISOString().slice(0, 10);
+  const du = (batches || []).map(fiche).filter((f) => f.date === auj || (f.hygiene || {}).date_fab === auj);
+  return (
+    <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
+      <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 10 }}>Fiches du jour</div>
+      {du.length === 0 && <div style={{ fontSize: 13, color: C.soft }}>Aucune fournée aujourd&apos;hui.</div>}
+      {du.map((f, i) => {
+        const st = statutFiche(f);
+        return (
+          <button key={f.id || i} onClick={() => onOuvrir(f)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "transparent", border: "none", padding: "6px 0", cursor: "pointer", textAlign: "left", flexWrap: "wrap" }}>
+            <PastilleFiche f={f} />
+            <span style={{ fontSize: 14, color: C.ink, minWidth: 0, fontVariantNumeric: "lining-nums tabular-nums" }}>{(f.titre || "").trim() || famOf(f.famille || "pissaladiere").label}{st.lot ? ` · ${st.lot}` : ""}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Nouvelle fournée à partir de la dernière du même produit : recette, prix, formats, emballages et
+// liaisons produit sont repris ; tout ce qui est propre à UNE production repart à zéro.
+// ⚠️ `stock_applique` et `hygiene` ne sont JAMAIS copiés : le premier fait l'idempotence du stock
+// (§5.2), le second porte le lot, qui est unique (§5.11).
+function nouvelleDepuis(src) {
+  const f = JSON.parse(JSON.stringify(fiche(src)));
+  ["id", "stock_applique", "hygiene", "created_at", "updated_at"].forEach((k) => { delete f[k]; });
+  f.id = null;
+  f.date = new Date().toISOString().slice(0, 10);
+  f.poids_fini_kg = "";
+  f.pissa_nb_plaques = "";
+  f.rounds_extra = [];
+  f.estimation = false; f.exclu_stats = false;
+  f.autres_du = ""; f.autres_au = "";
+  f.pots = (f.pots || []).map((p) => ({ ...p, nb: "" }));
+  return f;
+}
+function PanneauNouvelle({ derniere, onCreer }) {
+  const [mode, setMode] = useState(derniere ? "copie" : "vide");
+  const radio = (k, label, sous, off) => (
+    <button type="button" disabled={off} onClick={() => setMode(k)} className="ca-tap" style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "5px 0", cursor: off ? "default" : "pointer", opacity: off ? .5 : 1, display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <span style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid ${mode === k ? C.jam : C.soft}`, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{mode === k && <span style={{ width: 8, height: 8, borderRadius: 4, background: C.jam }} />}</span>
+      <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 14.5, color: C.ink }}>{label}</span>{sous && <span style={{ display: "block", fontSize: 12.5, color: C.soft, marginTop: 2 }}>{sous}</span>}</span>
+    </button>
+  );
+  return (
+    <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
+      <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Plus size={17} /> Nouvelle fournée</div>
+      {derniere && radio("copie", <>Partir de la dernière « {(fiche(derniere).titre || "").trim() || famOf(fiche(derniere).famille || "pissaladiere").label} »</>, "recette, prix, formats, emballages, produit lié (ni le lot, ni le stock déjà appliqué)")}
+      {radio("vide", "Fournée vide", "Titre : liste des produits existants")}
+      <button onClick={() => onCreer(mode === "copie" ? derniere : null)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>Créer la fournée</button>
+    </div>
+  );
+}
+
+function FicheHygiene({ f, change, onClose, profile, batches }) {
   const h = f.hygiene || {};
   const set = (k, v) => change({ hygiene: { ...h, [k]: v } });
   const [etape, setEtape] = useState(0);
@@ -1687,26 +2284,12 @@ function FicheHygiene({ f, change, onClose, profile }) {
   // Pré-remplissage : tout ce que la fournée sait déjà, on ne le redemande pas.
   useEffect(() => {
     if (h.initialise) return;
-    const auj = new Date().toISOString().slice(0, 10);
-    const d = f.date || auj;
-    // Tout ce que la fournée sait déjà est repris : nom du produit (son titre, sinon la rubrique),
-    // quantité (les oignons pour une pissaladière, le poids fini sinon), et la DLC de la famille.
-    // Le lot suit la date : AAAAMMJJ-01. Il ne reste à taper que les températures et les heures.
-    const fam = famOf(f.famille || "pissaladiere");
-    const qte = pfNum(f.oignon_kg) > 0 ? f.oignon_kg : (pfNum(f.poids_fini_kg) > 0 ? f.poids_fini_kg : "");
-    change({ hygiene: {
-      initialise: true, date_fab: d,
-      lot: `${String(d).replace(/-/g, "")}-01`,
-      produit: (f.titre || "").trim() || fam.label,
-      qte_kg: qte,
-      origine: "", h_debut_cuisson: "", h_fin_cuisson: "", temp_cuisson: "",
-      h_refroidi: "", temp_conservation: "", dlc_jours: dlcDefaut(f.famille), nb_bacs: "",
-      responsable: (f.personnel || []).map((x) => (x.nom || "").trim()).filter(Boolean)[0] || "",
-      correctif: "",
-    } });
+    // Tout ce que la fournée sait déjà est repris ; le lot est unique (suffixe -NN libre ce jour-là).
+    change({ hygiene: hygieneInitiale(f, batches) });
     // volontairement sur la seule bascule "initialise" : on pré-remplit une fois, pas à chaque frappe
   }, [h.initialise]);
 
+  const doublonsLot = fourneesDuLot(batches, h.lot, f.id);
   const ctrl = controlesHygiene(h);
   const remplis = ctrl.filter((c) => c.rempli);
   const nonConformes = remplis.filter((c) => !c.ok);
@@ -1742,43 +2325,6 @@ function FicheHygiene({ f, change, onClose, profile }) {
     { t: "Vérification", s: "Relecture et impression" },
   ];
 
-  const ticketHTML = () => `
-    <h1>${enseigne}</h1>
-    <div class="sous">${h.produit || ""}</div>
-    <div class="bloc">
-      <div class="cap">Lot</div><div class="gros">${h.lot || "—"}</div>
-    </div>
-    <div class="bloc">
-      <div class="l"><span>Fabriqué le</span><b>${frDate(h.date_fab)}</b></div>
-      <div class="l"><span>À consommer avant le</span><b>${frDate(dlc)}</b></div>
-      <div class="l"><span>À conserver à</span><b>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : `+${HYG.conservMax} °C max`}</b></div>
-      ${h.qte_kg ? `<div class="l"><span>Quantité</span><b>${h.qte_kg} kg</b></div>` : ""}
-      ${h.nb_bacs ? `<div class="l"><span>Bacs</span><b>${h.nb_bacs}</b></div>` : ""}
-    </div>`;
-
-  const ficheHTML = () => `
-    <h1>Fiche de fabrication — ${h.produit || ""}</h1>
-    <div class="sous">${enseigne} · lot ${h.lot || "—"} · éditée le ${frDate(new Date().toISOString().slice(0, 10))}</div>
-    <table>
-      <tr><th style="width:42%">Date de fabrication</th><td>${frDate(h.date_fab)}</td></tr>
-      <tr><th>Produit</th><td>${h.produit || "—"}</td></tr>
-      <tr><th>Quantité mise en œuvre</th><td>${h.qte_kg ? `${h.qte_kg} kg` : "—"}</td></tr>
-      <tr><th>Origine de la matière première</th><td>${h.origine || "—"}</td></tr>
-      <tr><th>Début de cuisson</th><td>${h.h_debut_cuisson || "—"}</td></tr>
-      <tr><th>Fin de cuisson</th><td>${h.h_fin_cuisson || "—"}</td></tr>
-      <tr><th>Température à cœur</th><td>${h.temp_cuisson !== "" && h.temp_cuisson != null ? `${h.temp_cuisson} °C` : "—"} <span class="${Number(h.temp_cuisson) >= HYG.cuissonMin ? "ok" : "ko"}">(mini ${HYG.cuissonMin} °C)</span></td></tr>
-      <tr><th>Refroidi à ${HYG.refroidCible} °C à</th><td>${h.h_refroidi || "—"}</td></tr>
-      <tr><th>Durée de refroidissement</th><td>${fmtDuree(dureeMin(h.h_fin_cuisson, h.h_refroidi))} <span class="${(dureeMin(h.h_fin_cuisson, h.h_refroidi) || 999) <= HYG.refroidMaxMin ? "ok" : "ko"}">(maxi ${fmtDuree(HYG.refroidMaxMin)})</span></td></tr>
-      <tr><th>Température de conservation</th><td>${h.temp_conservation !== "" && h.temp_conservation != null ? `+${h.temp_conservation} °C` : "—"} <span class="${Number(h.temp_conservation) <= HYG.conservMax ? "ok" : "ko"}">(maxi +${HYG.conservMax} °C)</span></td></tr>
-      <tr><th>À consommer avant le</th><td>${frDate(dlc)}</td></tr>
-      <tr><th>Nombre de bacs</th><td>${h.nb_bacs || "—"}</td></tr>
-      ${h.correctif ? `<tr><th>Action corrective</th><td>${h.correctif}</td></tr>` : ""}
-      <tr><th>Responsable</th><td>${h.responsable || "—"}</td></tr>
-    </table>
-    <div class="sign">Seuils de référence : arrêté du 21 décembre 2009 et règlement CE 852/2004.
-    Document interne d'autocontrôle — à conserver avec le plan de maîtrise sanitaire.<br><br>
-    Signature : ____________________</div>`;
-
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 120, background: "#16140fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 10px", overflowY: "auto" }}>
       <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px 20px", maxHeight: "min(94vh, 900px)", margin: "auto", overflowY: "auto" }}>
@@ -1802,6 +2348,13 @@ function FicheHygiene({ f, change, onClose, profile }) {
         {etape === 0 && (<>
           {champ("Date de fabrication", null, txt("date_fab", "", "date"))}
           {champ("Numéro de lot", "Proposé automatiquement. Ce numéro relie le bac au registre.", txt("lot", "20260919-01"))}
+          {doublonsLot.length > 0 && (
+            <div style={{ marginTop: -8, marginBottom: 16, background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 11, padding: "10px 12px", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, color: PF.warn, fontWeight: 700 }}><AlertTriangle size={15} style={{ flexShrink: 0 }} /> Ce numéro est déjà utilisé par {doublonsLot.length} autre{doublonsLot.length > 1 ? "s" : ""} fournée{doublonsLot.length > 1 ? "s" : ""}.</span>
+              Deux lots identiques rendent la traçabilité impossible.
+              <button onClick={() => set("lot", prochainLot(batches, h.date_fab, f.id))} className="ca-tap" style={{ display: "block", marginTop: 8, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Proposer le prochain numéro libre</button>
+            </div>
+          )}
           {champ("Produit", null, txt("produit", "Oignons confits"))}
           {champ("Quantité mise en œuvre (kg)", "Reprise de la fournée, modifiable.", txt("qte_kg", "0", "number"))}
           {champ("Origine des oignons", "Nom du producteur ou du fournisseur. C'est ce qui permet de remonter la filière.", txt("origine", "ex. Ferme des Collines, Vence"))}
@@ -1828,7 +2381,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
             const d = dureeMin(h.h_fin_cuisson, h.h_refroidi), ok = d <= HYG.refroidMaxMin;
             return (
               <div style={{ background: ok ? "#eaf3ec" : "#faece5", border: `1.5px solid ${ok ? C.ok : PF.warn}`, borderRadius: 11, padding: "12px 14px", fontSize: 14, fontWeight: 700, color: ok ? C.ok : PF.warn }}>
-                {ok ? "✓" : "⚠"} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
+                {ok ? <Ok /> : <Warn />} {fmtDuree(d)} — {ok ? "conforme" : `dépassement de ${fmtDuree(d - HYG.refroidMaxMin)}`}
               </div>
             );
           })()}
@@ -1844,7 +2397,7 @@ function FicheHygiene({ f, change, onClose, profile }) {
         {etape === 4 && (<>
           {ctrl.map((c) => (
             <div key={c.cle} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 0", borderBottom: `1px solid ${C.line}` }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? "✓" : "!"}</span>
+              <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: !c.rempli ? C.line : c.ok ? C.ok : PF.warn, color: "#fff", fontWeight: 800, fontSize: 14 }}>{!c.rempli ? "?" : c.ok ? <Check size={15} /> : <AlertTriangle size={15} />}</span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: C.ink }}>{c.titre}</span>
                 <span style={{ display: "block", fontSize: 12, color: C.soft }}>{c.regle}</span>
@@ -1864,10 +2417,10 @@ function FicheHygiene({ f, change, onClose, profile }) {
             Fabriqué le {frDate(h.date_fab)} · à consommer avant le <b>{frDate(dlc)}</b>
           </div>
 
-          <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(), 62)} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 9 }}>
+          <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(h, enseigne), 62)} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 9 }}>
             Imprimer l&apos;étiquette du bac
           </button>
-          <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML())} className="ca-tap" style={{ width: "100%", background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
+          <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML(h, enseigne))} className="ca-tap" style={{ width: "100%", background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 14.5, cursor: "pointer" }}>
             Imprimer la fiche de fabrication
           </button>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 12, lineHeight: 1.5 }}>
@@ -1901,7 +2454,7 @@ function EtapeFournee({ n, titre, sous }) {
     </div>
   );
 }
-function ProProduction({ pass, products, setProducts, sales, clients, profile }) {
+function ProProduction({ pass, products, setProducts, sales, clients, profile, ouvrirId, onOuvert }) {
   const [batches, setBatches] = useState([]);
   const [rendementEstime, setRendementEstime] = useState(64.3);
   const [famille, setFamille] = useState("pissaladiere");
@@ -1917,6 +2470,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const [echecSauvegarde, setEchecSauvegarde] = useState(false);
   const [etab, setEtab] = useState("prep");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
+  const [validEnCours, setValidEnCours] = useState(false); // « Confirmer » pendant les await : bouton figé
+  const [validErreur, setValidErreur] = useState(null);    // échecs de la validation, à afficher dans le pop-up
+  const [panneauNouvelle, setPanneauNouvelle] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [cumulFormat, setCumulFormat] = useState("");
@@ -1930,6 +2486,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     setBusy(false);
   };
   useEffect(() => { load(); }, []);
+  // Ouverture demandée depuis l'onglet Produits (ligne de lot cliquable) : on attend le chargement.
+  useEffect(() => {
+    if (!ouvrirId || busy) return;
+    const b = batches.find((x) => x.id === ouvrirId);
+    if (b) openEdit(b);
+    if (b || batches.length > 0) onOuvert && onOuvert();
+  }, [ouvrirId, batches, busy]);
 
   const NUM_KEYS = ["oignon_kg", "temps_h", "temps_min", "part_temps", "taux_local", "transport", "poids_fini_kg", "pissa_poids_plaque", "pissa_nb_plaques", "huile_cl", "sel_g", "poivre_g", "anchois_g", "thym_g", "ail_g", "px_oignon", "px_huile", "px_sel", "px_poivre", "px_anchois", "px_thym", "px_ail"];
   const pfNorm = (f) => {
@@ -1973,43 +2536,51 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     return out;
   };
 
+  // Écrit UN produit : prix d'achat / unité / coef par `admin_patch_product` (liste blanche, ne
+  // touche jamais au stock), puis le stock en RELATIF par `admin_adjust_stock` (jamais d'écrasement
+  // par une valeur périmée). Renvoie { ok, erreur } : l'échec n'est plus avalé, sinon `stock_applique`
+  // mémorisait comme « poussé » un stock qui ne l'avait jamais été.
   const pousserVersStock = async (pid, deltaStock, nouveauCout, extra = {}) => {
-    if (!pid || !supabase || !pass) return;
+    if (!pid || !supabase || !pass) return { ok: false, erreur: "connexion indisponible" };
     const prod = (products || []).find((x) => x.id === pid);
-    if (!prod) return;
+    if (!prod) return { ok: false, erreur: "produit introuvable dans le catalogue visible (masqué ?)" };
     const cost = nouveauCout != null ? Math.round(nouveauCout * 1000) / 1000 : prod.cost;
     // prix de vente FIGE : on ne le remplace que si le produit n'en a pas encore (CLAUDE.md 5.2 / 5.4)
     const price = (Number(prod.price) > 0) ? prod.price : (extra.price != null ? extra.price : prod.price);
     const coef = (Number(cost) > 0 && Number(price) > 0) ? Math.round((Number(price) / Number(cost)) * 100) / 100 : prod.coef;
-    const np = {
-      ...prod,
-      stock: (Number(prod.stock) || 0) + deltaStock,
-      cost,
-      price,
-      coef,
-      unit: extra.unit != null && extra.unit !== "" ? extra.unit : prod.unit,
-    };
-    setProducts((list) => list.map((x) => x.id === pid ? np : x));
+    const unit = extra.unit != null && extra.unit !== "" ? extra.unit : prod.unit;
     try {
-      await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false });
-    } catch (e) {}
+      const r1 = await supabase.rpc("admin_patch_product", { pass, p_id: pid, p_patch: { unit: unit || "", price: Number(price) || 0, cost: Number(cost) || 0, coef: Number(coef) || 0 } });
+      if (r1.error) return { ok: false, erreur: r1.error.message || "écriture refusée" };
+      const r2 = await supabase.rpc("admin_adjust_stock", { pass, p_id: pid, p_delta: Math.round(deltaStock) });
+      if (r2.error) return { ok: false, erreur: r2.error.message || "écriture du stock refusée" };
+      const nouveauStock = typeof r2.data === "number" ? r2.data : (Number(prod.stock) || 0) + deltaStock;
+      setProducts((list) => list.map((x) => x.id === pid ? { ...prod, stock: nouveauStock, cost, price, coef, unit } : x));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, erreur: (e && e.message) || "connexion perdue" };
+    }
   };
 
+  // Renvoie le snapshot à mémoriser et la liste des échecs. Un produit dont l'écriture a échoué
+  // GARDE son ancien `stock_applique` : on pourra réessayer sans double comptage ni trou.
   const validerEtPousserStock = async (f, R) => {
     const dejaApplique = f.stock_applique || {};
-    const nouveauSnapshot = {};
+    const voulu = {};
     if (isPissaFam(f.famille || "pissaladiere") && f.pissa_plaque_pid && R.nbPlaques > 0) {
-      nouveauSnapshot[f.pissa_plaque_pid] = (nouveauSnapshot[f.pissa_plaque_pid] || 0) + R.nbPlaques;
+      voulu[f.pissa_plaque_pid] = (voulu[f.pissa_plaque_pid] || 0) + R.nbPlaques;
     }
     (f.pots || []).forEach((p, i) => {
       const pl = R.potLines[i];
-      if (p.pid && pl && pl.nb > 0) nouveauSnapshot[p.pid] = (nouveauSnapshot[p.pid] || 0) + pl.nb;
+      if (p.pid && pl && pl.nb > 0) voulu[p.pid] = (voulu[p.pid] || 0) + pl.nb;
     });
-    const pids = new Set([...Object.keys(dejaApplique), ...Object.keys(nouveauSnapshot)]);
+    const snapshot = {}, echecs = [];
+    const pids = new Set([...Object.keys(dejaApplique), ...Object.keys(voulu)]);
     for (const pid of pids) {
       const avant = dejaApplique[pid] || 0;
-      const apres = nouveauSnapshot[pid] || 0;
+      const apres = voulu[pid] || 0;
       const delta = apres - avant;
+      let ok = true;
       if (delta !== 0) {
         let cout = null, extra = {};
         if (pid === f.pissa_plaque_pid) { cout = R.coutPlaque; if (R.pxVentePlaque != null) extra.price = R.pxVentePlaque; }
@@ -2020,10 +2591,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           if (pl.pxVenteEffectif != null) extra.price = pl.pxVenteEffectif;
           if (pl.format_g) extra.unit = `pot ${pfNum(pl.format_g)}g`;
         }
-        await pousserVersStock(pid, delta, cout, extra);
+        const res = await pousserVersStock(pid, delta, cout, extra);
+        if (!res.ok) { ok = false; const prod = (products || []).find((x) => x.id === pid); echecs.push({ pid, nom: prod ? prod.name : pid, erreur: res.erreur }); }
       }
+      const retenu = ok ? apres : avant;
+      if (retenu > 0) snapshot[pid] = retenu;
     }
-    return nouveauSnapshot;
+    return { snapshot, echecs };
   };
 
   // Un enregistrement sans id est un INSERT. Si un second part avant que le premier ait renvoyé
@@ -2050,10 +2624,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
       setEchecSauvegarde(false);
       setSaved(true); setTimeout(() => setSaved(false), 1200);
+      return true;
     } catch (e) {
       // Un échec avalé en silence, sous un bandeau « enregistrement automatique », fait perdre
       // la saisie sans que personne ne le voie. On le dit à l'écran.
       setEchecSauvegarde(true);
+      return false;
     } finally {
       if (insertEnVol.current === envoi) insertEnVol.current = null;
     }
@@ -2066,8 +2642,13 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
   };
+  const ouvrirFicheHygiene = (f) => { openEdit(f); setHygieneOuverte(true); };
+  const derniereDe = (arr) => [...arr].filter((b) => (b.titre || "").trim()).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0] || null;
+  const rechercheLot = <RechercheLot batches={batches} products={products} sales={sales} profile={profile} onOuvrir={ouvrirFicheHygiene} />;
   const openNew = () => { setCur(pfBlank(famOf(famille).key)); setEtab("prep"); setView("edit"); };
-  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setView("edit"); };
+  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setValidErreur(null); setView("edit"); };
+  // src = fournée à copier (voir nouvelleDepuis), sinon fournée vide de la famille courante
+  const creerFournee = (src) => { if (src) { setCur(nouvelleDepuis(src)); setEtab("prep"); setValidErreur(null); setView("edit"); } else openNew(); };
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
@@ -2181,9 +2762,14 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const entrer = (key) => { setFamille(key); setSousProduit(null); setView("list"); };
     return (
       <div className="ca-anim">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2>
-          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Choisissez la rubrique, puis le produit fabriqué</div>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Retrouvez un lot, ou choisissez la rubrique puis le produit fabriqué</div>
+        </div>
+        {rechercheLot}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 11, marginBottom: 16 }}>
+          <FichesDuJour batches={batches} onOuvrir={openEdit} />
+          <PanneauNouvelle key={(derniereDe(batches) || {}).id || "aucune"} derniere={derniereDe(batches)} onCreer={creerFournee} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 8 }}>
           {FAMILLES.map((fm) => {
@@ -2193,7 +2779,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                 style={{ textAlign: "left", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 13, padding: 11, cursor: "pointer", display: "flex", flexDirection: "column", gap: 7, minHeight: 112 }}>
                 <span style={{ width: 40, height: 40, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={fm.illu} col={fm.col} s={31} /></span>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{fm.label}</span>
-                <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45, fontVariantNumeric: "tabular-nums" }}>
+                <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45, fontVariantNumeric: "lining-nums tabular-nums" }}>
                   {s.n === 0 ? "aucune fournée" : <>{s.nbProduits} produit{s.nbProduits > 1 ? "s" : ""} · {s.n} fournée{s.n > 1 ? "s" : ""}{s.derniere ? ` · ${new Date(s.derniere).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : ""}</>}
                   {s.coutKg != null && <span style={{ display: "block", color: PF.navy, fontWeight: 700 }}>{eur2(s.coutKg)}/kg</span>}
                   {s.finis > 0 && <span style={{ display: "block", color: PF.good, fontWeight: 700 }}>{s.finis} produit{s.finis > 1 ? "s" : ""} fini{s.finis > 1 ? "s" : ""}</span>}
@@ -2283,7 +2869,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
-          <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
+          <button onClick={() => (groupe ? setPanneauNouvelle((v) => !v) : openNew())} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
         </div>
       </div>
     );
@@ -2295,6 +2881,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     if (!groupe) {
       return (
         <div className="ca-anim">
+          {rechercheLot}
           {enTete(famLabel, `${groupes.length} produit${groupes.length > 1 ? "s" : ""} · ${famBatches.length} fournée${famBatches.length > 1 ? "s" : ""}`, { on: () => setView("familles"), titre: "Changer de rubrique" })}
           {barreFamilles}
           {famille === "__autres__" && famBatches.length > 0 && (
@@ -2320,11 +2907,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                           <div style={{ fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label}</div>
                           {g.cond && <div style={{ fontSize: 11, color: C.soft, marginTop: 2 }}>unité : {g.cond}</div>}
                         </td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{g.batches.length}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.batches.length}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2345,8 +2932,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     // « pot » ne vaut que pour les confitures et les pots d'oignons : on ne vend pas un cake au pot.
     // L'unité de compte est donc « unité », et le conditionnement réel est rappelé sous le titre.
     const cols = avecOignon
-      ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/unité", "PV/unité", "Marge/unité", "Coef"]
-      : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef"];
+      ? ["", "Date", "Titre", "Oignon", "Cuit", "Rdt", "Coût/unité", "PV/unité", "Marge/unité", "Coef", "Lot / fiche"]
+      : ["Date", "Titre", "Poids fini", "Coût/kg", "Coût/unité", "PV/unité", "Marge/unité", "Coef", "Lot / fiche"];
     // cumul : soit une selection manuelle (cases cochees), soit une plage de dates Du/Au
     const batchesPeriode = avecOignon ? grpBatches.filter((b) => {
       if (selectionManuelle) return selectionManuelle.has(b.id);
@@ -2381,7 +2968,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
     const sousTitre = `${grpBatches.length} fournée${grpBatches.length > 1 ? "s" : ""} · ${famLabel}${groupe.cond ? ` · unité : ${groupe.cond}` : ""}`;
     return (
       <div className="ca-anim">
+        {rechercheLot}
         {enTete(groupe.sansTitre ? `${groupe.label} · sans titre` : groupe.label, sousTitre, { on: () => setSousProduit(null), titre: "Retour aux produits" })}
+        {panneauNouvelle && <div style={{ marginBottom: 12 }}><PanneauNouvelle key={groupe.cle} derniere={derniereDe(grpBatches)} onCreer={(src) => { setPanneauNouvelle(false); creerFournee(src); }} /></div>}
         {groupes.length > 1 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
             <button onClick={() => setSousProduit(null)} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${C.line}`, background: "#fff", color: C.soft, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Tous ({groupes.length})</button>
@@ -2394,15 +2983,15 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
             <div style={{ flex: "1 1 140px", background: C.jam, color: "#fff", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, opacity: .85, textTransform: "uppercase", letterSpacing: ".07em" }}>Stock oignons cuits</div>
-              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
             <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Produit</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: PF.good, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.good, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
             <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Consommé (ventes)</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: PF.navy, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.navy, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
           </div>
         )}
@@ -2410,15 +2999,15 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         {grpBatches.length === 0 ? <div style={{ ...card(), fontSize: 13, color: C.soft }}>Aucune fournée.</div> : (
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: avecOignon ? 640 : 560 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: avecOignon ? 780 : 700 }}>
                 <thead><tr>
-                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: (avecOignon ? i > 2 : i > 1) ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
+                  {cols.map((t, i) => <th key={i} style={{ padding: "9px 8px", textAlign: (avecOignon ? i > 2 : i > 1) && t !== "Lot / fiche" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>)}
                 </tr></thead>
                 <tbody>
                   {grpBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
                     <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
                       {avecOignon && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
-                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
+                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
                       <td style={{ padding: "10px 8px", maxWidth: 180 }}>
                         <div style={{ color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {f.titre || "sans titre"}
@@ -2428,14 +3017,18 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                         {/* le lieu n'est pas un nom de produit : affiché tel quel il faisait passer « casa mama » pour une recette */}
                         {!f.titre && f.lieu && <div style={{ fontSize: 10.5, color: C.soft, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>chez {f.lieu}</div>}
                       </td>
-                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{r.poidsFini && r.isEstimated ? "*" : ""}</td>
-                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
-                      {!avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutKg)}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutPotMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{r.poidsFini && r.isEstimated ? "*" : ""}</td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums", color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
+                      {!avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutKg)}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutPotMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      <td style={{ padding: "10px 8px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>
+                        <PastilleFiche f={f} />
+                        {f.hygiene && f.hygiene.lot ? <div style={{ fontSize: 11, color: C.soft, marginTop: 3 }}>{f.hygiene.lot}</div> : null}
+                      </td>
                     </tr>
                   ); })}
                 </tbody>
@@ -2459,7 +3052,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {selectionManuelle ? (
                 <button onClick={() => setSelectionManuelle(null)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>← Revenir aux dates</button>
               ) : (
-                <button onClick={() => setSelectionManuelle(new Set())} className="ca-tap" style={{ background: "#fff", border: `1px solid ${PF.navy}`, color: PF.navy, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>☑ Sélectionner des fournées à la main</button>
+                <button onClick={() => setSelectionManuelle(new Set())} className="ca-tap" style={{ background: "#fff", border: `1px solid ${PF.navy}`, color: PF.navy, borderRadius: 9, padding: "6px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Sélectionner des fournées à la main</button>
               )}
             </div>
             {selectionManuelle ? (
@@ -2711,6 +3304,31 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
   const numEtape = (k) => ETAPES.findIndex((e) => e.k === k) + 1;
   // Produits finis : ce qui sort réellement de la fournée, tous conditionnements confondus.
   const nbFinisTotal = (R.nbPotsTotal || 0) + (isPissa ? (R.nbPlaques || 0) : 0);
+  // Lignes du pop-up de validation, recalculées à chaque rendu : relier un format depuis le pop-up
+  // les met à jour sans le fermer. On n'annonce que ce qui va RÉELLEMENT bouger (idempotence stock_applique).
+  const construireLignes = () => {
+    const deja = cur.stock_applique || {};
+    const lignes = [];
+    if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
+      const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
+      lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, dejaApplique: deja[cur.pissa_plaque_pid] || 0, cout: R.coutPlaque, prix: R.pxVentePlaque, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
+    }
+    (cur.pots || []).forEach((p, i) => {
+      const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
+      const prod = (products || []).find((x) => x.id === p.pid);
+      lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, dejaApplique: deja[p.pid] || 0, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
+    });
+    return lignes;
+  };
+  const lignesV = confirmValide ? construireLignes() : [];
+  const suggLiaison = confirmValide ? suggestionsLiaison(cur) : [];
+  const lotDoublons = confirmValide && cur.hygiene && cur.hygiene.lot ? fourneesDuLot(batches, cur.hygiene.lot, cur.id) : [];
+  const creerLot = () => {
+    const h = cur.hygiene;
+    if (!h || !h.initialise) change({ hygiene: hygieneInitiale(cur, batches) });
+    else change({ hygiene: { ...h, lot: prochainLot(batches, h.date_fab || cur.date, cur.id) } });
+  };
+  const relierFormat = (sg) => change({ pots: (cur.pots || []).map((p, i) => i === sg.i ? { ...p, pid: sg.pid } : p) });
   return (
     <div className="ca-anim">
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -2720,7 +3338,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
             {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
           </div>
-          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "⚠ non enregistré — vérifiez la connexion" : (saved ? "✓ enregistré" : "enregistrement automatique")}</div>
+          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "non enregistré — vérifiez la connexion" : (saved ? "enregistré" : "enregistrement automatique")}</div>
         </div>
         {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
       </div>
@@ -2758,7 +3376,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           </button>
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
-            <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
+            <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} list="titres-fournees" autoComplete="off" style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
+            {/* Titres déjà utilisés : choisir plutôt que retaper évite les fournées fantômes (« C ») et rattache la fournée au bon produit. */}
+            <datalist id="titres-fournees">{[...new Set(batches.map((b) => (b.titre || "").trim()).filter(Boolean))].sort().map((t) => <option key={t} value={t} />)}</datalist>
           </div>
           <div className="pf-row" style={{ marginBottom: 14 }}>
             <div style={{ flex: "1 1 140px" }}><Lbl>Date</Lbl><input type="date" value={f.date || ""} onChange={(e) => change({ date: e.target.value })} style={{ ...inp(), marginTop: 4 }} /></div>
@@ -2917,7 +3537,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               {pfNum(f.oignon_kg) > 0 && R.capaciteParTournee > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#eef3f6", border: `1px solid ${PF.navy}33`, borderRadius: 8, padding: "7px 11px", fontSize: 13, fontWeight: 700, color: C.ink }}>
-                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}>✓ ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}>⚠ il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
+                    {pfNum(f.oignon_kg).toLocaleString("fr-FR")} kg saisis → <span style={{ color: PF.navy }}>{Math.round(R.tempsNecessaireMin)} min</span> nécessaires ({R.tourneesNecessaires} tournée{R.tourneesNecessaires > 1 ? "s" : ""}) — {(R.tempsNecessaireMin / 60) <= R.tempsTotal ? <span style={{ color: PF.good }}><Ok /> ça rentre dans les {R.tempsTotal.toLocaleString("fr-FR")} h prévues</span> : <span style={{ color: PF.warn }}><Warn /> il manque {((R.tempsNecessaireMin / 60) - R.tempsTotal).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} h</span>}
                   </span>
                 </div>
               )}
@@ -3107,7 +3727,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                         ? (pl.nb > 0 ? <button onClick={figer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>figer</button> : null)
                         : <button onClick={recalculer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>recalculer</button>}
                     </div>
-                    {pl.coutUnitaireTotal != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(pl.coutUnitaireTotal)} / {motUnite}</div>}
+                    {pl.coutUnitaireTotal != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur3(pl.coutUnitaireTotal)} / {motUnite}</div>}
                   </div>
                 );
               })}
@@ -3116,7 +3736,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                   <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: C.jam, display: "inline-block", flexShrink: 0 }} />Plaques{pfNum(f.pissa_poids_plaque) > 0 ? ` · ${pfNum(f.pissa_poids_plaque)} kg` : ""}</span></Lbl>
                   <input inputMode="numeric" value={f.pissa_nb_plaques == null ? "" : String(f.pissa_nb_plaques).replace(".", ",")} placeholder="0" onChange={(e) => change({ pissa_nb_plaques: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 18, fontWeight: 800, textAlign: "center" }} />
                   <div style={{ marginTop: 5 }}><span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", letterSpacing: ".04em" }}>SAISI</span></div>
-                  {R.coutPlaque != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(R.coutPlaque)} / plaque</div>}
+                  {R.coutPlaque != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur3(R.coutPlaque)} / plaque</div>}
                 </div>
               )}
             </div>
@@ -3132,7 +3752,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             <div style={{ fontSize: 11.5, marginTop: 8, lineHeight: 1.45, color: R.ecartPoids > 0 ? C.soft : PF.warn }}>
               {R.ecartPoids > 0
                 ? <>Il reste {R.ecartPoids.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg non mis en {FAM.unitWord} — ajoute un format ou augmente les quantités.</>
-                : <>⚠ {Math.abs(R.ecartPoids).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de plus que le poids obtenu : les quantités saisies dépassent la fournée.</>}
+                : <><Warn /> {Math.abs(R.ecartPoids).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de plus que le poids obtenu : les quantités saisies dépassent la fournée.</>}
             </div>
           )}
         </div>
@@ -3196,7 +3816,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
                 {tempsManquant && (
-                  <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}>⚠ Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
+                  <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}><Warn /> Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
                 )}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
               </div>
@@ -3245,7 +3865,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                                 else { if (d < du) du = d; if (d > au) au = d; }
                                 change({ autres_du: du, autres_au: au });
                               }} className="ca-tap" style={{ background: inRange ? PF.navy : "#fff", color: inRange ? "#fff" : C.ink, border: `1px solid ${inRange ? PF.navy : C.line}`, borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                                {inRange ? "✕ " : ""}{new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                                {inRange ? <><X size={11} style={{ verticalAlign: "-1px" }} /> </> : ""}{new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
                               </button>
                             );
                           })}
@@ -3519,7 +4139,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
 
           {R.ecartPoids != null && Math.abs(R.ecartPoids) > 0.05 && (
             <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: R.ecartPoids < 0 ? "#fff" : C.ink, background: R.ecartPoids < 0 ? PF.warn : "#f6efdd", borderRadius: 10, padding: "12px 14px" }}>
-              <span style={{ fontSize: 18 }}>{R.ecartPoids < 0 ? "⚠️" : "ℹ️"}</span>
+              {R.ecartPoids < 0 ? <AlertTriangle size={18} style={{ flexShrink: 0 }} /> : <Package size={18} style={{ flexShrink: 0 }} />}
               <span>Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"} kg) et les pots remplis ({R.poidsAlloue.toFixed(2)} kg).</span>
             </div>
           )}
@@ -3533,23 +4153,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
         <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
       </button>
-      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} onClose={() => setHygieneOuverte(false)} />}
+      {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} batches={batches} onClose={() => setHygieneOuverte(false)} />}
 
-      <button onClick={() => {
-        // on n'annonce que ce qui va RÉELLEMENT bouger : la validation est idempotente via stock_applique
-        const deja = cur.stock_applique || {};
-        const lignes = [];
-        if (isPissaFam(cur.famille || "pissaladiere") && cur.pissa_plaque_pid && R.nbPlaques > 0) {
-          const prod = (products || []).find((x) => x.id === cur.pissa_plaque_pid);
-          lignes.push({ pid: cur.pissa_plaque_pid, nom: prod?.name || "Plaque", unit: prod?.unit || "plaque", nb: R.nbPlaques, dejaApplique: deja[cur.pissa_plaque_pid] || 0, cout: R.coutPlaque, prix: R.pxVentePlaque, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
-        }
-        (cur.pots || []).forEach((p, i) => {
-          const pl = R.potLines[i]; if (!p.pid || !pl || !(pl.nb > 0)) return;
-          const prod = (products || []).find((x) => x.id === p.pid);
-          lignes.push({ pid: p.pid, nom: prod?.name || "Pot", unit: pl.format_g ? `pot ${pfNum(pl.format_g)}g` : (prod?.unit || "pot"), nb: pl.nb, dejaApplique: deja[p.pid] || 0, cout: pl.coutUnitaireTotal, prix: pl.pxVenteEffectif, prixFige: Number(prod?.price) > 0, stockAvant: Number(prod?.stock) || 0 });
-        });
-        setConfirmValide({ lignes });
-      }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
+      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
 
       {confirmValide && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -3562,20 +4168,37 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
             {/* §5.11 — Ce qui entre en stock entre sous un numéro de lot. Sans fiche de fabrication,
                 le stock est bien mis à jour mais rien ne permet de dire, plus tard, de quelle
                 fournée vient le pot en rayon. On le signale ici, sans bloquer la validation. */}
-            {confirmValide.lignes.length > 0 && (
+            {lignesV.length > 0 && (
               (cur.hygiene && cur.hygiene.lot)
                 ? <div style={{ fontSize: 12.5, color: C.ink, background: "#3F7A4B14", border: `1px solid ${C.ok}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
                     Ces unités entrent en stock sous le lot <b style={{ color: C.ok }}>{cur.hygiene.lot}</b>
                     {cur.hygiene.date_fab ? <> · fabriqué le <b>{frDate(cur.hygiene.date_fab)}</b></> : null}
                     {pfNum(cur.hygiene.dlc_jours) > 0 && cur.hygiene.date_fab ? <> · DLC <b>{frDate(jourPlus(cur.hygiene.date_fab, pfNum(cur.hygiene.dlc_jours)))}</b></> : null}.
+                    {lotDoublons.length > 0 && (
+                      <div style={{ marginTop: 8, color: PF.warn, fontWeight: 700, display: "flex", gap: 7, alignItems: "flex-start" }}><AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} /> Ce n° de lot est déjà porté par {lotDoublons.length} autre{lotDoublons.length > 1 ? "s" : ""} fournée{lotDoublons.length > 1 ? "s" : ""}.
+                        <button onClick={creerLot} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "4px 9px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Prendre le prochain libre</button>
+                      </div>
+                    )}
                   </div>
                 : <div style={{ fontSize: 12.5, color: C.ink, background: "#f6efdd", border: `1px solid ${C.caramel}44`, borderRadius: 10, padding: "10px 13px", marginBottom: 12, lineHeight: 1.5 }}>
-                    <b style={{ color: C.caramel }}>Pas encore de n° de lot.</b> Le stock sera mis à jour quand même, mais sans traçabilité : impossible de dire ensuite de quelle fournée vient le pot en rayon. Ouvrez <b>Contrôle hygiène</b> — le numéro, la date et la DLC sont déjà proposés.
+                    <b style={{ color: C.caramel }}>Pas encore de n° de lot.</b> Le stock sera mis à jour quand même, mais sans traçabilité : impossible de dire ensuite de quelle fournée vient le pot en rayon. Le numéro, la date et la DLC sont proposés automatiquement.
+                    <button onClick={creerLot} className="ca-tap" style={{ display: "block", marginTop: 8, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Créer le n° de lot</button>
                   </div>
             )}
-            {confirmValide.lignes.length === 0 ? (
+            {suggLiaison.length > 0 && (
+              <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink, marginBottom: 6 }}>Formats pas encore reliés à un produit</div>
+                {suggLiaison.map((sg) => (
+                  <div key={sg.i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12.5, color: C.ink, padding: "4px 0", flexWrap: "wrap" }}>
+                    <span style={{ minWidth: 0 }}>Format {pfNum(sg.format_g)} g → <b>{sg.nom}</b>{sg.unit ? ` · ${sg.unit}` : ""}</span>
+                    <button onClick={() => relierFormat(sg)} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 8, padding: "6px 11px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Relier le format</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {lignesV.length === 0 ? (
               <div style={{ fontSize: 13, color: C.caramel, fontWeight: 600, textAlign: "center", background: "#faece5", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>Aucun format n'est relié à un produit. Dans l'onglet « Contenants & vente », choisissez « Ce format alimente le produit » pour chaque format avant de valider.</div>
-            ) : confirmValide.lignes.map((l, i) => {
+            ) : lignesV.map((l, i) => {
               const delta = l.nb - (l.dejaApplique || 0);
               return (
               <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
@@ -3596,17 +4219,37 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
               </div>
               );
             })}
-            <button disabled={confirmValide.lignes.length === 0} onClick={async () => {
+            {validErreur && (
+              <div role="alert" style={{ background: "#faece5", border: `1.5px solid ${PF.warn}`, borderRadius: 12, padding: "11px 13px", marginBottom: 10, fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, color: PF.warn, fontWeight: 700, marginBottom: 4 }}><AlertTriangle size={16} style={{ flexShrink: 0 }} /> La mise à jour n&apos;est pas terminée</div>
+                {validErreur.map((e, i) => <div key={i}>{e.nom ? <><b>{e.nom}</b> : </> : null}{e.erreur}</div>)}
+                <div style={{ marginTop: 5, color: C.soft }}>Ce qui a échoué n&apos;est pas noté comme appliqué : vous pouvez réessayer sans double comptage.</div>
+              </div>
+            )}
+            <button disabled={lignesV.length === 0 || validEnCours} onClick={async () => {
+              if (validEnCours) return;
+              setValidEnCours(true); setValidErreur(null);
               clearTimeout(timer.current);
-              const lignes = confirmValide.lignes;
-              const snap = await validerEtPousserStock(cur, R);
-              await persist({ ...cur, stock_applique: snap });
-              // on ne propose l'annonce que pour ce qui vient réellement d'entrer en stock
-              const nouveaux = lignes.filter((l) => (l.nb - (l.dejaApplique || 0)) > 0);
-              setConfirmValide(null);
-              if (nouveaux.length) { setAnnonce({ lignes: nouveaux }); setAnnonceCopiee(false); } else { setView("list"); }
-            }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: confirmValide.lignes.length === 0 ? C.line : C.jam, color: confirmValide.lignes.length === 0 ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: confirmValide.lignes.length === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Confirmer et mettre à jour</button>
-            <button onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
+              try {
+                const nouveaux = lignesV.filter((l) => (l.nb - (l.dejaApplique || 0)) > 0);
+                const { snapshot, echecs } = await validerEtPousserStock(cur, R);
+                // l'écran doit porter le snapshot : sinon la prochaine sauvegarde automatique réécrirait l'ancien
+                const nf = { ...cur, stock_applique: snapshot };
+                aEnregistrer.current = nf; setCur(nf);
+                const enregistre = await persist(nf);
+                const erreurs = echecs.map((e) => ({ nom: e.nom, erreur: `stock non mis à jour (${e.erreur})` }));
+                if (!enregistre) erreurs.push({ nom: "", erreur: "la fournée n'a pas pu être enregistrée (connexion). Réessayez : le stock déjà poussé ne sera pas compté deux fois." });
+                if (erreurs.length) { setValidErreur(erreurs); return; }
+                setConfirmValide(null);
+                // on ne propose l'annonce que pour ce qui vient réellement d'entrer en stock
+                if (nouveaux.length) { setAnnonce({ lignes: nouveaux }); setAnnonceCopiee(false); } else { setView("list"); }
+              } catch (e) {
+                setValidErreur([{ nom: "", erreur: (e && e.message) || "erreur inattendue" }]);
+              } finally {
+                setValidEnCours(false);
+              }
+            }} className="ca-tap" style={{ width: "100%", marginTop: 6, background: lignesV.length === 0 || validEnCours ? C.line : C.jam, color: lignesV.length === 0 || validEnCours ? C.soft : "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: lignesV.length === 0 || validEnCours ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>{validEnCours ? "Mise à jour en cours…" : <><Check size={18} /> Confirmer et mettre à jour</>}</button>
+            <button disabled={validEnCours} onClick={() => setConfirmValide(null)} className="ca-tap" style={{ width: "100%", marginTop: 8, background: "transparent", color: C.soft, border: `1px solid ${C.line}`, borderRadius: 13, padding: "12px", fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>Annuler</button>
           </div>
         </div>
       )}
@@ -3616,7 +4259,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
       {annonce && (() => {
         const abonnes = (clients || []).filter((c) => c.optin);
         const nom = (profile && profile.name) || "Comme Avant";
-        const msg = `🍓 Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message 🙂`;
+        const msg = `Nouvelle fournée chez ${nom} !\n\nTout juste sortis du chaudron :\n${annonce.lignes.map((l) => `• ${l.nom}${l.unit ? ` (${l.unit})` : ""}`).join("\n")}\n\nÀ retrouver au marché ce week-end. Vous pouvez réserver par retour de message.`;
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: C.paper, borderRadius: 18, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto", padding: "22px 20px 18px" }}>
@@ -3667,7 +4310,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const [gran, setGran] = useState("mois");   // jour | semaine | mois | annee
   const [off, setOff] = useState(0);          // 0 = période en cours, -1 = précédente...
   const [drill, setDrill] = useState(null);   // index de la sous-période ouverte
-  const [autresOpen, setAutresOpen] = useState(false); // detail de la part "Autres" du donut
+  const [topDetail, setTopDetail] = useState(false); // « voir tout » : le classement détaillé (stock, couverture, marge)
   const [calDay, setCalDay] = useState(null); // jour précis choisi via le calendrier (iso)
   const [calOpen, setCalOpen] = useState(false);
   const [matiere, setMatiere] = useState(null);   // matière ouverte au clic sur le camembert
@@ -3682,12 +4325,8 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const M3 = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
   const JN = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 
-  const flux = useMemo(() => {
-    const out = [];
-    (sales || []).forEach((s) => out.push({ ts: s.ts, total: Number(s.total) || 0, items: (s.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null, cost: Number(i.cost) || 0, offert: !!i.offert })) }));
-    (orders || []).forEach((o) => out.push({ ts: o.ts, total: Number(o.total) || 0, items: (o.lines || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null, cost: Number(i.cost) || 0, offert: false })) }));
-    return out;
-  }, [sales, orders]);
+  // Même définition du CA partout (fluxCA, cf. plus haut) : ventes en caisse + commandes en ligne VALIDÉES.
+  const flux = useMemo(() => fluxCA(sales, orders).map((f) => ({ ts: f.ts, total: f.total, kind: f.kind, items: (f.items || []).map((i) => ({ name: i.name, qty: i.qty || 0, price: Number(i.price) || 0, pid: i.pid || null, cost: Number(i.cost) || 0, offert: !!i.offert })) })), [sales, orders]);
   // prix d'achat d'une ligne vendue : celui figé au moment de la vente, sinon la fiche produit retrouvée par son identifiant (jamais par le nom : 15 noms sont partagés par plusieurs produits)
   // Rattachement par identifiant d'abord. À défaut, par nom — comparé sans casse ni espaces de bord :
   // « Pissaladière » et « pissaladière » sont le même produit et faisaient deux lignes séparées.
@@ -3873,9 +4512,10 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return r;
   };
   const A = agg(cur.start, cur.end);
+  const CP = caPeriode(sales, orders, cur.start, cur.end);
   // commandes en ligne de la période qui ne sont pas encore passées en « Remise »
   const attente = (orders || []).reduce((acc, o) => {
-    if (o.status === "Remise") return acc;
+    if (o.status === STATUT_RETIRE) return acc;
     const t = new Date(o.ts);
     if (t < cur.start || t >= cur.end) return acc;
     return { nb: acc.nb + 1, total: acc.total + (Number(o.total) || 0) };
@@ -3921,29 +4561,20 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   }, [flux, recettes, products]);
   // si la période est en cours, on compare la précédente sur la MÊME durée écoulée
   const B = agg(prv.start, prv.end, enCours ? ecoule : null);
-  const delta = B.ca ? Math.round(((A.ca - B.ca) / B.ca) * 1000) / 10 : (A.ca ? 100 : 0);
+  const finPrv = enCours ? new Date(+prv.start + ecoule) : prv.end;
+  const CPp = caPeriode(sales, orders, prv.start, finPrv);
+  const delta = CPp.total > 0 ? Math.round(((CP.total - CPp.total) / CPp.total) * 1000) / 10 : null;
+  const frNum = (x) => String(x).replace(".", ",");
+  const fleche = (d, f) => (d >= 0 ? "▲ +" : "▼ −") + f(Math.abs(d));
   const GRANS = [["jour","Jour"],["semaine","Semaine"],["mois","Mois"],["annee","Année"],["total","Total"]];
   const PREV = { jour: "la veille", semaine: "la semaine précédente", mois: "le mois précédent", annee: "l'an dernier", total: "" };
 
   // ---- produits de la période ----
-  const prods = Object.entries(A.prods).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.ca - a.ca);
+  // key = cleProduit(i) : un même produit n'est jamais coupé en deux lignes (pid / nom hétérogènes)
+  const prods = Object.entries(A.prods).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.ca - a.ca);
   const pMax = Math.max(1, ...prods.map((p) => p.ca));
   const DONUT = ["#7A2B33","#B5722B","#3F7A4B","#8C6A4A","#C09A5B","#5E6B34","#A34E5C","#D0A96B","#6E7F8D","#8E5A3C"];
-  const donut = prods.slice(0, 8);
-  const autres = prods.slice(8).reduce((a, p) => a + p.ca, 0);
-  if (autres > 0) donut.push({ name: "Autres", ca: autres, qty: 0, marge: 0 });
-  const dTot = donut.reduce((a, p) => a + p.ca, 0) || 1;
-  let acc = 0;
   const R = 52, CX = 65, CY = 65, SW = 22;
-  const arcs = donut.map((p, i) => {
-    const frac = p.ca / dTot;
-    const a0 = acc * 2 * Math.PI - Math.PI / 2; acc += frac;
-    const a1 = acc * 2 * Math.PI - Math.PI / 2;
-    const large = frac > 0.5 ? 1 : 0;
-    const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0);
-    const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1);
-    return { d: `M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}`, col: DONUT[i % DONUT.length], p, pct: Math.round(frac * 1000) / 10 };
-  });
 
   // donut consommation matières
   const consoTop = consoPeriode.slice(0, 9);
@@ -3970,211 +4601,208 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
     return min;
   }, [flux]);
 
-  // ---- courbe d'évolution (sous-périodes de la période courante) ----
-  const subs = useMemo(() => {
+  // ---- courbe d'évolution : sous-périodes de la période courante ET de la précédente ----
+  const sousPeriodes = (per) => {
     const out = [];
     if (gran === "jour") { for (let h = 0; h < 24; h++) out.push({ lab: String(h).padStart(2,"0"), ca: 0 }); }
-    else if (gran === "semaine") { for (let i = 0; i < 7; i++) { const d = new Date(cur.start); d.setDate(cur.start.getDate() + i); out.push({ lab: JN[d.getDay()], ca: 0 }); } }
-    else if (gran === "mois") { const n = new Date(cur.start.getFullYear(), cur.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0, dow: new Date(cur.start.getFullYear(), cur.start.getMonth(), i).getDay() }); }
+    else if (gran === "semaine") { for (let i = 0; i < 7; i++) { const d = new Date(per.start); d.setDate(per.start.getDate() + i); out.push({ lab: JN[d.getDay()], ca: 0 }); } }
+    else if (gran === "mois") { const n = new Date(per.start.getFullYear(), per.start.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) out.push({ lab: String(i), ca: 0, dow: new Date(per.start.getFullYear(), per.start.getMonth(), i).getDay() }); }
     else if (gran === "total") { for (let y = anneeMin; y <= new Date().getFullYear(); y++) out.push({ lab: String(y), ca: 0 }); }
     else { for (let i = 0; i < 12; i++) out.push({ lab: M3[i], ca: 0 }); }
     flux.forEach((f) => {
-      const t = new Date(f.ts); if (t < cur.start || t >= cur.end) return;
+      const t = new Date(f.ts); if (t < per.start || t >= per.end) return;
       let idx;
       if (gran === "jour") idx = t.getHours();
-      else if (gran === "semaine") idx = Math.floor((t - cur.start) / 86400000);
+      else if (gran === "semaine") idx = Math.floor((t - per.start) / 86400000);
       else if (gran === "mois") idx = t.getDate() - 1;
       else if (gran === "total") idx = t.getFullYear() - anneeMin;
       else idx = t.getMonth();
       if (out[idx]) out[idx].ca += f.total;
     });
     return out;
-  }, [flux, gran, off, products, anneeMin]);
+  };
+  const subs = useMemo(() => sousPeriodes(cur), [flux, gran, off, products, anneeMin]);
+  const prevSubs = useMemo(() => (gran === "total" ? null : sousPeriodes(prv).map((x) => x.ca)), [flux, gran, off, products, anneeMin]);
   const sMax = Math.max(1, ...subs.map((s) => s.ca));
-
-  const kpi = (l, v, sub, accent) => (
-    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px", display: "flex", flexDirection: "column" }}>
-      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7, minHeight: 26 }}>{l}</div>
-      <div style={{ fontSize: "clamp(20px, 2.4vw, 26px)", fontWeight: 700, marginTop: "auto" }}>{v}</div>
-      <div style={{ fontSize: 11, opacity: .68, marginTop: 2, minHeight: 15 }}>{sub || ""}</div>
-    </div>
-  );
+  // dernière sous-période écoulée (la courbe s'arrête là, le reste n'a pas eu lieu)
+  const nowIdx = !enCours ? null : gran === "jour" ? now.getHours() : gran === "semaine" ? Math.floor((now - cur.start) / 86400000) : gran === "mois" ? now.getDate() - 1 : gran === "annee" ? now.getMonth() : null;
+  const ticks = gran === "jour" ? [0, 6, 12, 18].map((h) => ({ pos: h, lab: `${h} h` }))
+    : gran === "mois" ? [1, 8, 15, 22, subs.length].map((d) => ({ pos: d - 1, lab: String(d) }))
+    : subs.map((s, i) => ({ pos: i + 0.5, lab: s.lab }));
+  const labelCourt = (per) => gran === "jour" ? per.start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
+    : gran === "semaine" ? `sem. du ${per.start.getDate()} ${per.start.toLocaleDateString("fr-FR", { month: "short" })}`
+    : gran === "mois" ? per.start.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })
+    : gran === "annee" ? String(per.start.getFullYear()) : "Total";
+  const LEG = { jour: ["aujourd'hui", "la veille"], semaine: ["cette semaine", "semaine précédente"], mois: ["ce mois", "mois précédent"], annee: ["cette année", "année précédente"], total: ["cumul", ""] };
+  const legende = off === 0 ? LEG[gran] : [labelCourt(cur), labelCourt(prv)];
+  const FIN = { jour: "journée", semaine: "semaine", mois: "mois", annee: "année" };
+  const projection = enCours && gran !== "total" && ecoule > (cur.end - cur.start) * 0.1 && (cur.end - cur.start) > ecoule && CP.total > 0
+    ? `projection fin de ${FIN[gran]} ≈ ${eurF(CP.total * (cur.end - cur.start) / ecoule, 0)}` : null;
+  const aRefaireListe = (products || []).filter((p) => p.active !== false && !p.soon && (Number(p.stock) || 0) <= 5).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
+  const gestOuvert = ["marge", "stock", "matieres", "clients", "jours"].some((k) => blocs[k]);
+  const basculer = (k) => () => setBlocs((b) => ({ ...b, [k]: !b[k] }));
 
   return (
-    <div>
-      <ProHead title="Tableau de bord" sub="Pilotage de l'activité" />
+    <div className="stat-root" style={{ ...NUM, maxWidth: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px 14px", flexWrap: "wrap" }}>
+        <h2 className="stat-h1" style={{ fontFamily: SCRIPT, fontWeight: 400, lineHeight: 1.1, margin: 0, color: C.jam }}>Tableau de bord</h2>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          {GRANS.map(([k, l]) => (
+            <button key={k} onClick={() => { setGran(k); setOff(0); setDrill(null); }} className={`ca-tap stat-chip${gran === k ? " on" : ""}`}>{l}</button>
+          ))}
+          <span className="stat-chip" style={{ cursor: "default" }}>
+            {gran !== "total" && <button onClick={() => setOff(off - 1)} className="stat-ic" aria-label="Période précédente"><ChevronLeft size={14} /></button>}
+            <span style={{ ...NUM }}>{labelCourt(cur)}</span>
+            {gran !== "total" && <button onClick={() => setOff(Math.min(0, off + 1))} disabled={off >= 0} className="stat-ic" aria-label="Période suivante"><ChevronRight size={14} /></button>}
+            <button onClick={() => setCalOpen((o) => !o)} className="stat-ic" aria-label="Consulter un jour précis" aria-expanded={calOpen}><Calendar size={14} /></button>
+          </span>
+          {onRefresh && <button onClick={onRefresh} className="ca-tap stat-chip" aria-label="Actualiser">{loading ? "…" : "↻"}</button>}
+        </div>
+      </div>
 
-      <div style={{ ...card(), marginBottom: 14, padding: calOpen ? undefined : "12px 14px" }}>
-        <button onClick={() => setCalOpen((o) => !o)} className="ca-tap" style={{ width: "100%", background: "transparent", border: "none", padding: 0, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", color: C.ink }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700 }}><Calendar size={16} color={C.jam} /> Consulter un jour précis</span>
-          <ChevronDown size={18} color={C.soft} style={{ transform: calOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
-        </button>
-        {calOpen && (
-          <div style={{ marginTop: 14 }}>
-            <CalGrid sales={flux} selected={calDay || ""} onPick={(iso) => setCalDay(iso)} />
-          </div>
+      {calOpen && (
+        <div style={{ background: C.paper, borderRadius: 14, padding: "14px 16px", marginTop: 12 }}>
+          <CalGrid sales={flux} selected={calDay || ""} onPick={(iso) => setCalDay(iso)} />
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+        <Tuile variante="jam" label="Chiffre d'affaires" value={eurF(CP.total)} sub={<>
+          {gran !== "total" && (delta != null ? <div>{fleche(delta, (x) => frNum(x) + " %")} vs {eurF(CPp.total)} {PREV[gran]}</div> : (CP.total > 0 ? <div>aucune vente {PREV[gran]}</div> : null))}
+          <div>Caisse {eurF(CP.caisse)} + commandes retirées {eurF(CP.enLigne)}</div>
+        </>} />
+        <Tuile label="Panier moyen" value={CP.nbVentes ? eurF(CP.panier, 1) : "—"} sub={gran !== "total" && CP.nbVentes > 0 && CPp.nbVentes > 0 ? fleche(CP.panier - CPp.panier, (x) => eurF(x, 1)) : " "} />
+        <Tuile label="Ventes" value={CP.nbVentes} sub={gran !== "total" && CPp.nbVentes > 0 ? fleche(CP.nbVentes - CPp.nbVentes, (x) => String(x)) : " "} />
+        <Tuile label="Articles" value={CP.articles} sub={`dont ${CP.articlesEnLigne} en ligne`} />
+      </div>
+
+      {/* Une commande en ligne n'entre dans le chiffre d'affaires qu'une fois retirée et validée
+          (CLAUDE.md 5.3, définition unique caPeriode). On dit ce qui reste en attente au lieu de le masquer. */}
+      {attente.nb > 0 && (
+        <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginTop: 12, lineHeight: 1.45 }}>
+          <b>{attente.nb} commande{attente.nb > 1 ? "s" : ""} en ligne pas encore retirée{attente.nb > 1 ? "s" : ""}</b> sur cette période — <b>{eurF(attente.total)}</b> pas encore comptés : elles entrent dans le chiffre d&apos;affaires dès que vous les validez (« Valider le retrait »).
+        </div>
+      )}
+
+      <div style={{ background: C.paper, borderRadius: 14, padding: "14px 16px", marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "4px 12px", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 16, fontWeight: 600 }}>Progression du CA (cumul)</b>
+          {projection && <span style={{ fontSize: 12.5, color: C.soft }}>{projection}</span>}
+        </div>
+        <GraphiqueCA cur={subs.map((x) => x.ca)} prev={prevSubs} nowIdx={nowIdx} ticks={ticks} legende={legende} titres={subs.map((x) => `${gran === "jour" ? x.lab + " h" : x.lab} · ${eurF(x.ca)}`)} onPick={(i) => setDrill(i)} />
+        {enCours && gran !== "total" && CPp.total > 0 && (
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 6, lineHeight: 1.4 }}>Comparaison à durée égale : {PREV[gran]} est mesuré sur la même durée écoulée ({eurF(CPp.total)}). Touchez la courbe pour le détail d&apos;un jour.</div>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-        {GRANS.map(([k, l]) => (
-          <button key={k} onClick={() => { setGran(k); setOff(0); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${gran === k ? C.jam : C.line}`, background: gran === k ? C.jam : "#fff", color: gran === k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l}</button>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        {gran !== "total" && <button onClick={() => setOff(off - 1)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={17} /></button>}
-        <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cur.label}</div>
-          {enCours && gran !== "total" && <div style={{ fontSize: 10.5, color: C.caramel, fontWeight: 700 }}>en cours</div>}
-        </div>
-        {gran !== "total" && <button onClick={() => setOff(Math.min(0, off + 1))} disabled={off >= 0} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 34, height: 34, cursor: off >= 0 ? "default" : "pointer", display: "grid", placeItems: "center", color: off >= 0 ? "#C9C0AE" : C.jam, flexShrink: 0 }}><ChevronRight size={17} /></button>}
-        {onRefresh && <button onClick={onRefresh} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, height: 34, padding: "0 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", color: C.jam, flexShrink: 0 }}>{loading ? "…" : "↻"}</button>}
-      </div>
-
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 14, alignItems: "stretch" }}>
-        {gran === "total" ? kpi("Chiffre d'affaires", eur(A.ca), null, true) : kpi("Chiffre d'affaires", eur(A.ca), `${delta >= 0 ? "▲ +" : "▼ "}${delta}% vs ${PREV[gran]}`, true)}
-        {/* le "% du CA" n'a de sens que si le CA est > 0 : sinon la division affichait "Infinity%" */}
-        {/* Une marge calculée sur une poignée de ventes est pire qu'absente : « 20,80 € » à côté de
-            « 8 289,50 € » de CA se lit « j'ai gagné 20 € ». Sous 5 % du CA couvert, on refuse de
-            l'afficher et on dit ce qui manque. */}
-        {(() => {
-          const part = A.ca > 0 ? A.caAvecCout / A.ca : 0;
-          const avecCout = (products || []).filter((p) => Number(p.cost) > 0).length;
-          const total = (products || []).length;
-          if (A.caAvecCout <= 0 || part < 0.05) {
-            return kpi("Marge", "—", total > 0 ? `${avecCout} produit${avecCout > 1 ? "s" : ""} sur ${total} ont un prix d'achat` : "prix d'achat non renseignés");
-          }
-          const pct = Math.round(part * 100);
-          return kpi("Marge", eur(A.marge), `${Math.round((A.marge / A.caAvecCout) * 100)}% · sur les ${pct}% du CA dont le coût est connu`);
-        })()}
-        {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
-        {(() => {
-          const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
-          const valeurStock = prodsAvecStock.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0);
-          const prodsAvecCoutConnu = prodsAvecStock.filter((p) => Number(p.cost) > 0).length;
-          return kpi("Valeur du stock", valeurStock > 0 ? eur(valeurStock) : "—", prodsAvecStock.length > 0 ? `${prodsAvecCoutConnu}/${prodsAvecStock.length} produits avec coût connu` : "aucun stock renseigné");
-        })()}
-        {/* Achats marchandises : ce que les ventes de la période ont coûté en matières, au prix
-            d'achat saisi dans les recettes de fournée. Rapporté au CA, c'est le ratio qu'un
-            commerçant surveille en premier. */}
-        {(() => {
-          const achats = consoPeriode.reduce((s, [ing, g]) => s + (prixMatiere[ing] > 0 ? (g / 1000) * prixMatiere[ing] : 0), 0);
-          const pct = A.ca > 0 ? Math.round((achats / A.ca) * 100) : null;
-          return kpi("Achats marchandises", achats > 0 ? eur(achats) : "—", achats > 0 && pct != null ? `${pct}% du chiffre d'affaires` : "aucune recette reliée aux ventes");
-        })()}
-      </div>
-
-      {/* Une commande en ligne entre dans le chiffre d'affaires dès qu'elle est passée, pas au retrait
-          (cf. CLAUDE.md 5.3). Tant qu'il n'existe pas de statut « Annulée », un client qui ne vient
-          jamais gonfle le CA en silence : on affiche le montant concerné au lieu de le masquer. */}
-      {attente.nb > 0 && (
-        <div style={{ background: "#7A2B3310", border: `1px solid ${C.jam}44`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
-          <b>{attente.nb} commande{attente.nb > 1 ? "s" : ""} pas encore retirée{attente.nb > 1 ? "s" : ""}</b> sur cette période — <b>{eur(attente.total)}</b> déjà comptés dans le chiffre d'affaires ci-dessus.
-          <div style={{ marginTop: 3, color: C.soft }}>Passez-les en « Remise » depuis l'onglet Commandes une fois le retrait fait.</div>
-        </div>
-      )}
-
-      {enCours && gran !== "total" && (
-        <div style={{ background: "#B5722B14", border: `1px solid ${C.caramel}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12, color: C.ink, marginBottom: 14, lineHeight: 1.45 }}>
-          Comparaison honnête : {PREV[gran]} est mesuré <b>sur la même durée écoulée</b> ({eur(B.ca)}), pas sur la période complète.
-          {ecoule > 0 && (cur.end - cur.start) > ecoule && (
-            <div style={{ marginTop: 4 }}>À ce rythme, projection en fin de {gran === "jour" ? "journée" : gran === "semaine" ? "semaine" : gran === "mois" ? "mois" : "année"} : <b>≈ {eur(A.ca * (cur.end - cur.start) / ecoule)}</b></div>
-          )}
-        </div>
-      )}
-
-      <div style={card()}>
-        <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : gran === "total" ? "année par année" : "mois par mois"}</div>
-        {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (<>
-          <div style={{ fontSize: 11.5, color: C.soft, marginTop: -6, marginBottom: 8 }}>Touchez une barre pour voir le détail des produits vendus.</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
-            {subs.map((s, i) => {
-              const isWeekend = gran === "mois" && (s.dow === 0 || s.dow === 6);
-              const isMonday = gran === "mois" && s.dow === 1;
-              return (
-                <div key={i} onClick={() => s.ca && setDrill(i)} title={s.ca ? `${s.lab} · ${eur(s.ca)} — cliquer pour le détail` : s.lab} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0, cursor: s.ca ? "pointer" : "default", background: isWeekend ? "#00000006" : "transparent", borderRadius: 3 }}>
-                  <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s, filter .15s" }} />
-                  {gran === "mois" ? (
-                    <div style={{ marginTop: 4, textAlign: "center", lineHeight: 1.15 }}>
-                      <div style={{ fontSize: 9, color: isMonday ? PF.navy : C.soft, fontWeight: isMonday ? 800 : 600 }}>{JN[s.dow][0]}</div>
-                      {isMonday && <div style={{ fontSize: 8.5, color: PF.navy, fontWeight: 800 }}>{s.lab}</div>}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{s.lab}</div>
-                  )}
-                </div>
-              );
-            })}
+      <div className={`stat-duo${gestOuvert ? " gest-open" : ""}`}>
+        <div style={{ background: C.paper, borderRadius: 14, padding: "14px 16px", minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+            <b style={{ fontSize: 16, fontWeight: 600 }}>{topDetail ? "Produits les plus performants" : "Ce qui se vend (top 5)"}</b>
+            {prods.length > 0 && <button onClick={() => setTopDetail((v) => !v)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, fontSize: 12, cursor: "pointer", padding: "4px 0", flexShrink: 0 }}>{topDetail ? "réduire" : "voir tout"}</button>}
           </div>
-        </>)}
-      </div>
-
-      {((drill !== null && subs[drill]) || calDay) && (() => {
-        // bornes de la période cliquée : soit une sous-période du graphique, soit un jour choisi au calendrier
-        let a, b, titre;
-        const closeAll = () => { setDrill(null); setCalDay(null); };
-        if (calDay) {
-          const [Y, M, Dd] = calDay.split("-").map(Number);
-          a = new Date(Y, M - 1, Dd); b = new Date(a); b.setDate(a.getDate() + 1);
-          titre = a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
-        } else {
-          if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
-          else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
-          else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
-          else if (gran === "total") { const yy = anneeMin + drill; a = new Date(yy, 0, 1); b = new Date(yy + 1, 0, 1); }
-          else { const yy = cur.start.getFullYear(); a = new Date(yy, drill, 1); b = new Date(yy, drill + 1, 1); }
-          titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
-            : gran === "total" ? `année ${anneeMin + drill}`
-            : gran === "annee" ? `${MOIS[drill]} ${a.getFullYear()}`
-            : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
-        }
-        const D = agg(a, b);
-        const dp = Object.entries(D.prods).map(([name, v]) => ({ name, ...v })).sort((x, y) => y.ca - x.ca);
-        const dMaxx = Math.max(1, ...dp.map((x) => x.ca));
-        const tickets = flux.filter((f) => { const t = new Date(f.ts); return t >= a && t < b; }).sort((x, y) => y.ts - x.ts);
-        return (
-          <div onClick={closeAll} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
-            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, textTransform: "capitalize", lineHeight: 1.15 }}>{titre}</div>
-                  <div style={{ fontSize: 12, color: C.soft }}>{D.nb} vente(s) · {D.qty} article(s)</div>
-                </div>
-                <button onClick={closeAll} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Chiffre d'affaires</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.ca)}</div></div>
-                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Marge</div><div style={{ fontSize: 22, fontWeight: 700 }}>{D.caAvecCout > 0 ? eur(D.marge) : "—"}</div>{D.ca > 0 && <div style={{ fontSize: 9.5, opacity: .65, marginTop: 2 }}>{D.caAvecCout > 0 ? `sur ${Math.round((D.caAvecCout / D.ca) * 100)}% du CA` : "coûts non renseignés"}</div>}</div>
-              </div>
-              <div style={{ ...h2 }}>Produits vendus</div>
-              {dp.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun détail.</div> : dp.map((p, i) => (
-                <div key={(p.pid || p.name) + "-" + i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
-                    <span style={{ width: 19, height: 19, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 10.5, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
-                    <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                    <span style={{ fontSize: 12, color: C.soft, flexShrink: 0 }}>×{p.qty}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.jam, flexShrink: 0, minWidth: 52, textAlign: "right" }}>{eur(p.ca)}</span>
-                  </div>
-                  <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden" }}><div style={{ width: `${(p.ca / dMaxx) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} /></div>
-                </div>
-              ))}
-              {tickets.length > 0 && (<>
-                <div style={{ ...h2, marginTop: 14 }}>Tickets ({tickets.length})</div>
-                {tickets.map((t, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 12.5 }}>
-                    <span style={{ color: C.soft, flexShrink: 0 }}>{new Date(t.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
-                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(t.items || []).map((x) => `${x.qty}× ${x.name}`).join(", ")}</span>
-                    <b style={{ color: C.jam, flexShrink: 0 }}>{eur(t.total)}</b>
-                  </div>
-                ))}
-              </>)}
+          {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginTop: 8 }}>Aucune vente sur cette période.</div> : topDetail ? (
+            <div style={{ marginTop: 8 }}>
+      <div style={card()}>
+        <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (voirTout.prods ? prods : prods.slice(0, 6)).map((p, i) => {
+          const catalogue = p.pid ? (products || []).find((x) => x.id === p.pid) : (products || []).find((x) => x.name === p.name);
+          // Une seule ligne de contexte : ce qui fait agir, c'est la couverture de stock.
+          const parSem = rythme[p.key] || 0;
+          const stockNow = catalogue ? Number(catalogue.stock) || 0 : null;
+          const sem = (stockNow != null && parSem > 0) ? stockNow / parSem : null;
+          const couvCol = sem == null ? C.soft : sem < 1 ? C.jam : sem < 3 ? C.caramel : C.ok;
+          return (
+          <div key={(p.pid || p.name) + "-" + i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+              <span style={{ width: 20, height: 20, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 11, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{catalogue && catalogue.unit ? <span style={{ color: C.soft, fontWeight: 500 }}> · {catalogue.unit}</span> : null}</div>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
+            </div>
+            <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+              <div style={{ width: `${(p.ca / pMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} />
+            </div>
+            <div style={{ fontSize: 11.5, color: C.soft }}>
+              <b style={{ color: C.ink }}>{p.qty}</b> vendus · <b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA
+              {p.coutConnu && <> · marge <b style={{ color: p.marge > 0 ? C.ok : C.jam }}>{eur(p.marge)}</b></>}
+              {stockNow != null && <> · stock <b style={{ color: C.ink }}>{stockNow}</b>{sem != null && <>, <b style={{ color: couvCol }}>{sem < 1 ? "moins d'une semaine" : `~${sem.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} sem.`}</b></>}</>}
             </div>
           </div>
-        );
-      })()}
+          );
+        })}
+        {plus("prods", prods.length, 6)}
+      </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              {prods.slice(0, 5).map((p, i) => {
+                const prevCa = (B.prods[p.key] || {}).ca || 0;
+                const dv = prevCa > 0 ? Math.round(((p.ca - prevCa) / prevCa) * 100) : null;
+                const fiche = (products || []).find((x) => x.id === p.pid);
+                return (
+                  <div key={p.key + "-" + i} style={{ marginTop: i ? 6 : 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{fiche && fiche.unit ? <span style={{ color: C.soft }}> · {fiche.unit}</span> : null}</span>
+                      <b style={{ fontWeight: 600, flexShrink: 0, ...NUM }}>{eurF(p.ca)}{gran !== "total" && (dv === 0 ? <span style={{ color: C.soft }}> · stable</span> : dv != null ? <span style={{ color: dv >= 0 ? C.ok : C.jam }}> · {dv >= 0 ? "▲ +" : "▼ −"}{Math.abs(dv)} %</span> : <span style={{ color: C.caramel }}> · nouveau</span>)}</b>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 5, background: "#e8dfc9", overflow: "hidden" }}><i style={{ display: "block", height: "100%", width: `${(p.ca / pMax) * 100}%`, background: C.jam }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-      <BlocPliant ouvert={!!blocs["matieres"]} onToggle={() => setBlocs((b) => ({ ...b, "matieres": !b["matieres"] }))} titre="Matières & consommation" resume={consoPeriode.length ? `${consoPeriode.length} matière${consoPeriode.length > 1 ? "s" : ""} · ${fmtQty(cTot)} sur ${cur.label}` : "aucune consommation calculable sur cette période"}>
+        <div className="stat-gest" style={{ background: C.paper, borderRadius: 14, padding: "14px 16px", minWidth: 0 }}>
+          <b style={{ fontSize: 16, fontWeight: 600 }}>Gestion</b>
+          <div style={{ marginTop: 6 }}>
+            <LigneGestion titre="Marge et achats marchandises" ouvert={!!blocs.marge} onToggle={basculer("marge")}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {/* Une marge calculée sur une poignée de ventes est pire qu'absente : « 20,80 € » à côté de
+                    « 8 289,50 € » de CA se lit « j'ai gagné 20 € ». Sous 5 % du CA couvert (§5.4 ter), on refuse de
+                    l'afficher et on dit ce qui manque. */}
+                {(() => {
+                  const part = A.ca > 0 ? A.caAvecCout / A.ca : 0;
+                  const avecCout = (products || []).filter((p) => Number(p.cost) > 0).length;
+                  const total = (products || []).length;
+                  if (A.caAvecCout <= 0 || part < 0.05) {
+                    return <Tuile label="Marge" value="—" sub={total > 0 ? `${avecCout} produit${avecCout > 1 ? "s" : ""} sur ${total} ont un prix d'achat` : "prix d'achat non renseignés"} />;
+                  }
+                  const pct = Math.round(part * 100);
+                  return <Tuile label="Marge" value={eurF(A.marge)} sub={`${Math.round((A.marge / A.caAvecCout) * 100)} % · sur les ${pct} % du CA dont le coût est connu`} />;
+                })()}
+                {/* Achats marchandises : ce que les ventes de la période ont coûté en matières, au prix d'achat saisi
+                    dans les recettes de fournée, rapporté au CA. */}
+                {(() => {
+                  const achats = consoPeriode.reduce((s, [ing, g]) => s + (prixMatiere[ing] > 0 ? (g / 1000) * prixMatiere[ing] : 0), 0);
+                  const pct = CP.total > 0 ? Math.round((achats / CP.total) * 100) : null;
+                  return <Tuile label="Achats marchandises" value={achats > 0 ? eurF(achats) : "—"} sub={achats > 0 && pct != null ? `${pct} % du chiffre d'affaires` : "aucune recette reliée aux ventes"} />;
+                })()}
+              </div>
+            </LigneGestion>
+
+            <LigneGestion titre="Valeur du stock · à refaire" ouvert={!!blocs.stock} onToggle={basculer("stock")}>
+              {(() => {
+                const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
+                const valeurStock = prodsAvecStock.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0);
+                const prodsAvecCoutConnu = prodsAvecStock.filter((p) => Number(p.cost) > 0).length;
+                return <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><Tuile label="Valeur du stock" value={valeurStock > 0 ? eurF(valeurStock) : "—"} sub={prodsAvecStock.length > 0 ? `${prodsAvecCoutConnu}/${prodsAvecStock.length} produits avec coût connu` : "aucun stock renseigné"} /></div>;
+              })()}
+              <div style={{ fontSize: 10.5, letterSpacing: "1.5px", textTransform: "uppercase", fontWeight: 600, color: C.soft, margin: "12px 0 4px" }}>À refaire · {aRefaireListe.length}</div>
+              {aRefaireListe.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Stocks suffisants.</div> : aRefaireListe.map((p) => {
+                const parSem = rythme[p.id] || 0, st = Number(p.stock) || 0;
+                const sem = parSem > 0 ? st / parSem : null;
+                return (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13, padding: "5px 0", borderTop: `1px solid ${C.line}` }}>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{p.unit ? <span style={{ color: C.soft }}> · {p.unit}</span> : null}</span>
+                    <b style={{ fontWeight: 600, flexShrink: 0, color: st === 0 ? C.jam : C.ink, ...NUM }}>{st}{sem != null && st > 0 ? <span style={{ color: C.soft, fontWeight: 500 }}> · ~{sem.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} sem.</span> : null}</b>
+                  </div>
+                );
+              })}
+            </LigneGestion>
+
+            <LigneGestion titre="Matières et consommation" ouvert={!!blocs.matieres} onToggle={basculer("matieres")}>
+              <div style={{ fontSize: 12, color: C.soft, marginBottom: 8 }}>{consoPeriode.length ? `${consoPeriode.length} matière${consoPeriode.length > 1 ? "s" : ""} · ${fmtQty(cTot)} sur ${cur.label}` : "aucune consommation calculable sur cette période"}</div>
       <div style={card()}>
         <div style={{ ...h2 }}>Consommation matières (crues)</div>
         <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Estimée à partir des ventes de la période et des recettes de vos fournées. Touchez une matière pour voir quels produits l&apos;ont consommée.</div>
@@ -4298,75 +4926,10 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           {plus("sans", consoRythme.sansRecette.length, 6)}
         </div>
       )}
-      </BlocPliant>
+            </LigneGestion>
 
-      <BlocPliant ouvert={!!blocs["ventes"]} onToggle={() => setBlocs((b) => ({ ...b, "ventes": !b["ventes"] }))} titre="Ce qui se vend" resume={prods.length ? `${prods.length} produit${prods.length > 1 ? "s" : ""} vendu${prods.length > 1 ? "s" : ""} sur ${cur.label}` : "aucune vente sur cette période"}>
-      <div style={card()}>
-        <div style={{ ...h2 }}>Répartition des ventes par produit</div>
-        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
-          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
-              {arcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
-              <text x={CX} y={CY - 4} textAnchor="middle" style={{ fontSize: 15, fontWeight: 700, fill: C.ink }}>{eur(A.ca)}</text>
-              <text x={CX} y={CY + 10} textAnchor="middle" style={{ fontSize: 8, fill: C.soft }}>{prods.length} produits</text>
-            </svg>
-            <div style={{ flex: "1 1 200px", minWidth: 190 }}>
-              {arcs.map((a, i) => (
-                <div key={i}>
-                  <div onClick={() => a.p.name === "Autres" && setAutresOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5, cursor: a.p.name === "Autres" ? "pointer" : "default" }}>
-                    <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
-                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}{a.p.name === "Autres" ? (autresOpen ? " ▲" : " ▼") : ""}</span>
-                    <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
-                  </div>
-                  {a.p.name === "Autres" && autresOpen && (
-                    <div style={{ margin: "2px 0 6px 19px", padding: "6px 10px", background: C.cream, borderRadius: 8 }}>
-                      {prods.slice(8).map((p2, j) => (
-                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 11.5, padding: "2.5px 0", color: C.soft }}>
-                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p2.name}</span>
-                          <span style={{ flexShrink: 0, fontWeight: 700, color: C.ink }}>{eur(p2.ca)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={card()}>
-        <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
-        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (voirTout.prods ? prods : prods.slice(0, 6)).map((p, i) => {
-          const catalogue = p.pid ? (products || []).find((x) => x.id === p.pid) : (products || []).find((x) => x.name === p.name);
-          // Une seule ligne de contexte : ce qui fait agir, c'est la couverture de stock.
-          const parSem = rythme[p.pid || p.name] || 0;
-          const stockNow = catalogue ? Number(catalogue.stock) || 0 : null;
-          const sem = (stockNow != null && parSem > 0) ? stockNow / parSem : null;
-          const couvCol = sem == null ? C.soft : sem < 1 ? C.jam : sem < 3 ? C.caramel : C.ok;
-          return (
-          <div key={(p.pid || p.name) + "-" + i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
-              <span style={{ width: 20, height: 20, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 11, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{catalogue && catalogue.unit ? <span style={{ color: C.soft, fontWeight: 500 }}> · {catalogue.unit}</span> : null}</div>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.jam, flexShrink: 0 }}>{eur(p.ca)}</span>
-            </div>
-            <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
-              <div style={{ width: `${(p.ca / pMax) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} />
-            </div>
-            <div style={{ fontSize: 11.5, color: C.soft }}>
-              <b style={{ color: C.ink }}>{p.qty}</b> vendus · <b style={{ color: C.ink }}>{Math.round((p.ca / (A.ca || 1)) * 100)}%</b> du CA
-              {p.coutConnu && <> · marge <b style={{ color: p.marge > 0 ? C.ok : C.jam }}>{eur(p.marge)}</b></>}
-              {stockNow != null && <> · stock <b style={{ color: C.ink }}>{stockNow}</b>{sem != null && <>, <b style={{ color: couvCol }}>{sem < 1 ? "moins d'une semaine" : `~${sem.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} sem.`}</b></>}</>}
-            </div>
-          </div>
-          );
-        })}
-        {plus("prods", prods.length, 6)}
-      </div>
-      </BlocPliant>
-
-      <BlocPliant ouvert={!!blocs["clients"]} onToggle={() => setBlocs((b) => ({ ...b, "clients": !b["clients"] }))} titre="Clients & fréquentation" resume={`${(clients || []).length} client${(clients || []).length > 1 ? "s" : ""} · ${(visits || []).length} visite${(visits || []).length > 1 ? "s" : ""}`}>
+            <LigneGestion titre="Clients et fréquentation" ouvert={!!blocs.clients} onToggle={basculer("clients")}>
+              <div style={{ fontSize: 12, color: C.soft, marginBottom: 8 }}>{`${(clients || []).length} client${(clients || []).length > 1 ? "s" : ""} · ${(visits || []).length} visite${(visits || []).length > 1 ? "s" : ""}`}</div>
       <div style={card()}>
         <div style={{ ...h2 }}>Zone géographique</div>
         {(() => {
@@ -4402,13 +4965,114 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           </>;
         })()}
       </div>
-      </BlocPliant>
+            </LigneGestion>
+
+            <LigneGestion titre={`Ventes ${gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : gran === "total" ? "année par année" : "mois par mois"}`} ouvert={!!blocs.jours} onToggle={basculer("jours")}>
+      <div style={card()}>
+        <div style={{ ...h2 }}>Ventes {gran === "jour" ? "par heure" : gran === "semaine" ? "par jour" : gran === "mois" ? "jour par jour" : gran === "total" ? "année par année" : "mois par mois"}</div>
+        {A.ca === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (<>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: -6, marginBottom: 8 }}>Touchez une barre pour voir le détail des produits vendus.</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: gran === "mois" ? 2 : 5, height: 140 }}>
+            {subs.map((s, i) => {
+              const isWeekend = gran === "mois" && (s.dow === 0 || s.dow === 6);
+              const isMonday = gran === "mois" && s.dow === 1;
+              return (
+                <div key={i} onClick={() => s.ca && setDrill(i)} title={s.ca ? `${s.lab} · ${eur(s.ca)} — cliquer pour le détail` : s.lab} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", minWidth: 0, cursor: s.ca ? "pointer" : "default", background: isWeekend ? "#00000006" : "transparent", borderRadius: 3 }}>
+                  <div style={{ width: "100%", height: `${Math.max(s.ca ? 4 : 1, (s.ca / sMax) * 82)}%`, background: s.ca === sMax && s.ca > 0 ? C.jam : C.caramel, opacity: s.ca ? 1 : .16, borderRadius: "4px 4px 0 0", transition: "height .25s, filter .15s" }} />
+                  {gran === "mois" ? (
+                    <div style={{ marginTop: 4, textAlign: "center", lineHeight: 1.15 }}>
+                      <div style={{ fontSize: 9, color: isMonday ? PF.navy : C.soft, fontWeight: isMonday ? 800 : 600 }}>{JN[s.dow][0]}</div>
+                      {isMonday && <div style={{ fontSize: 8.5, color: PF.navy, fontWeight: 800 }}>{s.lab}</div>}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 10, color: C.soft, marginTop: 4, whiteSpace: "nowrap" }}>{s.lab}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>)}
+      </div>
+            </LigneGestion>
+          </div>
+        </div>
+      </div>
+
+      {((drill !== null && subs[drill]) || calDay) && (() => {
+        // bornes de la période cliquée : soit une sous-période du graphique, soit un jour choisi au calendrier
+        let a, b, titre;
+        const closeAll = () => { setDrill(null); setCalDay(null); };
+        if (calDay) {
+          const [Y, M, Dd] = calDay.split("-").map(Number);
+          a = new Date(Y, M - 1, Dd); b = new Date(a); b.setDate(a.getDate() + 1);
+          titre = a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+        } else {
+          if (gran === "jour") { a = new Date(cur.start); a.setHours(drill, 0, 0, 0); b = new Date(a); b.setHours(drill + 1); }
+          else if (gran === "semaine") { a = new Date(cur.start); a.setDate(cur.start.getDate() + drill); b = new Date(a); b.setDate(a.getDate() + 1); }
+          else if (gran === "mois") { a = new Date(cur.start.getFullYear(), cur.start.getMonth(), drill + 1); b = new Date(a); b.setDate(a.getDate() + 1); }
+          else if (gran === "total") { const yy = anneeMin + drill; a = new Date(yy, 0, 1); b = new Date(yy + 1, 0, 1); }
+          else { const yy = cur.start.getFullYear(); a = new Date(yy, drill, 1); b = new Date(yy, drill + 1, 1); }
+          titre = gran === "jour" ? `${String(drill).padStart(2, "0")}h — ${String(drill + 1).padStart(2, "0")}h`
+            : gran === "total" ? `année ${anneeMin + drill}`
+            : gran === "annee" ? `${MOIS[drill]} ${a.getFullYear()}`
+            : a.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+        }
+        const D = agg(a, b);
+        const dp = Object.entries(D.prods).map(([name, v]) => ({ name, ...v })).sort((x, y) => y.ca - x.ca);
+        const dMaxx = Math.max(1, ...dp.map((x) => x.ca));
+        const tickets = flux.filter((f) => { const t = new Date(f.ts); return t >= a && t < b; }).sort((x, y) => y.ts - x.ts);
+        return (
+          <div onClick={closeAll} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
+            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, textTransform: "capitalize", lineHeight: 1.15 }}>{titre}</div>
+                  <div style={{ fontSize: 12, color: C.soft }}>{D.nb} vente(s) · {D.qty} article(s)</div>
+                </div>
+                <button onClick={closeAll} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Chiffre d'affaires</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(D.ca)}</div></div>
+                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Marge</div><div style={{ fontSize: 22, fontWeight: 700 }}>{D.caAvecCout > 0 ? eur(D.marge) : "—"}</div>{D.ca > 0 && <div style={{ fontSize: 9.5, opacity: .65, marginTop: 2 }}>{D.caAvecCout > 0 ? `sur ${Math.round((D.caAvecCout / D.ca) * 100)}% du CA` : "coûts non renseignés"}</div>}</div>
+              </div>
+              <div style={{ ...h2 }}>Produits vendus</div>
+              {dp.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun détail.</div> : dp.map((p, i) => (
+                <div key={(p.pid || p.name) + "-" + i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+                    <span style={{ width: 19, height: 19, borderRadius: 6, background: i < 3 ? C.jam : C.line, color: i < 3 ? "#fff" : C.soft, fontSize: 10.5, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <span style={{ fontSize: 12, color: C.soft, flexShrink: 0 }}>×{p.qty}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.jam, flexShrink: 0, minWidth: 52, textAlign: "right" }}>{eur(p.ca)}</span>
+                  </div>
+                  <div style={{ height: 6, background: C.line, borderRadius: 3, overflow: "hidden" }}><div style={{ width: `${(p.ca / dMaxx) * 100}%`, height: "100%", background: C.jam, borderRadius: 3 }} /></div>
+                </div>
+              ))}
+              {tickets.length > 0 && (<>
+                <div style={{ ...h2, marginTop: 14 }}>Tickets ({tickets.length})</div>
+                {tickets.map((t, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 12.5 }}>
+                    <span style={{ color: C.soft, flexShrink: 0 }}>{new Date(t.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(t.items || []).map((x) => `${x.qty}× ${x.name}`).join(", ")}</span>
+                    <b style={{ color: C.jam, flexShrink: 0 }}>{eur(t.total)}</b>
+                  </div>
+                ))}
+              </>)}
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
 
 const STATUSES = ["À préparer", "Prête", "Remise"];
-function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
+function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setProducts }) {
+  const ordersRef = useRef(orders); ordersRef.current = orders;
+  const productsRef = useRef(products); productsRef.current = products;
+  const [erreur, setErreur] = useState(null);
+  const ctxCmd = { pass, ordersRef, productsRef, setOrders, setProducts };
+  const montrer = (r) => { if (!r) return; if (r.erreur) setErreur(r.erreur); else if (r.avertissement) setErreur(r.avertissement); };
   const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
   const [openId, setOpenId] = useState(null);
   const [edit, setEdit] = useState(null);
@@ -4418,9 +5082,13 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
     if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) };
     return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] };
   });
+  // Le statut « Remise » sort les articles du stock, exactement comme « Valider le retrait » en Caisse
+  // (même fonction partagée, idempotente) ; en sortir ou supprimer la commande les remet.
   const persistStatus = async (o, s) => {
-    setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: s } : x));
-    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: s }); } catch (e) {} }
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    if (courante.status === s) return;
+    if (courante.status === "Remise" && s !== "Remise" && !window.confirm(`Repasser la commande ${o.id} à « ${s} » ?\n\nLes articles seront remis en stock.`)) return;
+    montrer(await enregistrerCommande({ ...ctxCmd, o, patch: { status: s } }));
   };
   const openEdit = (o) => setEdit({ id: o.id, ref: o.id, oid: o.oid, name: o.name, items: (o.lines || []).map((l) => ({ ...l })), pickup: o.pickup || "", status: o.status || STATUSES[0] });
   const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
@@ -4429,18 +5097,20 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const saveEdit = async () => {
     if (busy) return; setBusy(true);
     const items = edit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const count = items.reduce((a, i) => a + i.qty, 0);
     if (items.length === 0) { await delOrder(); setBusy(false); return; }
-    setOrders((l) => l.map((x) => x.id === edit.id ? { ...x, lines: items, total, items: count, pickup: edit.pickup, status: edit.status } : x));
-    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: edit.oid, p_items: items, p_total: total, p_count: count, p_pickup: edit.pickup, p_status: edit.status }); } catch (e) {} }
-    setBusy(false); setEdit(null);
+    const courante = (ordersRef.current || []).find((x) => x.id === edit.id);
+    if (courante && courante.status === "Remise" && edit.status !== "Remise" && !window.confirm(`Repasser la commande ${edit.ref || edit.id} à « ${edit.status} » ?\n\nLes articles seront remis en stock.`)) { setBusy(false); return; }
+    const r = await enregistrerCommande({ ...ctxCmd, o: { id: edit.id, oid: edit.oid }, patch: { lines: items, pickup: edit.pickup, status: edit.status } });
+    montrer(r);
+    setBusy(false); if (!r || r.ok) setEdit(null);
   };
   const delOrder = async () => {
-    if (!window.confirm(`Supprimer définitivement la commande ${edit.ref || edit.id}${edit.name ? ` de ${edit.name}` : ""} ?\n\nCette action est irréversible.`)) { setBusy(false); return; }
-    setOrders((l) => l.filter((x) => x.id !== edit.id));
-    if (supabase && pass && edit.oid) { try { await supabase.rpc("admin_delete_order", { pass, p_oid: edit.oid }); } catch (e) {} }
-    setBusy(false); setEdit(null);
+    const courante = (ordersRef.current || []).find((x) => x.id === edit.id);
+    const remise = !!courante && courante.status === "Remise";
+    if (!window.confirm(`Supprimer définitivement la commande ${edit.ref || edit.id}${edit.name ? ` de ${edit.name}` : ""} ?\n\nCette action est irréversible.${remise ? "\nLes articles seront remis en stock." : ""}`)) { setBusy(false); return; }
+    const r = await enregistrerCommande({ ...ctxCmd, o: { id: edit.id, oid: edit.oid }, patch: { supprimer: true } });
+    montrer(r);
+    setBusy(false); if (!r || r.ok) setEdit(null);
   };
   const groups = {};
   orders.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
@@ -4448,6 +5118,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products }) {
   const waNum = (t) => (t || "").replace(/\D/g, "").replace(/^0/, "33");
   return (
     <div className="ca-anim">
+      <BandeauErreur msg={erreur} onClose={() => setErreur(null)} />
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Commandes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{orders.length} commande{orders.length > 1 ? "s" : ""} · {eur(orders.reduce((s, o) => s + o.total, 0))}</div></div>
         {onRefresh && <button onClick={onRefresh} disabled={loading} className="ca-tap" style={{ background: C.board, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: loading ? "default" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0, opacity: loading ? .6 : 1 }}>{loading ? "Actualisation…" : "↻ Actualiser"}</button>}
@@ -4745,7 +5416,7 @@ function ventesParProduit(products, sales) {
 // (c'est ce qui rend la validation idempotente, §5.2). Les SORTIES sont les ventes.
 // On écoule du plus ancien lot au plus récent (FIFO) : le lot « en cours de vente » est donc le
 // plus ancien encore en stock, et c'est son n° de lot qui doit figurer sur l'étiquette du jour.
-// ⚠️ Un lot n'existe ici que si la fournée a été VALIDÉE avec un format relié à ce produit
+// ATTENTION : un lot n'existe ici que si la fournée a été VALIDÉE avec un format relié à ce produit
 // (§5.2 bis). Tant que ce n'est pas fait, le registre est vide — et il le dit.
 function lotsDeStock(batches, products, sales) {
   const entrees = {};
@@ -4824,7 +5495,7 @@ function coutsDepuisFournees(batches, products, rendement) {
   return out;
 }
 
-function ProProducts({ products, setProducts, pass, batches, rendement, sales }) {
+function ProProducts({ products, setProducts, pass, batches, rendement, sales, onOuvrirFiche }) {
   // Toutes ces clés ont un dessin propre. Tant que le commerçant n'en choisit pas une,
   // l'icône suit le nom du produit (illuAuto) — voir CLAUDE.md 7.
   const ILLUS = ["fraise", "berry", "mure", "cerise", "figue", "peche", "apricot", "plum", "melon",
@@ -4970,7 +5641,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
           valeur en memoire, la base garde 0, et la marge reste vide sans explication. */}
       {Object.keys(echecs).length > 0 && (
         <div style={{ background: "#faece5", border: `1.5px solid ${PF.warn}`, borderRadius: 12, padding: "11px 14px", marginBottom: 12, fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
-          <b style={{ color: PF.warn }}>⚠ Non enregistré</b> — {Object.values(echecs).slice(0, 4).join(", ")}
+          <b style={{ color: PF.warn }}><Warn /> Non enregistré</b> — {Object.values(echecs).slice(0, 4).join(", ")}
           {Object.keys(echecs).length > 4 ? ` et ${Object.keys(echecs).length - 4} autre(s)` : ""}.
           <span style={{ display: "block", marginTop: 3, color: C.soft }}>Vérifiez la connexion, puis ressaisissez la valeur — elle n'est pas en base.</span>
         </div>
@@ -4990,17 +5661,17 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 8 }}>
             {totalReappro > 0 && (
               <button onClick={() => setFiltre((v) => v === "reappro" ? null : "reappro")} className="ca-tap" style={{ border: `1.5px solid ${filtre === "reappro" ? C.jam : C.jam + "66"}`, background: filtre === "reappro" ? C.jam : "#7A2B3312", color: filtre === "reappro" ? "#fff" : C.jam, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {filtre === "reappro" ? "✕ Voir tout le catalogue" : `📦 ${totalReappro} à refaire${enRupture > 0 ? ` · ${enRupture} épuisé${enRupture > 1 ? "s" : ""}` : ""}`}
+                {filtre === "reappro" ? "Voir tout le catalogue" : `${totalReappro} à refaire${enRupture > 0 ? ` · ${enRupture} épuisé${enRupture > 1 ? "s" : ""}` : ""}`}
               </button>
             )}
             {totalSansAchat > 0 && (
               <button onClick={() => setFiltre((v) => v === "sansAchat" ? null : "sansAchat")} className="ca-tap" style={{ border: `1.5px solid ${filtreSansAchat ? PF.warn : PF.warn + "66"}`, background: filtreSansAchat ? PF.warn : "#faece5", color: filtreSansAchat ? "#fff" : PF.warn, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {filtreSansAchat ? "✕ Voir tout le catalogue" : `⚠ ${totalSansAchat} sans prix d'achat`}
+                {filtreSansAchat ? "Voir tout le catalogue" : `${totalSansAchat} sans prix d'achat`}
               </button>
             )}
             {nbCalculables > 0 && (
               <button onClick={() => setPanneauCouts((v) => !v)} className="ca-tap" style={{ border: `1.5px solid ${panneauCouts ? PF.navy : PF.navy + "66"}`, background: panneauCouts ? PF.navy : "#123a5212", color: panneauCouts ? "#fff" : PF.navy, borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                {panneauCouts ? "✕ Fermer" : `⚙ Calculer ${nbCalculables} prix d'achat depuis les fournées`}
+                {panneauCouts ? "Fermer" : `Calculer ${nbCalculables} prix d'achat depuis les fournées`}
               </button>
             )}
           </div>
@@ -5097,7 +5768,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
               <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontFamily: SCRIPT, fontSize: 19, color: C.jam }}>{cat}</span>
                 <span style={{ fontSize: 11.5, color: C.soft, background: C.cream, padding: "3px 9px", borderRadius: 20, fontWeight: 600 }}>{items.length}</span>
-                {sansAchat > 0 && <span title="Produits sans prix d'achat renseigné" style={{ fontSize: 11, color: PF.warn, background: "#faece5", padding: "3px 9px", borderRadius: 20, fontWeight: 700 }}>⚠ {sansAchat} sans prix d'achat</span>}
+                {sansAchat > 0 && <span title="Produits sans prix d'achat renseigné" style={{ fontSize: 11, color: PF.warn, background: "#faece5", padding: "3px 9px", borderRadius: 20, fontWeight: 700 }}><Warn /> {sansAchat} sans prix d'achat</span>}
               </span>
               <ChevronDown size={18} color={C.soft} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
             </button>
@@ -5109,7 +5780,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                       <button onClick={() => setOpenId(openId === p.id ? null : p.id)} className="ca-tap" title="Illustration & catégorie" style={{ ...swatch(openId === p.id), width: 42, height: 42, alignSelf: "center" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={32} /></button>
                       <div><MiniLabel>Nom</MiniLabel><input value={p.name} onChange={(e) => updField(p.id, "name", e.target.value)} style={inp()} /></div>
                       <div><MiniLabel>Format / poids</MiniLabel><input value={p.unit} onChange={(e) => updField(p.id, "unit", e.target.value)} style={inp()} /></div>
-                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? " ⚠" : ""}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
+                      <div><MiniLabel>Prix vente €{(!p.price || +p.price === 0) ? <> <Warn size={11} /></> : null}</MiniLabel><input inputMode="decimal" value={dval(p, "price")} onChange={(e) => dset(p, "price", e.target.value, (n) => onPrice(p, n))} onBlur={() => dblur(p, "price")} style={{ ...inp(), borderColor: (!p.price || +p.price === 0) ? PF.warn : C.line, background: (!p.price || +p.price === 0) ? "#faece5" : "#fff" }} /></div>
                       <div><MiniLabel>Stock</MiniLabel><input inputMode="numeric" value={dval(p, "stock")} onChange={(e) => dset(p, "stock", e.target.value, (n) => updField(p.id, "stock", Math.round(n)))} onBlur={() => dblur(p, "stock")} style={{ ...inp(), borderColor: p.stock <= 5 ? C.caramel : C.line }} /></div>
                       <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
                         <button onClick={() => toggle(p.id)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: p.active === false ? "transparent" : "#3F7A4B14", color: p.active === false ? C.soft : C.ok, borderRadius: 9, padding: "9px 10px", fontWeight: 600, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap" }}>{p.active === false ? "Masqué" : "En ligne"}</button>
@@ -5124,12 +5795,12 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         {badgeOrigine(p)}
                         {(fifo[p.id] || {}).lots && fifo[p.id].lots.length > 0 && (
                           <button onClick={() => setHisto((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Historique des prix d'achat, fournée par fournée" style={{ ...puce(histo === p.id ? PF.navy : "#123a5212", PF.navy + "33", histo === p.id ? "#fff" : PF.navy), cursor: "pointer" }}>
-                            {histo === p.id ? "✕ historique" : `⌛ ${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
+                            {histo === p.id ? "historique" : `${fifo[p.id].lots.length} achat${fifo[p.id].lots.length > 1 ? "s" : ""}`}
                           </button>
                         )}
                         {(lots[p.id] || {}).lots && lots[p.id].lots.length > 0 && (
                           <button onClick={() => setTracab((v) => (v === p.id ? null : p.id))} className="ca-tap" title="Traçabilité : de quelle fournée vient le stock en rayon, n° de lot et DLC" style={{ ...puce(tracab === p.id ? C.ok : "#3F7A4B14", C.ok + "44", tracab === p.id ? "#fff" : C.ok), cursor: "pointer" }}>
-                            {tracab === p.id ? "✕ traçabilité" : `🏷 ${lots[p.id].lots.length} lot${lots[p.id].lots.length > 1 ? "s" : ""}${lots[p.id].perimes.length ? " ⚠" : ""}`}
+                            {tracab === p.id ? <>Fermer la traçabilité</> : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Tag size={12} /> {lots[p.id].lots.length} lot{lots[p.id].lots.length > 1 ? "s" : ""}{lots[p.id].perimes.length ? <AlertTriangle size={12} /> : null}</span>}
                           </button>
                         )}
                       </div>
@@ -5151,7 +5822,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                       <div style={{ marginTop: 10, background: C.paper, border: `1px solid ${C.ok}44`, borderRadius: 11, padding: "10px 12px", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
                         <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ok, marginBottom: 2 }}>Traçabilité — quel lot est en rayon</div>
                         <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.45, marginBottom: 8 }}>
-                          Une ligne par fournée validée. Les ventes écoulent les lots du plus ancien au plus récent : le lot marqué <b style={{ color: C.ok }}>EN VENTE</b> est celui que vous servez aujourd&apos;hui, et c&apos;est son numéro qui va sur l&apos;étiquette.
+                          Une ligne par fournée validée (touchez-la pour ouvrir la fournée). Les ventes écoulent les lots du plus ancien au plus récent : le lot marqué <b style={{ color: C.ok }}>EN VENTE</b> est celui que vous servez aujourd&apos;hui, et c&apos;est son numéro qui va sur l&apos;étiquette.
                         </div>
                         <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 430 }}>
@@ -5164,16 +5835,16 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                               {L.lots.map((l, k) => {
                                 const perime = l.restant > 0 && l.dlc && l.dlc < new Date().toISOString().slice(0, 10);
                                 return (
-                                  <tr key={k} style={{ background: perime ? "#faece5" : (l === L.enCours ? "#3F7A4B14" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
+                                  <tr key={k} onClick={() => { if (l.fourneeId && onOuvrirFiche) onOuvrirFiche(l.fourneeId); }} title={l.fourneeId ? "Ouvrir la fournée" : undefined} className={l.fourneeId ? "ca-tap" : undefined} style={{ cursor: l.fourneeId && onOuvrirFiche ? "pointer" : "default", background: perime ? "#faece5" : (l === L.enCours ? "#3F7A4B14" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
                                     <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontWeight: l === L.enCours ? 700 : 400 }}>
                                       {l.lot || <span style={{ color: C.caramel }}>sans n° de lot</span>}
                                       {l === L.enCours && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: C.ok, borderRadius: 5, padding: "1px 5px" }}>EN VENTE</span>}
                                     </td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? " ⚠" : ""}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.entre}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? <> <Warn size={12} /></> : ""}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.entre}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
                                   </tr>
                                 );
                               })}
@@ -5184,7 +5855,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                           <b style={{ color: C.ink }}>{L.restant}</b> unité(s) tracée(s) par lot, pour un stock affiché de <b style={{ color: C.ink }}>{L.stockFiche}</b>.
                           {L.ecart !== 0 && <> <span style={{ color: C.caramel }}>Écart de {L.ecart > 0 ? "+" : ""}{L.ecart}</span> : {L.ecart > 0 ? "une partie du stock vient d'avant la mise en place du suivi par lot, ou d'une saisie à la main." : "plus d'unités vendues que de lots enregistrés — il manque une fournée validée."} Le stock affiché en boutique reste celui de la fiche ; le registre ne le corrige pas tout seul.</>}
                           {L.sansLot > 0 && <> <span style={{ color: C.caramel }}>{L.sansLot} lot(s) sans numéro</span> : remplissez le contrôle hygiène de la fournée, le n° est proposé automatiquement.</>}
-                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700 }}>⚠ {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
+                          {L.perimes.length > 0 && <> <span style={{ color: PF.warn, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} /> {L.perimes.length} lot(s) encore en stock ont dépassé leur DLC.</span></>}
                         </div>
                         <div style={{ marginTop: 7, fontSize: 10.5, color: C.soft, fontStyle: "italic", lineHeight: 1.45 }}>
                           La DLC affichée est celle saisie sur la fiche de fabrication. C&apos;est votre guide de bonnes pratiques et la DDPP qui font foi, pas l&apos;application.
@@ -5215,15 +5886,15 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                                 const retenu = l === fifo[p.id].courant;
                                 return (
                                   <tr key={k} style={{ background: retenu ? "#123a5212" : "transparent", borderBottom: `1px solid ${C.line}` }}>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontWeight: retenu ? 700 : 400 }}>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: retenu ? 700 : 400 }}>
                                       {l.date ? new Date(l.date).toLocaleDateString("fr-FR") : "—"}
                                       {retenu && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.navy, borderRadius: 5, padding: "1px 5px" }}>RETENU</span>}
                                     </td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.nb}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti || 0}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? PF.good : "#C9C0AE" }}>{l.restant}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{l.bloque ? <span style={{ color: "#C9C0AE" }}>—</span> : eur2(l.coutKg)}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, whiteSpace: "nowrap", color: l.bloque ? PF.warn : PF.navy }}>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.nb}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti || 0}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, color: l.restant > 0 ? PF.good : "#C9C0AE" }}>{l.restant}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}>{l.bloque ? <span style={{ color: "#C9C0AE" }}>—</span> : eur2(l.coutKg)}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, whiteSpace: "nowrap", color: l.bloque ? PF.warn : PF.navy }}>
                                       {l.suspect
                                         ? <span title={`Les ingrédients pesés font ${l.poidsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg pour ${l.finiKg.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de produit fini : une recette ne peut pas produire plus du double de ce qu'on y met. Une quantité a sans doute été saisie en grammes au lieu de kilos.`}>recette à revoir</span>
                                         : (l.bloque ? <span title={`Sans prix : ${l.manquants.join(", ")}`}>prix manquant</span> : eur2(l.cout))}
@@ -5237,8 +5908,8 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                         {fifo[p.id].etat === "bloque" ? (
                           <div style={{ marginTop: 8, fontSize: 11.5, color: PF.warn, lineHeight: 1.45 }}>
                             {fifo[p.id].suspect
-                              ? <>⚠ Aucun lot exploitable : dans ces fournées, les ingrédients pesés font moins de la moitié du poids fini — on ne fabrique pas 5 kg de confiture avec 4 g de fruit. Une quantité a sans doute été saisie <b>en grammes au lieu de kilos</b>. Corrigez-la dans l&apos;onglet Production et la ligne se remplira toute seule.</>
-                              : <>⚠ Le lot retenu ne peut pas être chiffré : <b>{fifo[p.id].manquants.join(", ")}</b> n&apos;a pas de prix au kilo dans sa fournée et pèse {Math.round((fifo[p.id].part || 0) * 100)} % de la recette. Un coût calculé sans lui serait faux. Saisissez ce prix dans l&apos;onglet Production et la ligne se remplira toute seule.</>}
+                              ? <><Warn /> Aucun lot exploitable : dans ces fournées, les ingrédients pesés font moins de la moitié du poids fini — on ne fabrique pas 5 kg de confiture avec 4 g de fruit. Une quantité a sans doute été saisie <b>en grammes au lieu de kilos</b>. Corrigez-la dans l&apos;onglet Production et la ligne se remplira toute seule.</>
+                              : <><Warn /> Le lot retenu ne peut pas être chiffré : <b>{fifo[p.id].manquants.join(", ")}</b> n&apos;a pas de prix au kilo dans sa fournée et pèse {Math.round((fifo[p.id].part || 0) * 100)} % de la recette. Un coût calculé sans lui serait faux. Saisissez ce prix dans l&apos;onglet Production et la ligne se remplira toute seule.</>}
                           </div>
                         ) : (
                           <div style={{ marginTop: 8, fontSize: 11.5, color: C.soft, lineHeight: 1.45 }}>
@@ -5351,12 +6022,12 @@ function ProClients({ clients, orders, pass }) {
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
                     {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
-                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
                     <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email || "—"}</td>
                     <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{capNom(c.ville) || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{c.orders || 0}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur(c.spent || 0)}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.orders || 0}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(c.spent || 0)}</td>
                   </tr>
                 ))}
             </tbody>
@@ -5515,7 +6186,7 @@ function ProMail({ clients }) {
             <div style={{ display: "grid", gap: 6, maxHeight: 220, overflowY: "auto" }}>
               {withTel.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun contact avec téléphone.</div> : withTel.map((c) => (
                 <a key={c.email || c.tel} href={msg ? waLink(c) : undefined} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${C.line}`, background: C.cream, borderRadius: 10, padding: "9px 12px", textDecoration: "none", color: C.ink, pointerEvents: msg ? "auto" : "none", opacity: msg ? 1 : .5 }}>
-                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft, fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel)}</span></span>
+                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft, fontVariantNumeric: "lining-nums tabular-nums" }}>{formatTel(c.tel)}</span></span>
                   <span style={{ display: "flex", alignItems: "center", gap: 5, color: "#1FA855", fontWeight: 600, fontSize: 12, flexShrink: 0 }}><MessageCircle size={14} /> Envoyer</span>
                 </a>
               ))}
@@ -5545,6 +6216,339 @@ function ProPromos({ promos, setPromos }) {
           <span style={{ fontSize: 12, fontWeight: 600, color: C.ok, background: "#3F7A4B14", padding: "5px 11px", borderRadius: 8 }}>actif</span>
         </div>
       ))}
+    </div>
+  );
+}
+/* ---------------- Coffrets ----------------
+   Un coffret est un PRODUIT du catalogue qui porte une composition (products.composition) :
+   { items: [{ pid, qty }], emballage: [{ label, qty, cost }], visuel }.
+   - cout = somme (prix d'achat des composants x qte) + emballages. Il n'est ecrit dans products.cost
+     que si TOUS les prix d'achat sont connus : un cout amputé gonflerait la marge (cf. 5.4 ter).
+   - le prix de vente est saisi, jamais recalcule ; coef = prix / cout.
+   - stock : le coffret a son propre stock. « J'ai fabriqué N coffrets » = stock coffret + N et
+     stock des composants - qte x N (RPC admin_assemble_coffret, mouvements relatifs et atomiques).
+     Vendre un coffret ne bouge ensuite que SON stock (les composants sont deja sortis).
+   - les composants crees pour les coffrets sont masques (active=false) : l'admin ne voit que les
+     produits actifs, donc cet ecran charge TOUT le catalogue via admin_products. */
+const COFFRET_VISUELS = {
+  pissa: { sub: "kit niçois à faire soi-même", k: "TOUT POUR 6 PARTS" },
+  apero: { sub: "confit, tapenade, anchoïade, crackers", k: "À PARTAGER" },
+  gourmandise: { sub: "pain d'épices, orangettes, cake", k: "POUR LES FÊTES" },
+  douceurs: { sub: "orangettes, caramels, caramel à tartiner", k: "À OFFRIR" },
+};
+const coffretNum = (x) => { const n = parseFloat(String(x == null ? "" : x).replace(",", ".")); return isNaN(n) ? 0 : n; };
+const mapRowCoffret = (p) => ({ id: p.id, name: p.name, cat: p.cat, unit: p.unit || "", price: Number(p.price) || 0, cost: Number(p.cost) || 0, coef: Number(p.coef) || 0, stock: p.stock == null ? 0 : p.stock, active: p.active !== false, soon: !!p.soon, composition: p.composition || null });
+// cout d'une composition : { total, manquants (noms), lignes }
+function coutCoffret(compo, byId) {
+  const lignes = []; const manquants = []; let total = 0;
+  ((compo && compo.items) || []).forEach((it) => {
+    const p = byId[it.pid]; const q = coffretNum(it.qty);
+    const c = p ? p.cost : 0;
+    if (!p || !(c > 0)) manquants.push(p ? p.name : it.pid);
+    lignes.push({ pid: it.pid, name: p ? p.name : it.pid, unit: p ? p.unit : "", qty: q, cost: c, stock: p ? p.stock : 0, ligne: c * q });
+    total += c * q;
+  });
+  ((compo && compo.emballage) || []).forEach((e) => { total += coffretNum(e.cost) * coffretNum(e.qty); });
+  return { total, manquants, lignes };
+}
+// combien de coffrets peut-on encore fabriquer avec les stocks actuels, et qui limite
+function assemblable(lignes) {
+  let min = null; let lim = "";
+  lignes.forEach((l) => { if (l.qty > 0) { const n = Math.floor(Math.max(0, l.stock) / l.qty); if (min == null || n < min) { min = n; lim = l.name; } } });
+  return { n: min == null ? 0 : min, limite: lim };
+}
+function CoffretVisuel({ nom, visuel, compact }) {
+  const v = COFFRET_VISUELS[visuel] || {};
+  const court = String(nom || "").replace(/^coffret\s*/i, "").toUpperCase();
+  return (
+    <div style={{ background: "#F6EFDD", position: "relative", overflow: "hidden", minHeight: compact ? 140 : 200, fontFamily: "'Work Sans', sans-serif" }}>
+      <div style={{ background: "#123A52", borderBottom: "3px solid #F4B32C", color: "#F6EFDD", fontWeight: 600, fontSize: 9, letterSpacing: 2.4, textAlign: "center", padding: "7px 0 6px" }}>FAIT MAIN · VENCE</div>
+      <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 20 : 26, color: "#123A52", textAlign: "center", marginTop: compact ? 10 : 16, lineHeight: 1 }}>LE COFFRET</div>
+      <div style={{ fontFamily: "'Anton', sans-serif", fontSize: compact ? 16 : 21, color: "#C65A35", textAlign: "center", marginTop: 3, lineHeight: 1.1, padding: "0 10px" }}>{court}</div>
+      {v.sub && <div style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 900, fontSize: compact ? 10 : 12, color: "#6D6252", textAlign: "center", marginTop: 9, padding: "0 10px" }}>{v.sub}</div>}
+      {v.k && <div style={{ fontWeight: 600, fontSize: 9, letterSpacing: 2.2, color: "#C65A35", textAlign: "center", marginTop: 8 }}>{v.k}</div>}
+      <div style={{ position: "absolute", left: 12, bottom: 8, fontWeight: 600, fontSize: 8, letterSpacing: 1.1, color: "#123A52" }}>VENCE · CÔTE D'AZUR</div>
+    </div>
+  );
+}
+// ligne d'un composant masqué : prix d'achat (modifie seulement ce champ) et reception de stock (relatif)
+function CompoRow({ p, pass, onChanged }) {
+  const [cost, setCost] = useState(p.cost > 0 ? String(p.cost).replace(".", ",") : "");
+  const [recu, setRecu] = useState("");
+  const [msg, setMsg] = useState(null);
+  const saveCost = async () => {
+    const c = coffretNum(cost);
+    if (c === p.cost) return;
+    const { error } = await supabase.rpc("admin_patch_product", { pass, p_id: p.id, p_patch: { cost: c } });
+    if (error) { setMsg({ bad: true, t: "Non enregistré" }); return; }
+    setMsg({ bad: false }); onChanged({ ...p, cost: c });
+  };
+  const recevoir = async () => {
+    const d = Math.round(coffretNum(recu)); if (!d) return;
+    const { data, error } = await supabase.rpc("admin_adjust_stock", { pass, p_id: p.id, p_delta: d });
+    if (error) { setMsg({ bad: true, t: "Stock non modifié" }); return; }
+    setRecu(""); setMsg({ bad: false }); onChanged({ ...p, stock: typeof data === "number" ? data : p.stock + d });
+  };
+  return (
+    <div className="cof-c">
+      <div className="nom"><b>{p.name}</b> <span style={{ color: C.soft }}>· {p.unit}</span></div>
+      <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={cost} onChange={(e) => setCost(e.target.value)} onBlur={saveCost} placeholder="achat HT" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+      <div className="cof-cell"><span className="cof-lab">Stock</span><div className="cof-stk">{p.stock}</div></div>
+      <div className="cof-cell"><span className="cof-lab">Réception</span>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input value={recu} onChange={(e) => setRecu(e.target.value)} placeholder="+ reçu" inputMode="numeric" style={{ ...inp(), padding: "8px 10px", fontSize: 13, minWidth: 0 }} />
+          <button onClick={recevoir} className="ca-tap" style={{ border: "none", background: C.jam, color: "#fff", borderRadius: 9, padding: "0 12px", height: 35, fontWeight: 700, cursor: "pointer", fontSize: 12.5, flexShrink: 0 }}>OK</button>
+          {msg && <span style={{ fontSize: 11, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok, flexShrink: 0 }}>{msg.bad ? <><Warn size={12} /> {msg.t}</> : <Ok size={13} />}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+function CoffretAssembler({ coffret, lignes, pass, onClose, onDone }) {
+  const [n, setN] = useState("1"); const [deduct, setDeduct] = useState(true); const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const q = Math.round(coffretNum(n));
+  const valider = async () => {
+    if (!q || busy) return;
+    setBusy(true); setErr("");
+    const { data, error } = await supabase.rpc("admin_assemble_coffret", { pass, p_id: coffret.id, p_n: q, p_deduct: deduct });
+    setBusy(false);
+    if (error || !data) { setErr("Non enregistré — vérifiez la connexion. Rien n'a été modifié."); return; }
+    onDone(data);
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#16140fa8", zIndex: 200, display: "grid", placeItems: "center", padding: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} className="ca-anim" style={{ background: "#fff", borderRadius: 16, padding: 20, width: "min(640px,100%)", maxHeight: "92vh", overflow: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: SCRIPT, fontSize: 21, color: C.jam }}>{coffret.name}</div>
+          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "transparent", cursor: "pointer" }}><X size={20} /></button>
+        </div>
+        <div style={{ margin: "10px 0", fontSize: 14 }}>J'ai fabriqué <input value={n} onChange={(e) => setN(e.target.value)} inputMode="numeric" style={{ ...inp(), width: 80, display: "inline-block", margin: "0 6px" }} /> coffret(s) <span style={{ color: C.soft, fontSize: 12 }}>(un nombre négatif défait une fabrication)</span></div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr style={{ textAlign: "left", color: C.soft, fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase" }}><th style={{ padding: "6px 4px" }}>Stock concerné</th><th style={{ textAlign: "right" }}>Avant</th><th style={{ textAlign: "right" }}>Mouvement</th><th style={{ textAlign: "right" }}>Après</th></tr></thead>
+          <tbody>
+            <tr style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}><b>{coffret.name}</b></td><td style={{ textAlign: "right" }}>{coffret.stock}</td><td style={{ textAlign: "right", color: C.ok, fontWeight: 700 }}>{q >= 0 ? "+" : ""}{q}</td><td style={{ textAlign: "right", fontWeight: 700 }}>{coffret.stock + q}</td></tr>
+            {deduct && lignes.map((l) => { const apres = l.stock - Math.round(l.qty * q); return (
+              <tr key={l.pid} style={{ borderTop: `1px solid ${C.line}` }}><td style={{ padding: "7px 4px" }}>{l.name} <span style={{ color: C.soft }}>· {l.unit}</span></td><td style={{ textAlign: "right" }}>{l.stock}</td><td style={{ textAlign: "right", color: "#a6482a", fontWeight: 700 }}>{q > 0 ? "−" : "+"}{Math.abs(Math.round(l.qty * q))}</td><td style={{ textAlign: "right", fontWeight: 700, color: apres < 0 ? "#a6482a" : C.ink }}>{apres}{apres < 0 && <span style={{ fontSize: 11 }}> <Warn size={11} /> négatif</span>}</td></tr>
+            ); })}
+          </tbody>
+        </table>
+        {deduct && lignes.some((l) => l.stock - Math.round(l.qty * q) < 0) && q > 0 && <div style={{ background: "#fff4cf", border: "1px solid #F4B32C", borderRadius: 10, padding: "8px 12px", fontSize: 12.5, marginTop: 10 }}>Un composant passerait en négatif : son stock n'est peut-être pas à jour. Tu peux valider quand même (le chiffre se corrigera à la prochaine réception).</div>}
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5, color: C.soft, margin: "12px 0" }}><input type="checkbox" checked={!deduct} onChange={(e) => setDeduct(!e.target.checked)} /> Ne pas déduire les composants (déjà sortis du stock)</label>
+        {err && <div style={{ color: "#a6482a", fontWeight: 600, fontSize: 13, marginBottom: 8 }}><Warn /> {err}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onClose} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: "pointer" }}>Annuler</button>
+          <button onClick={valider} disabled={!q || busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 600, cursor: !q || busy ? "default" : "pointer", opacity: !q || busy ? .5 : 1 }}>{busy ? "Enregistrement…" : "Valider la fabrication"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+// quantité avec − / + : un geste au pouce, sans clavier (le champ reste saisissable)
+function Qte({ value, onChange }) {
+  const n = coffretNum(value);
+  const pas = (d) => onChange(String(Math.max(0, Math.round((n + d) * 100) / 100)).replace(".", ","));
+  const b = { width: 30, height: 36, flexShrink: 0, border: "none", background: C.cream, color: C.jam, cursor: "pointer", display: "grid", placeItems: "center", padding: 0 };
+  return (
+    <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${C.jam}22`, borderRadius: 10, overflow: "hidden", background: "#fff", height: 38 }}>
+      <button type="button" onClick={() => pas(-1)} aria-label="Moins" className="ca-tap" style={b}><Minus size={14} /></button>
+      <input value={value} onChange={(e) => onChange(e.target.value)} inputMode="decimal" aria-label="Quantité" style={{ width: "100%", minWidth: 0, textAlign: "center", border: "none", fontWeight: 700, fontSize: 14, outline: "none", background: "transparent", color: C.ink, padding: 0 }} />
+      <button type="button" onClick={() => pas(1)} aria-label="Plus" className="ca-tap" style={b}><Plus size={14} /></button>
+    </div>
+  );
+}
+function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
+  const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
+  const [nom, setNom] = useState(coffret.name);
+  const [items, setItems] = useState((coffret.composition.items || []).map((i) => ({ pid: i.pid, qty: String(i.qty).replace(".", ",") })));
+  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: String(e.cost).replace(".", ",") })));
+  const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
+  const [actif, setActif] = useState(coffret.active);
+  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false); const [costDraft, setCostDraft] = useState({});
+  const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
+  const { total, manquants, lignes } = coutCoffret(compo, byId);
+  const pv = coffretNum(prix); const complet = manquants.length === 0 && compo.items.length > 0;
+  const marge = complet && pv > 0 ? pv - total : null; const coef = complet && pv > 0 && total > 0 ? pv / total : null;
+  const asb = assemblable(lignes);
+  const snap = JSON.stringify([nom, compo, pv, actif]);
+  const snapInit = useRef(snap);
+  const [snapOk, setSnapOk] = useState(null);
+  const dirty = snap !== (snapOk != null ? snapOk : snapInit.current);
+  const parts = [...lignes.filter((l) => l.ligne > 0).map((l) => ({ label: l.name, v: l.ligne })), ...compo.emballage.filter((e) => e.cost * e.qty > 0).map((e) => ({ label: e.label || "Emballage", v: e.cost * e.qty }))];
+  const conseils = complet && total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
+  const catalogue = all.filter((p) => !p.composition).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  const setItem = (k, patch) => setItems((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
+  const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
+  const enregistrer = async () => {
+    if (busy) return;
+    if (actif && !(pv > 0)) { setMsg({ bad: true, t: "Pour rendre le coffret visible, saisis d'abord son prix de vente." }); return; }
+    setBusy(true); setMsg(null);
+    const patch = { name: nom, active: actif, price: pv };
+    if (complet) { patch.cost = Math.round(total * 100) / 100; patch.coef = pv > 0 ? Math.round((pv / total) * 100) / 100 : 0; }
+    const r1 = await supabase.rpc("admin_save_composition", { pass, p_id: coffret.id, p_composition: compo });
+    const r2 = await supabase.rpc("admin_patch_product", { pass, p_id: coffret.id, p_patch: patch });
+    setBusy(false);
+    if (r1.error || r2.error) { setMsg({ bad: true, t: "Non enregistré — vérifiez la connexion" }); return; }
+    setMsg(null); setSnapOk(snap);
+    onSaved({ ...coffret, name: nom, active: actif, price: pv, cost: patch.cost != null ? patch.cost : coffret.cost, coef: patch.coef != null ? patch.coef : coffret.coef, composition: compo });
+  };
+  const saveCostPid = async (pid) => {
+    const p = byId[pid]; const raw = costDraft[pid];
+    if (!p || raw == null) return;
+    setCostDraft((d) => { const n = { ...d }; delete n[pid]; return n; });
+    const c = coffretNum(raw); if (c === p.cost) return;
+    const { error } = await supabase.rpc("admin_patch_product", { pass, p_id: pid, p_patch: { cost: c } });
+    if (error) { setMsg({ bad: true, t: "Prix d'achat non enregistré — vérifiez la connexion" }); return; }
+    onSaved({ ...p, cost: c });
+  };
+  const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
+  return (
+    <div className="ca-anim">
+      <button onClick={onBack} style={backBtn()}><ChevronLeft size={15} /> Coffrets</button>
+      <div style={{ margin: "8px 0 14px" }}><input value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inp(), fontFamily: SCRIPT, fontSize: 22, color: C.jam, fontWeight: 400, maxWidth: 460 }} /></div>
+      <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 270px", gap: 16, alignItems: "start" }}>
+        <div>
+          <div style={card()}>
+            <div style={h2}>Composition</div>
+            <div className="cof-h"><div>Article</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
+            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
+              <div key={k}>
+                <div className="cof-l">
+                  <label className="cof-cell cof-art"><span className="cof-lab">Article</span>
+                    <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
+                      {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
+                      {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
+                    </select></label>
+                  <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
+                  <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                  <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
+                  <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
+                </div>
+                <div className="cof-note">Stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
+              </div>
+            ); })}
+            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
+          </div>
+          <div style={card()}>
+            <div style={h2}>Emballage et impressions</div>
+            <div className="cof-h"><div>Libellé</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
+            {emb.map((e, k) => (
+              <div className="cof-l" key={k}>
+                <label className="cof-cell cof-art"><span className="cof-lab">Libellé</span><input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
+                <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="à saisir" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: coffretNum(e.cost) > 0 ? C.ink : C.soft }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</div></div>
+                <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
+              </div>
+            ))}
+            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 10, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {[[complet ? "Coût de revient" : "Coût connu", total > 0 ? eur2(total) : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
+              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl.startsWith("Coût") ? C.paper : C.board, color: lbl.startsWith("Coût") ? C.ink : "#fff", border: lbl.startsWith("Coût") ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
+                <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
+                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{val}</div>}
+              </div>
+            ))}
+          </div>
+          {conseils.length > 0 && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+              <span style={{ fontSize: 12, color: C.soft, fontWeight: 600 }}>Repères de prix (un geste)</span>
+              {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="ca-tap" style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "6px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", color: C.ink }}>coef {String(c.m).replace(".", ",")} · {eur2(c.v)}</button>)}
+            </div>
+          )}
+          {marge != null && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, fontWeight: 600, marginBottom: 4 }}><span>Marge sur le prix de vente</span><span style={{ color: marge > 0 ? C.ok : "#a6482a" }}>{Math.round(marge / pv * 100)} %</span></div>
+              <div style={{ height: 8, borderRadius: 5, background: C.cream, overflow: "hidden" }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
+            </div>
+          )}
+          {total > 0 && (
+            <div style={{ ...card(), marginTop: 12 }}>
+              <div style={h2}>Répartition du coût</div>
+              <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", background: C.cream }}>
+                {parts.map((p, i) => <div key={i} title={p.label} style={{ width: (p.v / total * 100) + "%", background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6] }} />)}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 10, fontSize: 12.5 }}>
+                {parts.map((p, i) => <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><i style={{ width: 9, height: 9, borderRadius: 3, background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6], display: "inline-block" }} /> {p.label} <b>{eur2(p.v)}</b> <span style={{ color: C.soft }}>{Math.round(p.v / total * 100)} %</span></span>)}
+              </div>
+            </div>
+          )}
+          {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
+            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1, display: "inline-flex", alignItems: "center", gap: 7 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
+            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
+          </div>
+        </div>
+        <div>
+          <div style={{ ...card(), padding: 0, overflow: "hidden" }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
+          <div style={card()}>
+            <div style={h2}>Stock</div>
+            <div style={{ fontSize: 28, fontWeight: 700 }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
+            <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
+            <button onClick={() => setAsm(true)} className="ca-tap" style={{ marginTop: 12, width: "100%", background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 700, cursor: "pointer" }}>J'ai fabriqué des coffrets</button>
+            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
+          </div>
+        </div>
+      </div>
+      {asm && <CoffretAssembler coffret={coffret} lignes={lignes} pass={pass} onClose={() => setAsm(false)} onDone={(res) => { setAsm(false); onAssembled(res); }} />}
+    </div>
+  );
+}
+function ProCoffrets({ pass, products, setProducts }) {
+  const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null); const [asmFor, setAsmFor] = useState(null);
+  const charger = async () => {
+    if (!supabase || !pass) return;
+    const { data, error } = await supabase.rpc("admin_products", { pass });
+    if (error || !Array.isArray(data)) { setErr("Impossible de charger le catalogue — vérifiez la connexion."); return; }
+    setErr(""); setAll(data.map(mapRowCoffret));
+  };
+  useEffect(() => { charger(); }, [pass]);
+  if (err) return <div style={{ ...card(), color: "#a6482a", fontWeight: 600 }}><Warn /> {err} <button onClick={charger} style={{ marginLeft: 8 }}>Réessayer</button></div>;
+  if (!all) return <div style={{ color: C.soft, padding: 20 }}>Chargement des coffrets…</div>;
+  const byId = Object.fromEntries(all.map((p) => [p.id, p]));
+  const coffrets = all.filter((p) => p.composition);
+  const composants = all.filter((p) => !p.composition && !p.active);
+  const maj = (p) => setAll((l) => l.map((x) => x.id === p.id ? p : x));
+  // met a jour le stock affiche, ici ET dans le catalogue global (Caisse), sans tout recharger
+  const appliquerStocks = (res) => {
+    setAll((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
+    if (setProducts) setProducts((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
+  };
+  const cible = sel && coffrets.find((c) => c.id === sel);
+  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} />;
+  return (
+    <div className="ca-anim">
+      <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 14 }}>
+        {coffrets.map((c) => { const { total, manquants, lignes } = coutCoffret(c.composition, byId); const a = assemblable(lignes); return (
+          <div key={c.id} onClick={() => setSel(c.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSel(c.id); }} className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
+            <CoffretVisuel nom={c.name} visuel={c.composition.visuel} compact />
+            <div style={{ padding: "10px 14px 14px" }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name} {!c.active && <span style={{ fontSize: 11, color: C.soft, fontWeight: 600 }}>· masqué</span>}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
+                {[["Coût", eur2(total)], ["Vente", c.price > 0 ? eur2(c.price) : "à saisir"], ["Stock", String(c.stock)]].map(([k, v]) => (
+                  <div key={k} style={{ background: C.cream, borderRadius: 10, padding: "7px 10px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{k}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, marginTop: 8, minHeight: 18, color: manquants.length ? "#a6482a" : C.soft, fontWeight: manquants.length ? 600 : 400 }}>{manquants.length > 0 ? <><Warn size={12} /> {manquants.length} prix d'achat à renseigner</> : `Fabricables : ${a.n}`}</div>
+              <button onClick={(e) => { e.stopPropagation(); setAsmFor(c.id); }} className="ca-tap" style={{ marginTop: 10, background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 7 }}><Package size={14} /> J'ai fabriqué</button>
+            </div>
+          </div>
+        ); })}
+      </div>
+      {asmFor && (() => { const c = coffrets.find((x) => x.id === asmFor); return c ? <CoffretAssembler coffret={c} lignes={coutCoffret(c.composition, byId).lignes} pass={pass} onClose={() => setAsmFor(null)} onDone={(res) => { setAsmFor(null); appliquerStocks(res); }} /> : null; })()}
+      {composants.length > 0 && (
+        <div style={{ ...card(), marginTop: 16 }}>
+          <div style={h2}>Composants ajoutés pour les coffrets (masqués du catalogue)</div>
+          <div style={{ fontSize: 12.5, color: C.soft, marginBottom: 6 }}>Renseigne le prix d'achat HT et saisis ce que tu reçois : le stock s'ajoute (il ne s'écrase jamais).</div>
+          <div className="cof-c cof-h2" style={{ borderTop: "none", fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600, padding: "0 0 6px" }}><div>Article</div><div>Achat HT</div><div style={{ textAlign: "right" }}>Stock</div><div>Réception</div></div>
+          {composants.map((p) => <CompoRow key={p.id} p={p} pass={pass} onChanged={maj} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -5787,7 +6791,7 @@ function ProSettings({ paymentEnabled, setPaymentEnabled, pass }) {
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
       XLSX.writeFile(wb, `comme-avant-sauvegarde-${stamp}.xlsx`);
-      setBk({ busy: false, msg: "Sauvegarde téléchargée ✓" });
+      setBk({ busy: false, msg: "Sauvegarde téléchargée" });
     } catch (e) {
       setBk({ busy: false, msg: "Erreur pendant l'export — réessayez." });
     }
@@ -5902,7 +6906,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
         <Field label="Titre" value={annTitle} onChange={setAnnTitle} />
         <div style={{ marginBottom: 12 }}><Lbl>Message</Lbl><textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} rows={2} style={{ ...inp(), resize: "vertical", lineHeight: 1.5, marginTop: 5 }} /></div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => saveAnn(false)} disabled={annBusy} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 700, cursor: annBusy ? "default" : "pointer", fontSize: 13.5 }}>{annBusy ? "…" : annSaved ? "Publié ✓" : "Publier l'annonce"}</button>
+          <button onClick={() => saveAnn(false)} disabled={annBusy} className="ca-tap" style={{ flex: 1, background: C.ok, color: "#fff", border: "none", borderRadius: 11, padding: "12px", fontWeight: 700, cursor: annBusy ? "default" : "pointer", fontSize: 13.5 }}>{annBusy ? "…" : annSaved ? "Publié" : "Publier l'annonce"}</button>
           <button onClick={() => saveAnn(true)} disabled={annBusy} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.jam, borderRadius: 11, padding: "12px 14px", fontWeight: 600, cursor: annBusy ? "default" : "pointer", fontSize: 13 }}>Retirer</button>
         </div>
       </div>
@@ -5929,7 +6933,7 @@ function ProProfile({ profile, setProfile, onLogout, pass }) {
       <div style={{ position: "sticky", bottom: 0, paddingTop: 10, background: `linear-gradient(transparent, ${C.cream} 30%)` }}>
         <button onClick={save} disabled={!dirty} className="ca-tap"
           style={{ width: "100%", background: dirty ? C.ok : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 13, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: dirty ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
-          <Check size={18} /> {saved ? "Modifications enregistrées ✓" : dirty ? "Valider les modifications" : "Aucune modification"}
+          <Check size={18} /> {saved ? "Modifications enregistrées" : dirty ? "Valider les modifications" : "Aucune modification"}
         </button>
       </div>
     </div>
@@ -5983,6 +6987,9 @@ const inp = () => ({ width: "100%", padding: "10px 12px", borderRadius: 10, bord
 const sel = (s) => ({ padding: "8px 10px", borderRadius: 9, border: `1px solid ${C.line}`, background: s === "Livrée" || s === "Retirée" ? "#3F7A4B14" : C.cream, fontSize: 12.5, fontWeight: 600, color: C.ink, cursor: "pointer" });
 const backBtn = () => ({ display: "inline-flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0 });
 function Sq({ children, onClick }) { return <button onClick={onClick} className="ca-tap" style={{ width: 30, height: 30, borderRadius: 7, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>{children}</button>; }
+// Pictogrammes a la place des symboles et emojis (regle du proprietaire : jamais d'emoji)
+function Warn({ size = 13 }) { return <AlertTriangle size={size} style={{ verticalAlign: "-2px", flexShrink: 0 }} />; }
+function Ok({ size = 13 }) { return <Check size={size} style={{ verticalAlign: "-2px", flexShrink: 0 }} />; }
 function Pill({ children }) { return <span style={{ fontSize: 11.5, fontWeight: 600, color: C.soft, background: C.cream, padding: "6px 10px", borderRadius: 9, flexShrink: 0 }}>{children}</span>; }
 function Stars({ value, size = 16, onChange, color }) {
   return <span style={{ display: "inline-flex", gap: size > 24 ? 8 : 3 }}>{[1, 2, 3, 4, 5].map((n) => (
@@ -5992,7 +6999,7 @@ function Stars({ value, size = 16, onChange, color }) {
 function ShareBtn({ cust, label = "Partager Comme Avant" }) {
   const ref = cust?.email ? "?ref=" + encodeURIComponent(cust.email) : "";
   const url = "https://confiture-et-gourmandise.vercel.app/" + ref;
-  const msg = `J'ai découvert cette petite fabrique locale, Comme Avant 🍓\nIl faut que tu essayes, c'est trop bon !\nConfitures, gourmandises & produits locaux : ${url}`;
+  const msg = `J'ai découvert cette petite fabrique locale, Comme Avant\nIl faut que tu essayes, c'est trop bon !\nConfitures, gourmandises & produits locaux : ${url}`;
   const share = async () => {
     try { if (navigator.share) { await navigator.share({ title: "Comme Avant", text: msg, url }); return; } } catch (e) { return; }
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
@@ -6119,7 +7126,7 @@ function StepHead({ onBack, title, sub }) {
 function ProHead({ title, sub }) { return <div style={{ marginBottom: 18 }}><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{title}</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{sub}</div></div>; }
 function Section({ children }) { return <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 }}>{children}</div>; }
 function Lbl({ children, htmlFor }) { return <label htmlFor={htmlFor} style={{ display: "block", marginBottom: 4, fontSize: 11, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 600, color: C.soft }}>{children}</label>; }
-function Field({ label, value, onChange, type = "text", ph, autoComplete, name }) {
+function Field({ label, value, onChange, type = "text", ph, autoComplete, name, error, onBlur, enterKeyHint, autoFocus }) {
   const email = type === "email";
   const tel = type === "tel";
   return (
@@ -6130,14 +7137,20 @@ function Field({ label, value, onChange, type = "text", ph, autoComplete, name }
         id={name}
         name={name}
         value={value}
+        placeholder={ph}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        enterKeyHint={enterKeyHint}
+        aria-invalid={error ? true : undefined}
         inputMode={tel ? "tel" : email ? "email" : undefined}
         autoCapitalize={email ? "none" : undefined}
         autoCorrect={email ? "off" : undefined}
         spellCheck={email ? false : undefined}
-        style={inp()}
+        style={{ ...inp(), fontSize: 16, padding: "13px 14px", minHeight: 46, borderColor: error ? "#a6482a" : undefined }}
       />
+      {error && <div style={{ fontSize: 12, color: "#a6482a", fontWeight: 600, marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
@@ -6233,6 +7246,7 @@ export function BoutiquePublique() {
   const [clients, setClients] = useState([]);
   const [step, setStep] = useState("welcome");
   const [intent, setIntent] = useState("order");
+  const [shopFocus, setShopFocus] = useState(null);
   const [cust, setCust] = useState({ prenom: "", nom: "", tel: "", email: "" });
   const [returning, setReturning] = useState(false);
   useEffect(() => {
@@ -6275,6 +7289,8 @@ export function BoutiquePublique() {
     }
     return true;
   };
+  // un contact dont l'enregistrement avait échoué (réseau instable) est rejoué à la prochaine ouverture
+  useEffect(() => { try { const raw = localStorage.getItem("ca_cust_pending"); if (raw) upsertClient(JSON.parse(raw)); } catch (e) {} }, []);
   // La commande est transmise par WhatsApp : prenom + nom + telephone suffisent (email facultatif, cf. CLAUDE.md 6.1)
   const custOk = !!(cust.prenom && cust.prenom.trim() && cust.nom && cust.nom.trim() && cust.tel && cust.tel.replace(/\D/g, "").length >= 6);
   const placeOrder = async () => {
@@ -6308,9 +7324,9 @@ export function BoutiquePublique() {
   return (
     <div style={{ fontFamily: SANS, background: C.cream, color: C.ink, minHeight: "100vh" }}>
       <style>{FONT}</style>
-      {step !== "coords" && <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setStep("shop"); }} />}
+      {step !== "coords" && <Announce title={announce?.title} body={announce?.body} onOpen={() => { setIntent("order"); setShopFocus(/no[eë]l|f[eê]te|cadeau|pain d/i.test(((announce && announce.title) || "") + " " + ((announce && announce.body) || "")) ? "fetes:" + Date.now() : null); setStep("shop"); }} />}
       <Header profile={profile} />
-      <ClientView {...{ step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
+      <ClientView {...{ shopFocus, step, setStep, intent, setIntent, cust, setCust, products, cartLines, cart, add, sub1, sub, discount, total, count, mode, setMode, pickupDay, setPickupDay, promoInput, setPromoInput, applied, setApplied, promos, paymentEnabled, placeOrder, placing, upsertClient, lastOrder, resetClient, profile, returning, reviews, addReview }} />
     </div>
   );
 }
@@ -6356,7 +7372,7 @@ export function EspacePro() {
       if (ro && Array.isArray(ro.data)) setOrders(ro.data.map(mapOrderRow));
       if (rc && Array.isArray(rc.data)) setClients(rc.data.map((c) => ({ email: c.email || "", prenom: c.prenom, nom: c.nom, tel: c.tel, orders: c.orders, spent: Number(c.spent) || 0, optin: c.opt_in, adresse: c.adresse || "", cp: c.cp || "", ville: c.ville || "", notes: c.notes || "", created_at: c.created_at || null })));
       // on conserve pid et offert : ce sont eux qui permettent d'agréger par produit (et non par nom, cf. CLAUDE.md 8) et de sortir les offerts du CA
-      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "" })) })));
+      if (rs && Array.isArray(rs.data)) setSales(rs.data.map((s) => ({ id: s.id, ts: new Date(s.ts).getTime(), total: Number(s.total) || 0, count: s.count, items: (s.items || []).map((i) => ({ pid: i.pid || null, name: i.name, qty: i.qty, price: Number(i.price) || 0, cost: Number(i.cost) || 0, offert: !!i.offert, unit: i.unit || "", ...(i.stockOut != null ? { stockOut: Number(i.stockOut) || 0 } : {}) })) })));
       if (!sansProduits && rp && Array.isArray(rp.data) && rp.data.length) setProducts(rp.data.map(mapProduct));
       if (rv && Array.isArray(rv.data)) setVisits(rv.data.map((v) => ({ ts: new Date(v.ts).getTime(), path: v.path, ref: v.ref, source: v.source })));
       if (rb && rb.data && Array.isArray(rb.data.batches)) setBatches(rb.data.batches);
@@ -6399,7 +7415,6 @@ export function EspacePro() {
 
 /* ---------------- Extras : retour client, WhatsApp, install, nouveauté ---------------- */
 // Annonce "nouveauté" (modifiable plus tard depuis l'espace pro / Supabase)
-const ANNOUNCE = { id: "2026-06-fraise", title: "Nouveauté de saison", body: "Bientôt : confiture de Fraise — édition limitée. Restez à l'affût !" };
 
 function useMounted() {
   const [m, setM] = useState(false);
@@ -6419,7 +7434,7 @@ function WhatsAppBtn({ profile }) {
   if (!mounted) return null;
   if (open) {
     return (
-      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent("💬 " + profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
+      <a href={`https://wa.me/${profile.wa}?text=${encodeURIComponent(profile.name + " — Bonjour ! J'ai une question au sujet de vos confitures et gourmandises.")}`} target="_blank" rel="noreferrer" className="ca-tap"
         style={{ width: "100%", marginTop: 12, background: "#1FA855", color: "#fff", borderRadius: 13, padding: "13px 18px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, textDecoration: "none", boxSizing: "border-box" }}>
         <MessageCircle size={16} /> Nous écrire sur WhatsApp
       </a>
@@ -6479,9 +7494,10 @@ function InstallTip() {
 function Announce({ title, body, onOpen }) {
   const mounted = useMounted();
   const [show, setShow] = useState(false);
-  const t = (title != null && title !== "") ? title : ANNOUNCE.title;
-  const b = (body != null && body !== "") ? body : ANNOUNCE.body;
-  const key = "ca_seen_" + (t + "|" + b).length + "_" + (t || "").slice(0, 12);
+  // plus de texte de repli : un bandeau retiré (titre et texte vides) ne doit rien afficher
+  const t = title || ""; const b = body || "";
+  let h = 0; const brut = t + "|" + b; for (let i = 0; i < brut.length; i++) h = (h * 31 + brut.charCodeAt(i)) | 0;
+  const key = "ca_seen_" + h;
   useEffect(() => { try { if (localStorage.getItem(key) !== "1") setShow(true); else setShow(false); } catch (e) { setShow(true); } }, [key]);
   if (!mounted || !show || (!t && !b)) return null;
   const close = (e) => { if (e) e.stopPropagation(); try { localStorage.setItem(key, "1"); } catch (e2) {} setShow(false); };
@@ -6595,8 +7611,142 @@ function InstallBanner({ admin = false }) {
   );
 }
 
+/* ---------------- STOCK : mouvements relatifs, partagés par la Caisse et l'onglet Commandes ---------------- */
+const MSG_NON_ENREGISTRE = "Non enregistré — vérifiez la connexion";
+const memeNomCaisse = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+// Même règle que cleProduit (ProStats), au niveau module : on résout d'abord la fiche (pid, sinon nom sans casse),
+// jamais `pid || nom` qui coupe un même produit en deux lignes (CLAUDE.md 8).
+function cleProduitDe(i, products) {
+  const list = products || [];
+  const p = (i.pid ? list.find((x) => x.id === i.pid) : null) || list.find((x) => memeNomCaisse(x.name, i.name)) || null;
+  return p ? p.id : (String(i.name || "").trim().toLowerCase() || "—");
+}
+// Quantité qui sort du stock pour une ligne : hors offerts, hors article libre sans fiche (pas de pid).
+const quantiteSortie = (it) => (it && it.pid && !it.offert && it.qty > 0 ? it.qty : 0);
+// Quantité à REMETTRE : ce que la ligne a réellement sorti. Le plancher à 0 a pu en retenir une partie
+// (stock 2, vente de 5 : 2 sortis, `stockOut: 2` mémorisé sur la ligne) ; rendre 5 créerait 3 unités fantômes.
+const quantiteRendue = (it) => { const q = quantiteSortie(it); return it && it.stockOut != null ? Math.min(q, Math.max(0, Number(it.stockOut) || 0)) : q; };
+const cumulParPid = (items, f) => { const d = {}; (items || []).forEach((it) => { const q = f(it); if (q) d[it.pid] = (d[it.pid] || 0) + q; }); return d; };
+const retoursDe = (items) => cumulParPid(items, quantiteRendue);
+const fusionneDeltas = (...maps) => { const acc = {}; maps.forEach((m) => Object.entries(m || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; })); Object.keys(acc).forEach((k) => { if (acc[k] === 0) delete acc[k]; }); return acc; };
+const stockDe = (products) => { const m = {}; (products || []).forEach((p) => { m[p.id] = Number(p.stock) || 0; }); return m; };
+// Plancher à 0 (la boutique teste `stock === 0` pour « sur commande » : un stock négatif la casserait).
+// Renvoie les lignes annotées (`stockOut` seulement si une partie a été retenue) et les deltas négatifs.
+function planSortie(items, stockInitial) {
+  const reste = { ...stockInitial };
+  const deltas = {};
+  const out = (items || []).map((it) => {
+    const n = { ...it }; delete n.stockOut;
+    const q = quantiteSortie(n);
+    if (!q || !Object.prototype.hasOwnProperty.call(reste, n.pid)) return n;
+    const dispo = Math.max(0, Number(reste[n.pid]) || 0);
+    const sortie = Math.min(q, dispo);
+    reste[n.pid] = dispo - sortie;
+    if (sortie > 0) deltas[n.pid] = (deltas[n.pid] || 0) - sortie;
+    if (sortie < q) n.stockOut = sortie;
+    return n;
+  });
+  return { items: out, deltas };
+}
+// supabase.rpc ne LÈVE PAS d'exception : il renvoie { error }. Un `catch {}` muet laissait croire
+// qu'une écriture refusée avait réussi. Renvoie l'erreur, ou null.
+async function appelerRpc(nom, args) {
+  try { const r = await supabase.rpc(nom, args); return r && r.error ? r.error : null; } catch (e) { return e || new Error("réseau"); }
+}
+// Mouvement de stock RELATIF et atomique (admin_adjust_stock), jamais l'écriture absolue d'une valeur périmée.
+// La base renvoie le nouveau stock : c'est lui qu'on affiche.
+async function appliquerStock({ pass, deltas, products, setProducts }) {
+  const ids = Object.keys(deltas || {}).filter((id) => deltas[id] !== 0);
+  const echecs = [];
+  if (ids.length === 0) return { ok: true, echecs };
+  const nomDe = (id) => ((products || []).find((p) => p.id === id) || {}).name || id;
+  const relatif = (id) => setProducts && setProducts((l) => l.map((p) => p.id === id ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + deltas[id]) } : p));
+  const poser = (id, v) => setProducts && setProducts((l) => l.map((p) => p.id === id ? { ...p, stock: v } : p));
+  for (const id of ids) {
+    if (!(supabase && pass)) { relatif(id); continue; }
+    let res = null; let err = null;
+    try { res = await supabase.rpc("admin_adjust_stock", { pass, p_id: id, p_delta: deltas[id] }); err = res && res.error; } catch (e) { err = e || new Error("réseau"); }
+    if (err) { echecs.push(nomDe(id)); continue; }
+    let ns = res && res.data != null ? Number(res.data) : null;
+    if (ns != null && !isNaN(ns) && ns < 0) {
+      // stock local périmé : la base est descendue sous 0. On la ramène à 0 par un second mouvement relatif.
+      const e2 = await appelerRpc("admin_adjust_stock", { pass, p_id: id, p_delta: -ns });
+      if (!e2) ns = 0;
+    }
+    if (ns != null && !isNaN(ns)) poser(id, Math.max(0, ns)); else relatif(id);
+  }
+  return { ok: echecs.length === 0, echecs };
+}
+const MSG_STOCK = (echecs) => `Stock non mis à jour pour ${echecs.join(", ")} — corrigez-le dans Produits (${MSG_NON_ENREGISTRE.toLowerCase()}).`;
+// UNE SEULE fonction pour tout ce qui touche une commande ET son stock (Caisse « Valider le retrait »,
+// onglet Commandes, modification, suppression). Règle : seules les commandes « Remise » sont sorties du stock.
+//   -> passer à Remise sort les articles ; quitter Remise ou supprimer une Remise les remet ;
+//   -> modifier les lignes d'une Remise applique la seule différence ;
+//   -> idempotente : l'état de départ est relu au moment de l'appel et un verrou refuse le double appui,
+//      donc une commande déjà Remise ne redécrémente JAMAIS.
+// Limite connue : order_items n'a pas de colonne pour mémoriser un plancher à 0 ; pour une commande, un
+// retour rend donc la quantité commandée (écart possible seulement si le stock avait été retenu à 0).
+const _verrousCommandes = new Set();
+async function enregistrerCommande({ pass, o, patch, ordersRef, productsRef, setOrders, setProducts }) {
+  if (_verrousCommandes.has(o.id)) return { ok: false, occupe: true };
+  _verrousCommandes.add(o.id);
+  try {
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    const avant = { status: courante.status, lines: courante.lines || [] };
+    const supprimer = !!patch.supprimer;
+    const apres = supprimer ? null : { status: patch.status != null ? patch.status : avant.status, lines: patch.lines != null ? patch.lines : avant.lines };
+    const sortiAvant = avant.status === "Remise";
+    const sortiApres = !!apres && apres.status === "Remise";
+    const cle = (l) => JSON.stringify((l || []).map((i) => [i.pid || i.name, i.qty]));
+    const memesLignes = !!apres && cle(avant.lines) === cle(apres.lines);
+    const rien = !supprimer && apres.status === avant.status && patch.lines == null && patch.pickup == null;
+    if (rien) return { ok: true, rien: true };
+    // mouvements de stock
+    let deltas = {}; let lignes = apres ? apres.lines : [];
+    if (!(sortiAvant && sortiApres && memesLignes)) {
+      const retours = sortiAvant ? retoursDe(avant.lines) : {};
+      const stock = stockDe(productsRef.current);
+      Object.entries(retours).forEach(([k, v]) => { if (k in stock) stock[k] += v; });
+      const plan = sortiApres ? planSortie(apres.lines, stock) : { items: lignes, deltas: {} };
+      lignes = plan.items; deltas = fusionneDeltas(retours, plan.deltas);
+    }
+    const total = (apres ? apres.lines : []).reduce((a, i) => a + (Number(i.price) || 0) * i.qty, 0);
+    const count = (apres ? apres.lines : []).reduce((a, i) => a + i.qty, 0);
+    // affichage immédiat, annulé si la base refuse
+    setOrders((l) => supprimer ? l.filter((x) => x.id !== o.id) : l.map((x) => x.id === o.id ? { ...x, status: apres.status, paid: (sortiApres && !sortiAvant) ? true : x.paid, ...(patch.lines != null ? { lines: apres.lines, total, items: count } : {}), ...(patch.pickup != null ? { pickup: patch.pickup } : {}) } : x));
+    if (supabase && pass && o.oid) {
+      let err = null;
+      if (supprimer) err = await appelerRpc("admin_delete_order", { pass, p_oid: o.oid });
+      else if (patch.lines != null || patch.pickup != null) {
+        err = await appelerRpc("admin_update_order", { pass, p_oid: o.oid, p_items: apres.lines, p_total: total, p_count: count, p_pickup: patch.pickup != null ? patch.pickup : (courante.pickup || ""), p_status: apres.status });
+        if (!err && sortiApres && !sortiAvant) err = await appelerRpc("admin_validate_order", { pass, p_oid: o.oid });
+      } else if (sortiApres && !sortiAvant) err = await appelerRpc("admin_validate_order", { pass, p_oid: o.oid });
+      else err = await appelerRpc("admin_set_order_status", { pass, p_oid: o.oid, p_status: apres.status });
+      if (err) {
+        setOrders((l) => l.some((x) => x.id === o.id) ? l.map((x) => x.id === o.id ? courante : x) : [courante, ...l]);
+        return { ok: false, erreur: MSG_NON_ENREGISTRE };
+      }
+    }
+    const r = await appliquerStock({ pass, deltas, products: productsRef.current, setProducts });
+    return r.ok ? { ok: true } : { ok: true, avertissement: MSG_STOCK(r.echecs) };
+  } finally { _verrousCommandes.delete(o.id); }
+}
+function BandeauErreur({ msg, onClose }) {
+  if (!msg) return null;
+  return (
+    <div role="alert" style={{ position: "sticky", top: 8, zIndex: 120, background: "#FBEDE8", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 12, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, fontWeight: 700, lineHeight: 1.35, boxShadow: "0 8px 20px -12px #16140f88" }}>
+      <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ flex: 1, minWidth: 0 }}>{msg}</span>
+      <button onClick={onClose} aria-label="Fermer" style={{ background: "transparent", border: "none", color: C.jam, cursor: "pointer", padding: 2, lineHeight: 0, flexShrink: 0 }}><X size={16} /></button>
+    </div>
+  );
+}
+
 function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOrders }) {
   const ticketRef = useRef(null);
+  const ordersRef = useRef(orders); ordersRef.current = orders;
+  const productsRef = useRef(products); productsRef.current = products;
+  const [erreur, setErreur] = useState(null);
   const [ticket, setTicket] = useState({});
   const ticketFirstSave = useRef(true);
   useEffect(() => {
@@ -6606,11 +7756,12 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
     if (ticketFirstSave.current) { ticketFirstSave.current = false; return; }
     try { localStorage.setItem("ca_caisse_ticket", JSON.stringify(ticket)); } catch (e) {}
   }, [ticket]);
-  const [flash, setFlash] = useState(null);
   const [justClosed, setJustClosed] = useState(false);
   const [cat, setCat] = useState(null);
-  const [reapproOuvert, setReapproOuvert] = useState(false);
-  const [calOuvert, setCalOuvert] = useState(false);
+  // tiroirs repliés : « cmd » (commandes en cours), « refaire » (réassort), « jour » (date rétroactive)
+  const [tiroir, setTiroir] = useState(null);
+  const basculer = (k) => setTiroir((t) => (t === k ? null : k));
+  const [histTout, setHistTout] = useState(false);
   const [retro, setRetro] = useState(false);
   const [saleDate, setSaleDate] = useState("");
   const [saleTime, setSaleTime] = useState("10:00");
@@ -6648,7 +7799,6 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
 
   const add = (p, offert) => {
     setTicket((t) => ({ ...t, [p.id]: { name: p.name, unit: p.unit, price: p.price, offert: offert != null ? offert : (t[p.id]?.offert || false), custom: t[p.id]?.custom || p.custom || false, qty: (t[p.id]?.qty || 0) + 1 } }));
-    setFlash(p.id); setTimeout(() => setFlash((f) => (f === p.id ? null : f)), 500);
   };
   const dec = (pid) => setTicket((t) => { const cur = t[pid]; if (!cur) return t; const q = cur.qty - 1; const n = { ...t }; if (q <= 0) delete n[pid]; else n[pid] = { ...cur, qty: q }; return n; });
   const removeLine = (pid) => setTicket((t) => { const n = { ...t }; delete n[pid]; return n; });
@@ -6663,47 +7813,55 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const tCount = lines.reduce((a, [, l]) => a + l.qty, 0);
   const tTotal = lines.reduce((a, [, l]) => a + (l.offert ? 0 : l.qty * pfNum(l.price)), 0);
   const closingRef = useRef(false);
-  // deltas de stock par produit : signe -1 = sortie (vente), +1 = retour (annulation)
-  const deltasDe = (items, signe) => {
-    const d = {};
-    (items || []).forEach((it) => { if (it.pid && !it.offert && it.qty > 0) d[it.pid] = (d[it.pid] || 0) + signe * it.qty; });
-    return d;
+  const verrousVentes = useRef(new Set());
+  const stockApres = async (deltas) => {
+    const r = await appliquerStock({ pass, deltas, products: productsRef.current, setProducts });
+    if (!r.ok) setErreur(MSG_STOCK(r.echecs));
   };
-  const fusionne = (...maps) => maps.reduce((acc, m) => { Object.entries(m || {}).forEach(([k, v]) => { acc[k] = (acc[k] || 0) + v; }); return acc; }, {});
-  const ajusterStock = async (deltas) => {
-    if (!setProducts) return;
-    const ids = Object.keys(deltas).filter((id) => deltas[id] !== 0 && products.find((p) => p.id === id));
-    if (ids.length === 0) return;
-    setProducts((list) => list.map((p) => ids.includes(p.id) ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) + deltas[p.id]) } : p));
-    if (supabase && pass) {
-      for (const pid of ids) {
-        const prod = products.find((p) => p.id === pid); if (!prod) continue;
-        const np = { ...prod, stock: Math.max(0, (Number(prod.stock) || 0) + deltas[pid]) };
-        try { await supabase.rpc("admin_save_product", { pass, p_id: np.id, p_name: np.name || "", p_cat: np.cat || "", p_unit: np.unit || "", p_price: Number(np.price) || 0, p_cost: Number(np.cost) || 0, p_coef: Number(np.coef) || 0, p_stock: Number(np.stock) || 0, p_illu: np.illu || "", p_col: np.col || "", p_soon: !!np.soon, p_active: np.active !== false }); } catch (e) {}
-      }
-    }
-  };
-  const decrementerStock = (items) => ajusterStock(deltasDe(items, -1));
+  const montrer = (r) => { if (!r) return; if (r.erreur) setErreur(r.erreur); else if (r.avertissement) setErreur(r.avertissement); };
+  const ctxCmd = { pass, ordersRef, productsRef, setOrders, setProducts };
 
   const closeOrder = async () => {
     if (tCount === 0 || closingRef.current) return;
     closingRef.current = true;
-    // on fige le conditionnement et le prix d'achat du jour sur la ligne : les fiches produit évoluent, pas l'historique
-    const items = lines.map(([pid, l]) => ({ pid, name: l.name, unit: l.unit || "", qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
-    const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
-    const ts = tsFor();
-    setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
-    setTicket({}); setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
-    if (supabase) { try { await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); } catch (e) {} }
-    await decrementerStock(items);
-    closingRef.current = false;
+    try {
+      // on fige le conditionnement et le prix d'achat du jour sur la ligne : les fiches produit évoluent, pas l'historique
+      const brut = lines.map(([pid, l]) => ({ pid, name: l.name, unit: l.unit || "", qty: l.qty, price: pfNum(l.price), offert: !!l.offert, cost: (products.find((p) => p.id === pid)?.cost) || 0 }));
+      const { items, deltas } = planSortie(brut, stockDe(productsRef.current));
+      const sid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+      const ts = tsFor();
+      const ticketAvant = ticket;
+      setSales((o) => [{ id: sid, items, total: tTotal, count: tCount, ts }, ...o]);
+      setTicket({});
+      if (supabase) {
+        let err = null;
+        try { const r = await supabase.from("sales").insert({ id: sid, total: tTotal, count: tCount, items, ts: new Date(ts).toISOString() }); err = r && r.error; } catch (e) { err = e || new Error("réseau"); }
+        if (err) {
+          // la base a refusé : la vente n'existe pas. On la retire et on rend le ticket, rien ne sort du stock.
+          setSales((o) => o.filter((x) => x.id !== sid));
+          setTicket((t) => (Object.keys(t).length === 0 ? ticketAvant : t));
+          setErreur("Vente non enregistrée — vérifiez la connexion. Le ticket est conservé, réessayez.");
+          return;
+        }
+      }
+      setJustClosed(true); setTimeout(() => setJustClosed(false), 1800);
+      await stockApres(deltas);
+    } finally { closingRef.current = false; }
   };
   const cancelOrder = async (id) => {
     const v = sales.find((x) => x.id === id);
-    if (!window.confirm(`Annuler cette vente de ${eur(v ? v.total : 0)} ?\n\nElle sera supprimée et le stock des articles vendus sera remis.`)) return;
-    setSales((o) => o.filter((x) => x.id !== id));
-    if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: id }); } catch (e) {} }
-    if (v) await ajusterStock(deltasDe(v.items, 1));
+    if (!v || verrousVentes.current.has(id)) return;
+    if (!window.confirm(`Annuler cette vente de ${eur(v.total)} ?\n\nElle sera supprimée et le stock des articles vendus sera remis.`)) return;
+    verrousVentes.current.add(id);
+    try {
+      setSales((o) => o.filter((x) => x.id !== id));
+      if (supabase && pass) {
+        const err = await appelerRpc("admin_delete_sale", { pass, p_sid: id });
+        if (err) { setSales((o) => [v, ...o].sort((a, b) => b.ts - a.ts)); setErreur("Annulation non enregistrée — vérifiez la connexion. La vente est conservée."); return; }
+      }
+      // on rend exactement ce que la vente a réellement sorti (stockOut), pas davantage
+      await stockApres(retoursDe(v.items));
+    } finally { verrousVentes.current.delete(id); }
   };
   const [edit, setEdit] = useState(null);
   const [ebusy, setEbusy] = useState(false);
@@ -6714,30 +7872,48 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const eRm = (k) => setEdit((e) => ({ ...e, items: e.items.filter((_, idx) => idx !== k) }));
   const eAdd = (p) => setEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : i.name === p.name); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, qty: 1, price: p.price, cost: p.cost || 0 }] }; });
   const eSave = async () => {
-    if (ebusy) return; setEbusy(true);
-    const items = edit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const cnt = items.reduce((a, i) => a + i.qty, 0);
-    const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
-    const avant = (sales.find((x) => x.id === edit.id) || {}).items || [];
-    if (items.length === 0) {
-      setSales((l) => l.filter((x) => x.id !== edit.id));
-      if (supabase && pass) { try { await supabase.rpc("admin_delete_sale", { pass, p_sid: edit.id }); } catch (e) {} }
-      await ajusterStock(deltasDe(avant, 1));
-      setEbusy(false); setEdit(null); return;
-    }
-    setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
-    if (supabase && pass) { try { await supabase.rpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() }); } catch (e) {} }
-    // on applique au stock la seule différence entre l'ancienne et la nouvelle composition
-    await ajusterStock(fusionne(deltasDe(avant, 1), deltasDe(items, -1)));
-    setEbusy(false); setEdit(null);
+    if (ebusy || verrousVentes.current.has(edit.id)) return;
+    setEbusy(true); verrousVentes.current.add(edit.id);
+    try {
+      const saisis = edit.items.filter((i) => i.qty > 0);
+      const total = saisis.reduce((a, i) => a + i.price * i.qty, 0);
+      const cnt = saisis.reduce((a, i) => a + i.qty, 0);
+      const ts = new Date(edit.date + "T" + (edit.time || "10:00") + ":00").getTime();
+      const avantVente = sales.find((x) => x.id === edit.id);
+      const avant = (avantVente || {}).items || [];
+      // retour exact de l'ancienne composition, puis nouvelle sortie plafonnée au stock disponible APRÈS ce retour
+      const retours = retoursDe(avant);
+      const stock = stockDe(productsRef.current);
+      Object.entries(retours).forEach(([k, v]) => { if (k in stock) stock[k] += v; });
+      const plan = planSortie(saisis, stock);
+      const items = plan.items;
+      const deltas = fusionneDeltas(retours, plan.deltas);
+      if (saisis.length === 0) {
+        setSales((l) => l.filter((x) => x.id !== edit.id));
+        if (supabase && pass) {
+          const err = await appelerRpc("admin_delete_sale", { pass, p_sid: edit.id });
+          if (err) { if (avantVente) setSales((l) => [avantVente, ...l].sort((a, b) => b.ts - a.ts)); setErreur(MSG_NON_ENREGISTRE + ". La vente est conservée."); return; }
+        }
+        await stockApres(deltas);
+        setEdit(null); return;
+      }
+      setSales((l) => l.map((x) => x.id === edit.id ? { ...x, items, total, count: cnt, ts } : x));
+      if (supabase && pass) {
+        const err = await appelerRpc("admin_update_sale", { pass, p_sid: edit.id, p_items: items, p_total: total, p_count: cnt, p_ts: new Date(ts).toISOString() });
+        if (err) { if (avantVente) setSales((l) => l.map((x) => x.id === edit.id ? avantVente : x)); setErreur(MSG_NON_ENREGISTRE + ". La vente n'a pas été modifiée."); return; }
+      }
+      // on applique au stock la seule différence entre l'ancienne et la nouvelle composition
+      await stockApres(deltas);
+      setEdit(null);
+    } finally { setEbusy(false); verrousVentes.current.delete(edit ? edit.id : ""); }
   };
 
+  // « Valider le retrait » : même fonction partagée que le statut « Remise » de l'onglet Commandes.
+  // Garde : une commande déjà Remise (ou en cours de traitement) ne bouge pas le stock une seconde fois.
   const validateOrder = async (o) => {
-    if (setOrders) setOrders((l) => l.map((x) => x.id === o.id ? { ...x, status: "Remise", paid: true } : x));
-    if (supabase && pass && o.oid) { try { await supabase.rpc("admin_validate_order", { pass, p_oid: o.oid }); } catch (e) {} }
-    // une commande remise sort du stock au même titre qu'une vente en caisse
-    await ajusterStock(deltasDe(o.lines, -1));
+    const courante = (ordersRef.current || []).find((x) => x.id === o.id) || o;
+    if (courante.status === "Remise") return;
+    montrer(await enregistrerCommande({ ...ctxCmd, o, patch: { status: "Remise" } }));
   };
   const pending = (orders || []).filter((o) => o.status !== "Remise");
   const pendingByDate = {};
@@ -6751,12 +7927,12 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const oAdd = (p) => setOEdit((e) => { const idx = e.items.findIndex((i) => i.pid ? i.pid === p.id : (i.name === p.name && i.unit === p.unit)); if (idx >= 0) return { ...e, items: e.items.map((i, k) => k === idx ? { ...i, qty: i.qty + 1 } : i) }; return { ...e, items: [...e.items, { pid: p.id, name: p.name, unit: p.unit, price: p.price, qty: 1 }] }; });
   const oSave = async () => {
     if (obusy) return; setObusy(true);
-    const items = oEdit.items.filter((i) => i.qty > 0);
-    const total = items.reduce((a, i) => a + i.price * i.qty, 0);
-    const count = items.reduce((a, i) => a + i.qty, 0);
-    if (setOrders) setOrders((l) => l.map((x) => x.id === oEdit.id ? { ...x, lines: items, total, items: count, pickup: oEdit.pickup } : x));
-    if (supabase && pass && oEdit.oid) { try { await supabase.rpc("admin_update_order", { pass, p_oid: oEdit.oid, p_items: items, p_total: total, p_count: count, p_pickup: oEdit.pickup, p_status: oEdit.status }); } catch (e) {} }
-    setObusy(false); setOEdit(null);
+    try {
+      const items = oEdit.items.filter((i) => i.qty > 0);
+      const r = await enregistrerCommande({ ...ctxCmd, o: { id: oEdit.id, oid: oEdit.oid }, patch: { lines: items, pickup: oEdit.pickup, status: oEdit.status } });
+      montrer(r);
+      if (!r || r.ok) setOEdit(null);
+    } finally { setObusy(false); }
   };
   const dayKey = (ts) => new Date(ts).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
   const hhmm = (ts) => new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -6765,11 +7941,19 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const focusIsToday = !(retro && saleDate);
   const todayK = dayKey(focusTs);
   const todayOrders = sales.filter((o) => dayKey(o.ts) === todayK);
-  const todayTotal = todayOrders.reduce((a, o) => a + o.total, 0);
-  const todayItems = todayOrders.reduce((a, o) => a + o.count, 0);
+  // CA du jour = définition unique (caPeriode) : ventes en caisse + commandes en ligne retirées ce jour-là
+  const jourDeb = new Date(focusTs); jourDeb.setHours(0, 0, 0, 0);
+  const jourFin = new Date(jourDeb); jourFin.setDate(jourDeb.getDate() + 1);
+  const caJour = caPeriode(sales, orders, jourDeb, jourFin);
+  const todayTotal = caJour.total;
 
+  // agrégé par fiche produit (cleProduitDe), jamais par nom : 15 noms sont partagés par plusieurs produits
   const byProd = {};
-  todayOrders.forEach((o) => o.items.forEach((it) => { byProd[it.name] = byProd[it.name] || { qty: 0, sum: 0 }; byProd[it.name].qty += it.qty; byProd[it.name].sum += it.qty * it.price; }));
+  todayOrders.forEach((o) => o.items.forEach((it) => {
+    const k = cleProduitDe(it, products);
+    byProd[k] = byProd[k] || { name: ((products.find((p) => p.id === k) || {}).name) || it.name, qty: 0, sum: 0 };
+    byProd[k].qty += it.qty; byProd[k].sum += it.offert ? 0 : it.qty * it.price;
+  }));
   const prodRows = Object.entries(byProd).sort((a, b) => b[1].sum - a[1].sum);
 
   const byHour = Array(24).fill(0);
@@ -6778,61 +7962,95 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
   const hoursActive = byHour.map((v, h) => [h, v]).filter(([h]) => h >= 7 && h <= 20);
 
   const byDay = {};
-  sales.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0 }; byDay[k].count++; byDay[k].sum += o.total; });
-  const dayRows = Object.entries(byDay);
+  sales.forEach((o) => { const k = dayKey(o.ts); byDay[k] = byDay[k] || { count: 0, sum: 0, ts: 0 }; byDay[k].count++; byDay[k].sum += o.total; byDay[k].ts = Math.max(byDay[k].ts, o.ts); });
+  const dayRowsTous = Object.entries(byDay).sort((a, b) => b[1].ts - a[1].ts);
+  const dayRows = histTout ? dayRowsTous : dayRowsTous.slice(0, 7);
 
   const card = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16, marginBottom: 14 };
   const h2 = { fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.caramel, fontWeight: 700, marginBottom: 10 };
+  const jourLabel = retro && saleDate ? new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "aujourd'hui";
+  const pastille = (actif, accent) => ({ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${actif ? (accent || C.jam) : C.line}`, background: actif ? "#fff" : C.paper, color: accent || C.ink, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", minHeight: 36 });
+  const chev = (ouvert) => <ChevronDown size={14} color={C.soft} style={{ transform: ouvert ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />;
 
   return (
-    <div className="ca-anim" style={{ paddingBottom: 24 }}>
-      <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, marginBottom: 2 }}>Caisse</div>
-      <div style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
-
-      <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente · <span style={{ color: retro ? C.jam : C.ok }}>{retro && saleDate ? new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "long" }) : "aujourd'hui"}</span></div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {retro && <button onClick={() => { setRetro(false); setSaleDate(""); setCalOuvert(false); }} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: C.jam, color: "#fff", borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>}
-            <button onClick={() => setCalOuvert((v) => !v)} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "#fff", color: C.jam, borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{calOuvert ? "Fermer" : "Choisir un autre jour"}</button>
-          </div>
-        </div>
-        {/* calendrier replié par défaut : en marché, on encaisse au jour même et la grille produits doit rester à portée de pouce */}
-        {calOuvert && <div style={{ marginTop: 12 }}><CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} /></div>}
-        {retro && saleDate && (
-          <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, color: C.jam, fontWeight: 700, lineHeight: 1.4 }}>Vente enregistrée pour le {new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
-              <div style={{ width: 104 }}><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></div>
-            </div>
-          </div>
-        )}
+    <div className="ca-anim caisse-root" style={{ paddingBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 2 }}>
+        <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam }}>Caisse</div>
+        <span className="caisse-chip" style={{ background: "#dcebdd", color: C.ok, borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{todayOrders.length} vente{todayOrders.length > 1 ? "s" : ""} · {eur(todayTotal)}</span>
       </div>
+      <div className="caisse-hint" style={{ fontSize: 13, color: C.soft, marginBottom: 16 }}>Touchez les produits, puis « Fermer la vente » pour l'enregistrer.</div>
+      <BandeauErreur msg={erreur} onClose={() => setErreur(null)} />
+      {justClosed && <div role="status" style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Vente enregistrée</div>}
 
-      <div style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
+      <div className="caisse-ca" style={{ background: C.board, color: C.chalk, borderRadius: 16, padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontVariantNumeric: "lining-nums tabular-nums" }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", opacity: .65 }}>{focusIsToday ? "Aujourd'hui" : "Saisie"} · {todayK}</div>
-          <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eur(todayTotal)}</div>
+          <div style={{ fontFamily: SCRIPT, fontSize: 34, color: "#e9c980", lineHeight: 1.1 }}>{eurF(todayTotal)}</div>
+          <div style={{ fontSize: 11.5, opacity: .7, marginTop: 2 }}>Caisse {eurF(caJour.caisse)} + commandes retirées {eurF(caJour.enLigne)}</div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>{todayOrders.length}</div>
-          <div style={{ fontSize: 11, opacity: .65 }}>vente{todayOrders.length > 1 ? "s" : ""} · {todayItems} art.</div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{caJour.nbVentes}</div>
+          <div style={{ fontSize: 11, opacity: .65 }}>vente{caJour.nbVentes > 1 ? "s" : ""} · {caJour.articles} art.</div>
         </div>
       </div>
 
-      {/* Rappel de réassort : 1 ligne repliée, pour ne pas encombrer la caisse mais ne plus découvrir
-          une rupture devant le client. Onglet Produits > « à refaire » pour la liste complète. */}
-      {aRefaire.length > 0 && (
-        <div style={{ ...card, border: `1px solid ${epuises.length ? C.jam + "55" : C.line}`, padding: 0, overflow: "hidden" }}>
-          <button onClick={() => setReapproOuvert((v) => !v)} className="ca-tap" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <Package size={16} color={epuises.length ? C.jam : C.caramel} />
-              {epuises.length > 0 ? <>À refaire : <span style={{ color: C.jam }}>{epuises.length} épuisé{epuises.length > 1 ? "s" : ""}</span>{aRefaire.length > epuises.length && <span style={{ color: C.soft, fontWeight: 600 }}> · {aRefaire.length - epuises.length} bientôt</span>}</> : <>À refaire bientôt : <span style={{ color: C.caramel }}>{aRefaire.length} produit{aRefaire.length > 1 ? "s" : ""}</span></>}
-            </span>
-            <ChevronDown size={17} color={C.soft} style={{ transform: reapproOuvert ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
-          </button>
-          {reapproOuvert && (
-            <div style={{ padding: "0 14px 12px" }}>
+      <div className="caisse-work">
+        <div className="caisse-products">
+          <div className="caisse-cats" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 6, WebkitOverflowScrolling: "touch" }}>
+            {cats.map((c) => {
+              const sel = c === activeCat;
+              return (
+                <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: "none", background: sel ? "#f3e3cc" : "#ebe4d2", color: sel ? C.caramel : C.soft, borderRadius: 20, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", minHeight: 36 }}>
+                  {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="caisse-grid" style={{ marginBottom: 10 }}>
+            {catItems.map((p) => {
+              const stockVal = p.stock == null ? null : Number(p.stock);
+              const epuise = stockVal === 0;
+              const q = ticket[p.id] ? ticket[p.id].qty : 0;
+              return (
+                <div key={p.id} className={q ? "cprod cprod-sel" : "cprod"}>
+                  <button onClick={() => add(p)} className="cprod-main ca-tap" aria-label={`Ajouter ${p.name}`}>
+                    <span style={{ display: "inline-flex", flexShrink: 0 }}><Illu k={illuDe(p)} col={couleurDe(p)} s={34} /></span>
+                    <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
+                      <span style={{ fontSize: 12, color: C.soft }}>{p.unit}</span>
+                      {/* le stock ne s'affiche que lorsqu'il compte : 5 ou moins */}
+                      {stockVal != null && stockVal <= 5 && (
+                        <span style={{ alignSelf: "flex-start", fontSize: 11, fontWeight: 700, borderRadius: 20, padding: "1px 8px", color: epuise ? "#a6482a" : C.caramel, background: epuise ? "#f6ddd5" : "#f3e3cc", fontVariantNumeric: "lining-nums tabular-nums" }}>{epuise ? "stock 0 · sur commande" : `stock ${stockVal}`}</span>
+                      )}
+                    </span>
+                  </button>
+                  <span className="cprod-side">
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: C.ink, fontVariantNumeric: "lining-nums tabular-nums" }}>{p.price > 0 ? eur(p.price) : "—"}</span>
+                    {q > 0 ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", background: "#e8dfc9", borderRadius: 9 }}>
+                        <button onClick={() => dec(p.id)} aria-label={`Retirer un ${p.name}`} className="ca-tap" style={{ width: 34, height: 34, border: "none", background: "transparent", color: C.jam, cursor: "pointer", display: "grid", placeItems: "center" }}><Minus size={14} /></button>
+                        <span style={{ minWidth: 16, textAlign: "center", fontWeight: 700, fontSize: 14, fontVariantNumeric: "lining-nums tabular-nums" }}>{q}</span>
+                        <button onClick={() => add(p)} aria-label={`Ajouter un ${p.name}`} className="ca-tap" style={{ width: 34, height: 34, border: "none", background: "transparent", color: C.jam, cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={14} /></button>
+                      </span>
+                    ) : (
+                      <button onClick={() => add(p)} aria-label={`Ajouter ${p.name}`} className="ca-tap" style={{ width: 38, height: 34, border: "none", borderRadius: 9, background: C.jam, color: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><Plus size={15} /></button>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Gestion repliée : les produits d'abord. Un toucher ouvre le tiroir correspondant. */}
+          <div className="caisse-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {pending.length > 0 && <button onClick={() => basculer("cmd")} className="ca-tap" style={pastille(tiroir === "cmd", C.caramel)}>{pending.length} commande{pending.length > 1 ? "s" : ""} à préparer {chev(tiroir === "cmd")}</button>}
+            {aRefaire.length > 0 && <button onClick={() => basculer("refaire")} className="ca-tap" style={pastille(tiroir === "refaire", epuises.length ? C.jam : C.caramel)}><Package size={14} /> {aRefaire.length} à refaire {chev(tiroir === "refaire")}</button>}
+            <button onClick={() => basculer("jour")} className="ca-tap" style={pastille(tiroir === "jour" || (retro && saleDate), retro && saleDate ? C.jam : C.ink)}><Calendar size={14} color={C.jam} /> Jour : {jourLabel} {chev(tiroir === "jour")}</button>
+            <button onClick={addCustomLine} className="ca-tap" style={{ ...pastille(false, C.jam), borderStyle: "dashed" }}><Plus size={14} /> Article libre</button>
+          </div>
+
+          {tiroir === "refaire" && aRefaire.length > 0 && (
+            <div style={{ ...card, border: `1px solid ${epuises.length ? C.jam + "55" : C.line}`, padding: "6px 14px 12px" }}>
               {aRefaire.slice(0, 12).map((p) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: `1px solid ${C.line}` }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name} <span style={{ color: C.soft }}>· {p.unit}</span></span>
@@ -6842,78 +8060,56 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
               {aRefaire.length > 12 && <div style={{ fontSize: 11.5, color: C.soft, paddingTop: 8 }}>+ {aRefaire.length - 12} autre(s) — voir l'onglet Produits.</div>}
             </div>
           )}
-        </div>
-      )}
 
-      {pending.length > 0 && (
-        <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
-          <div style={{ ...h2, color: C.caramel }}>Commandes en cours ({pending.length})</div>
-          <div style={{ fontSize: 12, color: C.soft, marginTop: -6, marginBottom: 10 }}>Par date. « Modifier » pour ajouter/retirer un article ; « Valider le retrait » quand le client repart (remise + payée).</div>
-          {Object.keys(pendingByDate).map((d) => (
-            <div key={d} style={{ marginBottom: 6 }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, textTransform: "capitalize", margin: "6px 0 2px" }}>{d}</div>
-              {pendingByDate[d].map((o) => (
-                <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+          {tiroir === "jour" && (
+            <div style={{ background: retro ? "#7A2B330D" : C.paper, border: `1px solid ${retro ? C.jam + "66" : C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center", gap: 7 }}><Calendar size={16} color={C.jam} /> Jour de la vente · <span style={{ color: retro ? C.jam : C.ok }}>{jourLabel}</span></div>
+                {retro && <button onClick={() => { setRetro(false); setSaleDate(""); }} className="ca-tap" style={{ border: `1px solid ${C.jam}`, background: C.jam, color: "#fff", borderRadius: 999, padding: "6px 13px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Aujourd'hui</button>}
+              </div>
+              <div style={{ marginTop: 12 }}><CalGrid sales={sales} selected={retro ? saleDate : ""} onPick={(iso) => { const today = new Date().toISOString().slice(0, 10); if (iso === today) { setRetro(false); setSaleDate(""); } else { setRetro(true); setSaleDate(iso); if (!saleTime) setSaleTime("10:00"); } }} /></div>
+              {retro && saleDate && (
+                <div style={{ marginTop: 11, paddingTop: 11, borderTop: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span>{o.waSent === false && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 5, padding: "2px 5px", verticalAlign: "middle" }}>NON TRANSMISE</span>}</div>
-                      <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+                    <div style={{ flex: 1, fontSize: 12.5, color: C.jam, fontWeight: 700, lineHeight: 1.4 }}>Vente enregistrée pour le {new Date(saleDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
+                    <div style={{ width: 104 }}><input type="time" value={saleTime} onChange={(e) => setSaleTime(e.target.value)} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tiroir === "cmd" && pending.length > 0 && (
+            <div style={{ ...card, border: `1.5px solid ${C.caramel}66` }}>
+              <div style={{ fontSize: 12, color: C.soft, marginBottom: 6 }}>Par date. « Modifier » pour ajouter/retirer un article ; « Valider le retrait » quand le client repart (remise + payée).</div>
+              {Object.keys(pendingByDate).map((d) => (
+                <div key={d} style={{ marginBottom: 6 }}>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, textTransform: "capitalize", margin: "6px 0 2px" }}>{d}</div>
+                  {pendingByDate[d].map((o) => (
+                    <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span>{o.waSent === false && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#fff", background: C.caramel, borderRadius: 5, padding: "2px 5px", verticalAlign: "middle" }}>NON TRANSMISE</span>}</div>
+                          <div style={{ fontSize: 12, color: C.soft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.lines && o.lines.length ? o.lines.map((l) => `${l.qty}× ${l.name}`).join(", ") : `${o.items} art.`}</div>
+                        </div>
+                        <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button onClick={() => oOpen(o)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
+                        <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={14} /> Valider le retrait</button>
+                      </div>
                     </div>
-                    <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <button onClick={() => oOpen(o)} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Settings size={13} /> Modifier</button>
-                    <button onClick={() => validateOrder(o)} className="ca-tap" style={{ background: C.ok, color: "#fff", border: "none", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}><Check size={14} /> Valider le retrait</button>
-                  </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      )}
-
-      <div className="caisse-work">
-        <div className="caisse-products">
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 12, WebkitOverflowScrolling: "touch" }}>
-            {cats.map((c) => {
-              const sel = c === activeCat;
-              return (
-                <button key={c} onClick={() => setCat(c)} className="ca-tap" style={{ flexShrink: 0, border: `1px solid ${sel ? C.board : C.line}`, background: sel ? C.board : C.paper, color: sel ? C.chalk : C.ink, borderRadius: 20, padding: "9px 15px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-                  {c} <span style={{ opacity: .6, fontSize: 11 }}>{sellable.filter((p) => p.cat === c).length}</span>
-                </button>
-              );
-            })}
-          </div>
-          <button onClick={addCustomLine} className="ca-tap" style={{ width: "100%", marginBottom: 10, background: "#fff", border: `1.5px dashed ${C.jam}`, color: C.jam, borderRadius: 14, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Plus size={16} /> Article libre (nom + prix + quantité)</button>
-          <div className="caisse-grid" style={{ marginBottom: 6 }}>
-            {catItems.map((p) => {
-              const stockVal = p.stock == null ? null : Number(p.stock);
-              const epuise = stockVal === 0;
-              const faible = stockVal != null && stockVal > 0 && stockVal <= 5;
-              return (
-              <button key={p.id} onClick={() => add(p)} className="ca-tap" style={{ position: "relative", overflow: "hidden", textAlign: "left", cursor: "pointer", border: `1px solid ${ticket[p.id] ? C.jam : (epuise ? C.jam : C.line)}`, borderRadius: 14, padding: "12px 12px 13px", background: C.paper, display: "flex", flexDirection: "column", gap: 6, minHeight: 78, opacity: epuise ? 0.6 : 1 }}>
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ display: "inline-flex" }}><Illu k={illuDe(p)} col={couleurDe(p)} s={30} /></span>
-                  {ticket[p.id] && <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", background: C.jam, borderRadius: 20, minWidth: 20, height: 20, display: "grid", placeItems: "center", padding: "0 6px" }}>{ticket[p.id].qty}</span>}
-                </span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{p.name}</span>
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: C.soft }}>{p.unit} · <b style={{ color: C.jam }}>{eur(p.price)}</b></span>
-                  {stockVal != null && (
-                    <span style={{ fontSize: 10.5, fontWeight: 700, color: epuise ? "#fff" : (faible ? "#fff" : C.soft), background: epuise ? C.jam : (faible ? C.caramel : "#f0ece0"), borderRadius: 6, padding: "2px 6px", flexShrink: 0 }}>{epuise ? "épuisé" : `${stockVal}`}</span>
-                  )}
-                </span>
-                {flash === p.id && <span style={{ position: "absolute", inset: 0, background: C.ok, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}><Plus size={18} /> Ajouté</span>}
-              </button>
-              );
-            })}
-          </div>
+          )}
         </div>
 
         <div className="caisse-ticket" ref={ticketRef}>
           {tCount > 0 ? (
             <div style={{ ...card, border: `1.5px solid ${C.jam}` }}>
-              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok }}>✓ sauvegardée</span></div>
+              <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between" }}><span>Vente en cours</span><span style={{ fontSize: 11, fontWeight: 600, color: C.ok, display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} /> sauvegardée</span></div>
               {lines.map(([pid, l]) => (
                 <div key={pid} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -6931,11 +8127,11 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
                     <span style={{ fontSize: 11.5, color: C.soft, flexShrink: 0 }}>Prix unitaire</span>
                     <input inputMode="decimal" disabled={l.offert} value={l.price == null ? "" : String(l.price).replace(".", ",")} onChange={(e) => setLinePrice(pid, e.target.value.replace(",", "."))} style={{ width: 72, border: `1px solid ${C.line}`, borderRadius: 7, padding: "5px 7px", fontSize: 13, fontWeight: 700, color: l.offert ? C.soft : C.ink, background: l.offert ? "#f3ede0" : "#fff", textDecoration: l.offert ? "line-through" : "none" }} />
                     <span style={{ fontSize: 11.5, color: C.soft }}>€</span>
-                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>{l.offert ? "✓ Offert" : "Offrir"}</button>
+                    <button onClick={() => toggleOffert(pid)} className="ca-tap" style={{ marginLeft: "auto", background: l.offert ? PF.good : "#fff", color: l.offert ? "#fff" : C.soft, border: `1px solid ${l.offert ? PF.good : C.line}`, borderRadius: 7, padding: "5px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{l.offert && <Check size={12} />}{l.offert ? "Offert" : "Offrir"}</button>
                   </div>
                 </div>
               ))}
-              <button onClick={closeOrder} className="ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
+              <button onClick={closeOrder} className="caisse-closebtn ca-tap" style={{ width: "100%", marginTop: 14, background: C.ok, color: "#fff", border: "none", borderRadius: 14, padding: "15px 18px", fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 10px 24px -12px #16140f88" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 9 }}><Check size={18} /> {retro && saleDate ? `Enregistrer pour le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} · ${tCount} art.` : `Fermer la vente · ${tCount} art.`}</span>
                 <span style={{ fontFamily: SCRIPT, fontSize: 18 }}>{eur(tTotal)}</span>
               </button>
@@ -6950,14 +8146,13 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
         </div>
       </div>
 
+      {/* La barre du bas EST le bouton d'encaissement (au-dessus de .pro-nav, cf. §7.2) */}
       {tCount > 0 && (
-        <button onClick={() => ticketRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className="caisse-mobilebar ca-tap">
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700 }}><ShoppingBag size={16} /> {tCount} art.</span>
-          <span style={{ fontFamily: SCRIPT, fontSize: 19 }}>{eur(tTotal)}</span>
+        <button onClick={closeOrder} className="caisse-mobilebar ca-tap" aria-label="Encaisser">
+          <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{tCount} article{tCount > 1 ? "s" : ""} · {eur(tTotal)}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 700 }}>{retro && saleDate ? `Enregistrer le ${new Date(saleDate + "T" + (saleTime || "10:00")).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : "Encaisser"} <Check size={17} /></span>
         </button>
       )}
-
-      {justClosed && <div style={{ background: "#3F7A4B14", border: "1px solid #3F7A4B33", color: C.ok, borderRadius: 12, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Check size={16} /> Vente enregistrée</div>}
 
       <div style={card}>
         <div style={h2}>{focusIsToday ? "Ventes du jour" : "Ventes du " + new Date(focusTs).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}</div>
@@ -6965,21 +8160,21 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
           <div style={{ fontSize: 13, color: C.soft, padding: "6px 0" }}>Aucune vente fermée aujourd'hui.</div>
         ) : todayOrders.map((o) => (
           <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0 }}>{hhmm(o.ts)}</span>
+            <span style={{ fontSize: 12, color: C.soft, width: 46, flexShrink: 0, fontVariantNumeric: "lining-nums tabular-nums" }}>{hhmm(o.ts)}</span>
             <span style={{ flex: 1, fontSize: 13.5, color: C.ink, minWidth: 0 }}>{o.count} article{o.count > 1 ? "s" : ""} <span style={{ color: C.soft }}>· {o.items.map((it) => it.name + " ×" + it.qty).join(", ")}</span></span>
-            <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5 }}>{eur(o.total)}</span>
-            <button onClick={() => openEdit(o)} className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Settings size={13} /> Modifier</button>
-            <button onClick={() => cancelOrder(o.id)} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /> Annuler</button>
+            <span style={{ fontWeight: 700, color: C.jam, fontSize: 13.5, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(o.total)}</span>
+            <button onClick={() => openEdit(o)} aria-label="Modifier la vente" className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><Settings size={13} /><span className="caisse-lbl"> Modifier</span></button>
+            <button onClick={() => cancelOrder(o.id)} aria-label="Annuler la vente" className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}><X size={13} /><span className="caisse-lbl"> Annuler</span></button>
           </div>
         ))}
       </div>
 
       <div style={card}>
         <div style={h2}>Par produit · aujourd'hui</div>
-        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([name, v]) => (
-          <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
-            <span style={{ color: C.ink }}>{name} <span style={{ color: C.soft }}>× {v.qty}</span></span>
-            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+        {prodRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : prodRows.map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
+            <span style={{ color: C.ink, minWidth: 0 }}>{v.name} <span style={{ color: C.soft }}>× {v.qty}</span></span>
+            <span style={{ fontWeight: 700, color: C.jam, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(v.sum)}</span>
           </div>
         ))}
       </div>
@@ -6997,11 +8192,14 @@ function ProCaisse({ products, setProducts, sales, setSales, pass, orders, setOr
       </div>
 
       <div style={{ ...card, marginBottom: 0 }}>
-        <div style={h2}>Historique par jour</div>
+        <div style={{ ...h2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span>{histTout ? "Historique par jour" : "Historique · 7 derniers jours"}</span>
+          {dayRowsTous.length > 7 && <button onClick={() => setHistTout((v) => !v)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline", textTransform: "none", letterSpacing: 0, padding: 0 }}>{histTout ? "Réduire" : `Voir tout (${dayRowsTous.length} jours)`}</button>}
+        </div>
         {dayRows.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>—</div> : dayRows.map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
             <span style={{ color: C.ink, textTransform: "capitalize" }}>{k} <span style={{ color: C.soft }}>· {v.count} cmd</span></span>
-            <span style={{ fontWeight: 700, color: C.jam }}>{eur(v.sum)}</span>
+            <span style={{ fontWeight: 700, color: C.jam, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(v.sum)}</span>
           </div>
         ))}
       </div>
