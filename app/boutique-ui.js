@@ -11,6 +11,8 @@ import { supabase } from "../lib/supabase";
 const FONT = `
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Raleway:wght@300;400;500;600;700&family=Anton&family=Fraunces:ital,opsz,wght@1,9..144,900&family=Work+Sans:wght@400;600&display=swap');
 * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+/* Raleway affiche par défaut des chiffres « à l'ancienne » (le 9 descend, le 5 flotte, les colonnes ne s'alignent pas) : on impose des chiffres de même hauteur partout. */
+* { font-variant-numeric: lining-nums; }
 input, textarea, select { font-family: 'Raleway', sans-serif; }
 input::placeholder, textarea::placeholder { color: #A89E89; font-weight: 400; }
 input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outline-offset: 0; }
@@ -28,7 +30,7 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
    et l'image finale (opacite 1, transform none) est deja l'etat naturel de l'element. */
 .ca-anim { animation: caIn .35s cubic-bezier(.2,.7,.3,1) backwards; }
 /* Coffrets : une grille, des titres de colonnes au bureau ; sur téléphone la ligne s'empile (article en entier, puis qté / achat / total) */
-.cof-h, .cof-l { display: grid; grid-template-columns: minmax(0,1fr) 64px 92px 84px 36px; gap: 8px; align-items: end; }
+.cof-h, .cof-l { display: grid; grid-template-columns: minmax(0,1fr) 112px 92px 84px 36px; gap: 8px; align-items: end; }
 .cof-h { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 600; padding: 0 0 6px; }
 .cof-h .r { text-align: right; }
 .cof-l { padding: 8px 0 2px; border-top: 1px solid #241F1718; }
@@ -36,10 +38,10 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .cof-note { font-size: 11.5px; color: #8C8068; padding: 3px 0 8px; }
 .cof-cell { display: block; min-width: 0; }
 .cof-lab { display: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
-.cof-tot { text-align: right; font-weight: 700; font-size: 13.5px; font-variant-numeric: tabular-nums; padding-bottom: 10px; white-space: nowrap; }
+.cof-tot { text-align: right; font-weight: 700; font-size: 13.5px; font-variant-numeric: lining-nums tabular-nums; padding-bottom: 10px; white-space: nowrap; }
 .cof-c { display: grid; grid-template-columns: minmax(110px,1.5fr) 96px 52px 160px; gap: 8px; align-items: end; padding: 8px 0; border-top: 1px solid #241F1718; }
 .cof-c .nom { padding-bottom: 10px; font-size: 13px; }
-.cof-stk { font-weight: 700; font-size: 13.5px; text-align: right; padding-bottom: 10px; font-variant-numeric: tabular-nums; }
+.cof-stk { font-weight: 700; font-size: 13.5px; text-align: right; padding-bottom: 10px; font-variant-numeric: lining-nums tabular-nums; }
 @media (max-width: 720px) {
   .cof-h { display: none; }
   .cof-l { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px; align-items: start; }
@@ -2234,7 +2236,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                 style={{ textAlign: "left", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 13, padding: 11, cursor: "pointer", display: "flex", flexDirection: "column", gap: 7, minHeight: 112 }}>
                 <span style={{ width: 40, height: 40, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", flexShrink: 0 }}><Illu k={fm.illu} col={fm.col} s={31} /></span>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>{fm.label}</span>
-                <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45, fontVariantNumeric: "tabular-nums" }}>
+                <span style={{ marginTop: "auto", fontSize: 10.5, color: C.soft, lineHeight: 1.45, fontVariantNumeric: "lining-nums tabular-nums" }}>
                   {s.n === 0 ? "aucune fournée" : <>{s.nbProduits} produit{s.nbProduits > 1 ? "s" : ""} · {s.n} fournée{s.n > 1 ? "s" : ""}{s.derniere ? ` · ${new Date(s.derniere).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}` : ""}</>}
                   {s.coutKg != null && <span style={{ display: "block", color: PF.navy, fontWeight: 700 }}>{eur2(s.coutKg)}/kg</span>}
                   {s.finis > 0 && <span style={{ display: "block", color: PF.good, fontWeight: 700 }}>{s.finis} produit{s.finis > 1 ? "s" : ""} fini{s.finis > 1 ? "s" : ""}</span>}
@@ -2361,11 +2363,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                           <div style={{ fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label}</div>
                           {g.cond && <div style={{ fontSize: 11, color: C.soft, marginTop: 2 }}>unité : {g.cond}</div>}
                         </td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{g.batches.length}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.batches.length}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
+                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2435,15 +2437,15 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
             <div style={{ flex: "1 1 140px", background: C.jam, color: "#fff", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, opacity: .85, textTransform: "uppercase", letterSpacing: ".07em" }}>Stock oignons cuits</div>
-              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{stockOignonsCuits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
             <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Produit</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: PF.good, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.good, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{oignonsCuitsProduits.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
             <div style={{ flex: "1 1 120px", background: "#f6efdd", borderRadius: 12, padding: "12px 14px" }}>
               <div style={{ fontSize: 12, color: C.soft, textTransform: "uppercase", letterSpacing: ".07em" }}>Consommé (ventes)</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: PF.navy, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: PF.navy, marginTop: 2, fontVariantNumeric: "lining-nums tabular-nums" }}>{oignonsCuitsConsommes.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kg</div>
             </div>
           </div>
         )}
@@ -2459,7 +2461,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                   {grpBatches.map((f, i) => { const r = pfCalc(f, rendementEstime); const checked = selectionManuelle && selectionManuelle.has(f.id); return (
                     <tr key={f.id} onClick={() => selectionManuelle ? toggleSelection(f.id) : openEdit(f)} className="ca-tap" style={{ cursor: "pointer", background: checked ? "#e8f0ec" : (f.estimation ? "#fff7e0" : (i % 2 ? "#ffffff66" : "transparent")), borderBottom: `1px solid ${C.line}` }}>
                       {avecOignon && <td style={{ padding: "10px 8px" }} onClick={(e) => { if (selectionManuelle) e.stopPropagation(); }}>{selectionManuelle && <input type="checkbox" checked={!!checked} onChange={() => toggleSelection(f.id)} style={{ width: 17, height: 17, cursor: "pointer" }} />}</td>}
-                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
+                      <td style={{ padding: "10px 8px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{f.date ? new Date(f.date).toLocaleDateString("fr-FR") : "—"}</td>
                       <td style={{ padding: "10px 8px", maxWidth: 180 }}>
                         <div style={{ color: f.titre ? C.ink : C.soft, fontWeight: f.titre ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {f.titre || "sans titre"}
@@ -2469,14 +2471,14 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                         {/* le lieu n'est pas un nom de produit : affiché tel quel il faisait passer « casa mama » pour une recette */}
                         {!f.titre && f.lieu && <div style={{ fontSize: 10.5, color: C.soft, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>chez {f.lieu}</div>}
                       </td>
-                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{r.poidsFini && r.isEstimated ? "*" : ""}</td>
-                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
-                      {!avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutKg)}</td>}
-                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.coutPotMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
-                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{r.oignonTotalRondes ? r.oignonTotalRondes.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{(f.rounds_extra || []).length > 0 && <span style={{ marginLeft: 4, fontSize: 9.5, color: C.soft }}>({1 + (f.rounds_extra || []).length} fournées)</span>}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{r.poidsFini ? r.poidsFini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}{r.poidsFini && r.isEstimated ? "*" : ""}</td>
+                      {avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums", color: !r.rendement ? PF.navy : (r.rendement < 0.6 ? PF.warn : (r.rendement < 0.8 ? PF.ochre : PF.good)) }}>{r.rendement ? (r.rendement * 100).toFixed(0) + "%" : "—"}</td>}
+                      {!avecOignon && <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutKg)}</td>}
+                      <td style={{ padding: "10px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutPotMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.prixVenteMoyen)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.margeMoyenne)}</td>
+                      <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums", color: !r.coefMoyen ? PF.ochre : (r.coefMoyen < 1.5 ? PF.warn : (r.coefMoyen < 2.5 ? PF.ochre : PF.good)) }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</td>
                     </tr>
                   ); })}
                 </tbody>
@@ -3148,7 +3150,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                         ? (pl.nb > 0 ? <button onClick={figer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>figer</button> : null)
                         : <button onClick={recalculer} className="ca-tap" style={{ background: "transparent", border: "none", color: C.jam, fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>recalculer</button>}
                     </div>
-                    {pl.coutUnitaireTotal != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(pl.coutUnitaireTotal)} / {motUnite}</div>}
+                    {pl.coutUnitaireTotal != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur3(pl.coutUnitaireTotal)} / {motUnite}</div>}
                   </div>
                 );
               })}
@@ -3157,7 +3159,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile })
                   <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: C.jam, display: "inline-block", flexShrink: 0 }} />Plaques{pfNum(f.pissa_poids_plaque) > 0 ? ` · ${pfNum(f.pissa_poids_plaque)} kg` : ""}</span></Lbl>
                   <input inputMode="numeric" value={f.pissa_nb_plaques == null ? "" : String(f.pissa_nb_plaques).replace(".", ",")} placeholder="0" onChange={(e) => change({ pissa_nb_plaques: e.target.value.replace(",", ".") })} style={{ ...inp(), marginTop: 3, fontSize: 18, fontWeight: 800, textAlign: "center" }} />
                   <div style={{ marginTop: 5 }}><span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.good, borderRadius: 5, padding: "2px 6px", letterSpacing: ".04em" }}>SAISI</span></div>
-                  {R.coutPlaque != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{eur3(R.coutPlaque)} / plaque</div>}
+                  {R.coutPlaque != null && <div style={{ fontSize: 11, color: C.soft, marginTop: 4, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur3(R.coutPlaque)} / plaque</div>}
                 </div>
               )}
             </div>
@@ -5210,11 +5212,11 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                                       {l.lot || <span style={{ color: C.caramel }}>sans n° de lot</span>}
                                       {l === L.enCours && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: C.ok, borderRadius: 5, padding: "1px 5px" }}>EN VENTE</span>}
                                     </td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? <> <Warn size={12} /></> : ""}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.entre}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.dateFab ? frDate(l.dateFab) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums", color: perime ? PF.warn : C.ink, fontWeight: perime ? 700 : 400 }}>{l.dlc ? frDate(l.dlc) : <span style={{ color: "#C9C0AE" }}>—</span>}{perime ? <> <Warn size={12} /></> : ""}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.entre}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, color: l.restant > 0 ? C.ok : "#C9C0AE" }}>{l.restant}</td>
                                   </tr>
                                 );
                               })}
@@ -5256,15 +5258,15 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales })
                                 const retenu = l === fifo[p.id].courant;
                                 return (
                                   <tr key={k} style={{ background: retenu ? "#123a5212" : "transparent", borderBottom: `1px solid ${C.line}` }}>
-                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontWeight: retenu ? 700 : 400 }}>
+                                    <td style={{ padding: "7px 7px", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: retenu ? 700 : 400 }}>
                                       {l.date ? new Date(l.date).toLocaleDateString("fr-FR") : "—"}
                                       {retenu && <span style={{ marginLeft: 5, fontSize: 9, fontWeight: 800, color: "#fff", background: PF.navy, borderRadius: 5, padding: "1px 5px" }}>RETENU</span>}
                                     </td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{l.nb}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti || 0}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, color: l.restant > 0 ? PF.good : "#C9C0AE" }}>{l.restant}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{l.bloque ? <span style={{ color: "#C9C0AE" }}>—</span> : eur2(l.coutKg)}</td>
-                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700, whiteSpace: "nowrap", color: l.bloque ? PF.warn : PF.navy }}>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{l.nb}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", color: l.sorti > 0 ? C.ink : "#C9C0AE" }}>{l.sorti || 0}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, color: l.restant > 0 ? PF.good : "#C9C0AE" }}>{l.restant}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}>{l.bloque ? <span style={{ color: "#C9C0AE" }}>—</span> : eur2(l.coutKg)}</td>
+                                    <td style={{ padding: "7px 7px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums", fontWeight: 700, whiteSpace: "nowrap", color: l.bloque ? PF.warn : PF.navy }}>
                                       {l.suspect
                                         ? <span title={`Les ingrédients pesés font ${l.poidsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg pour ${l.finiKg.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} kg de produit fini : une recette ne peut pas produire plus du double de ce qu'on y met. Une quantité a sans doute été saisie en grammes au lieu de kilos.`}>recette à revoir</span>
                                         : (l.bloque ? <span title={`Sans prix : ${l.manquants.join(", ")}`}>prix manquant</span> : eur2(l.cout))}
@@ -5392,12 +5394,12 @@ function ProClients({ clients, orders, pass }) {
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
                     <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
                     {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
-                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
+                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
                     <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email || "—"}</td>
                     <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{capNom(c.ville) || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "tabular-nums" }}>{c.orders || 0}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{eur(c.spent || 0)}</td>
+                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.orders || 0}</td>
+                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(c.spent || 0)}</td>
                   </tr>
                 ))}
             </tbody>
@@ -5556,7 +5558,7 @@ function ProMail({ clients }) {
             <div style={{ display: "grid", gap: 6, maxHeight: 220, overflowY: "auto" }}>
               {withTel.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucun contact avec téléphone.</div> : withTel.map((c) => (
                 <a key={c.email || c.tel} href={msg ? waLink(c) : undefined} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${C.line}`, background: C.cream, borderRadius: 10, padding: "9px 12px", textDecoration: "none", color: C.ink, pointerEvents: msg ? "auto" : "none", opacity: msg ? 1 : .5 }}>
-                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft, fontVariantNumeric: "tabular-nums" }}>{formatTel(c.tel)}</span></span>
+                  <span style={{ minWidth: 0 }}><b style={{ fontSize: 13 }}>{c.prenom} {c.nom}</b><span style={{ display: "block", fontSize: 11.5, color: C.soft, fontVariantNumeric: "lining-nums tabular-nums" }}>{formatTel(c.tel)}</span></span>
                   <span style={{ display: "flex", alignItems: "center", gap: 5, color: "#1FA855", fontWeight: 600, fontSize: 12, flexShrink: 0 }}><MessageCircle size={14} /> Envoyer</span>
                 </a>
               ))}
@@ -5713,6 +5715,19 @@ function CoffretAssembler({ coffret, lignes, pass, onClose, onDone }) {
     </div>
   );
 }
+// quantité avec − / + : un geste au pouce, sans clavier (le champ reste saisissable)
+function Qte({ value, onChange }) {
+  const n = coffretNum(value);
+  const pas = (d) => onChange(String(Math.max(0, Math.round((n + d) * 100) / 100)).replace(".", ","));
+  const b = { width: 30, height: 36, flexShrink: 0, border: "none", background: C.cream, color: C.jam, cursor: "pointer", display: "grid", placeItems: "center", padding: 0 };
+  return (
+    <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${C.jam}22`, borderRadius: 10, overflow: "hidden", background: "#fff", height: 38 }}>
+      <button type="button" onClick={() => pas(-1)} aria-label="Moins" className="ca-tap" style={b}><Minus size={14} /></button>
+      <input value={value} onChange={(e) => onChange(e.target.value)} inputMode="decimal" aria-label="Quantité" style={{ width: "100%", minWidth: 0, textAlign: "center", border: "none", fontWeight: 700, fontSize: 14, outline: "none", background: "transparent", color: C.ink, padding: 0 }} />
+      <button type="button" onClick={() => pas(1)} aria-label="Plus" className="ca-tap" style={b}><Plus size={14} /></button>
+    </div>
+  );
+}
 function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
   const [nom, setNom] = useState(coffret.name);
@@ -5726,6 +5741,12 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   const pv = coffretNum(prix); const complet = manquants.length === 0 && compo.items.length > 0;
   const marge = complet && pv > 0 ? pv - total : null; const coef = complet && pv > 0 && total > 0 ? pv / total : null;
   const asb = assemblable(lignes);
+  const snap = JSON.stringify([nom, compo, pv, actif]);
+  const snapInit = useRef(snap);
+  const [snapOk, setSnapOk] = useState(null);
+  const dirty = snap !== (snapOk != null ? snapOk : snapInit.current);
+  const parts = [...lignes.filter((l) => l.ligne > 0).map((l) => ({ label: l.name, v: l.ligne })), ...compo.emballage.filter((e) => e.cost * e.qty > 0).map((e) => ({ label: e.label || "Emballage", v: e.cost * e.qty }))];
+  const conseils = complet && total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
   const catalogue = all.filter((p) => !p.composition).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   const setItem = (k, patch) => setItems((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
   const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
@@ -5739,7 +5760,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
     const r2 = await supabase.rpc("admin_patch_product", { pass, p_id: coffret.id, p_patch: patch });
     setBusy(false);
     if (r1.error || r2.error) { setMsg({ bad: true, t: "Non enregistré — vérifiez la connexion" }); return; }
-    setMsg({ bad: false, t: "Coffret validé" });
+    setMsg(null); setSnapOk(snap);
     onSaved({ ...coffret, name: nom, active: actif, price: pv, cost: patch.cost != null ? patch.cost : coffret.cost, coef: patch.coef != null ? patch.coef : coffret.coef, composition: compo });
   };
   const saveCostPid = async (pid) => {
@@ -5769,7 +5790,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
                       {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
                       {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
                     </select></label>
-                  <label className="cof-cell"><span className="cof-lab">Qté</span><input value={it.qty} onChange={(e) => setItem(k, { qty: e.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                  <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
                   <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
                   <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
                   <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
@@ -5785,7 +5806,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
             {emb.map((e, k) => (
               <div className="cof-l" key={k}>
                 <label className="cof-cell cof-art"><span className="cof-lab">Libellé</span><input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                <label className="cof-cell"><span className="cof-lab">Qté</span><input value={e.qty} onChange={(ev) => setEmbl(k, { qty: ev.target.value })} inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
+                <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
                 <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="à saisir" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
                 <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: coffretNum(e.cost) > 0 ? C.ink : C.soft }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</div></div>
                 <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
@@ -5797,13 +5818,36 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
             {[[complet ? "Coût de revient" : "Coût connu", total > 0 ? eur2(total) : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
               <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl.startsWith("Coût") ? C.paper : C.board, color: lbl.startsWith("Coût") ? C.ink : "#fff", border: lbl.startsWith("Coût") ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
                 <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
-                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{val}</div>}
+                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{val}</div>}
               </div>
             ))}
           </div>
+          {conseils.length > 0 && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+              <span style={{ fontSize: 12, color: C.soft, fontWeight: 600 }}>Repères de prix (un geste)</span>
+              {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="ca-tap" style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "6px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", color: C.ink }}>coef {String(c.m).replace(".", ",")} · {eur2(c.v)}</button>)}
+            </div>
+          )}
+          {marge != null && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, fontWeight: 600, marginBottom: 4 }}><span>Marge sur le prix de vente</span><span style={{ color: marge > 0 ? C.ok : "#a6482a" }}>{Math.round(marge / pv * 100)} %</span></div>
+              <div style={{ height: 8, borderRadius: 5, background: C.cream, overflow: "hidden" }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
+            </div>
+          )}
+          {total > 0 && (
+            <div style={{ ...card(), marginTop: 12 }}>
+              <div style={h2}>Répartition du coût</div>
+              <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", background: C.cream }}>
+                {parts.map((p, i) => <div key={i} title={p.label} style={{ width: (p.v / total * 100) + "%", background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6] }} />)}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 10, fontSize: 12.5 }}>
+                {parts.map((p, i) => <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><i style={{ width: 9, height: 9, borderRadius: 3, background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6], display: "inline-block" }} /> {p.label} <b>{eur2(p.v)}</b> <span style={{ color: C.soft }}>{Math.round(p.v / total * 100)} %</span></span>)}
+              </div>
+            </div>
+          )}
           {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
-            <button onClick={enregistrer} disabled={busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: "pointer", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : "Valider le coffret"}</button>
+            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1, display: "inline-flex", alignItems: "center", gap: 7 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
             {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
           </div>
@@ -5824,7 +5868,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   );
 }
 function ProCoffrets({ pass, products, setProducts }) {
-  const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null);
+  const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null); const [asmFor, setAsmFor] = useState(null);
   const charger = async () => {
     if (!supabase || !pass) return;
     const { data, error } = await supabase.rpc("admin_products", { pass });
@@ -5850,7 +5894,7 @@ function ProCoffrets({ pass, products, setProducts }) {
       <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 14 }}>
         {coffrets.map((c) => { const { total, manquants, lignes } = coutCoffret(c.composition, byId); const a = assemblable(lignes); return (
-          <div key={c.id} style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
+          <div key={c.id} onClick={() => setSel(c.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSel(c.id); }} className="ca-tap" style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
             <CoffretVisuel nom={c.name} visuel={c.composition.visuel} compact />
             <div style={{ padding: "10px 14px 14px" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name} {!c.active && <span style={{ fontSize: 11, color: C.soft, fontWeight: 600 }}>· masqué</span>}</div>
@@ -5858,16 +5902,17 @@ function ProCoffrets({ pass, products, setProducts }) {
                 {[["Coût", eur2(total)], ["Vente", c.price > 0 ? eur2(c.price) : "à saisir"], ["Stock", String(c.stock)]].map(([k, v]) => (
                   <div key={k} style={{ background: C.cream, borderRadius: 10, padding: "7px 10px" }}>
                     <div style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{k}</div>
-                    <div style={{ fontWeight: 700, fontSize: 14, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{v}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}>{v}</div>
                   </div>
                 ))}
               </div>
               <div style={{ fontSize: 12, marginTop: 8, minHeight: 18, color: manquants.length ? "#a6482a" : C.soft, fontWeight: manquants.length ? 600 : 400 }}>{manquants.length > 0 ? <><Warn size={12} /> {manquants.length} prix d'achat à renseigner</> : `Fabricables : ${a.n}`}</div>
-              <button onClick={() => setSel(c.id)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>Ouvrir</button>
+              <button onClick={(e) => { e.stopPropagation(); setAsmFor(c.id); }} className="ca-tap" style={{ marginTop: 10, background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 7 }}><Package size={14} /> J'ai fabriqué</button>
             </div>
           </div>
         ); })}
       </div>
+      {asmFor && (() => { const c = coffrets.find((x) => x.id === asmFor); return c ? <CoffretAssembler coffret={c} lignes={coutCoffret(c.composition, byId).lignes} pass={pass} onClose={() => setAsmFor(null)} onDone={(res) => { setAsmFor(null); appliquerStocks(res); }} /> : null; })()}
       {composants.length > 0 && (
         <div style={{ ...card(), marginTop: 16 }}>
           <div style={h2}>Composants ajoutés pour les coffrets (masqués du catalogue)</div>
