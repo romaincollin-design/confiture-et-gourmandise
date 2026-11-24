@@ -3370,20 +3370,6 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
            la cuisson une fois le résultat déjà saisi. */
         <div style={card()}>
           <EtapeFournee n={numEtape("prep")} titre="Préparation" sous="Ce qui entre dans la fournée" />
-          <button onClick={() => change({ estimation: !f.estimation })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.estimation ? "#fff7e0" : "#f7f4ec", border: `1.5px solid ${f.estimation ? PF.yellow : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
-            <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.estimation ? PF.ochre : C.soft}`, background: f.estimation ? PF.ochre : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.estimation && <Check size={13} color="#fff" />}</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Estimation / pronostic</span>
-              <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée hypothétique (ex. simulation grande capacité) — n'affecte pas tes vraies statistiques de production.</span>
-            </span>
-          </button>
-          <button onClick={() => change({ exclu_stats: !f.exclu_stats })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.exclu_stats ? "#faece5" : "#f7f4ec", border: `1.5px solid ${f.exclu_stats ? PF.warn : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
-            <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.exclu_stats ? PF.warn : C.soft}`, background: f.exclu_stats ? PF.warn : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.exclu_stats && <Check size={13} color="#fff" />}</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Ne pas compter dans les statistiques</span>
-              <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée d'essai ou de démonstration : conservée ici, mais retirée de la consommation matières et du stock d'oignons cuits.</span>
-            </span>
-          </button>
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} list="titres-fournees" autoComplete="off" style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
@@ -3514,6 +3500,23 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
             <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
+          </div>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+            <Lbl>Options de la fournée</Lbl>
+          <button onClick={() => change({ estimation: !f.estimation })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.estimation ? "#fff7e0" : "#f7f4ec", border: `1.5px solid ${f.estimation ? PF.yellow : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
+            <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.estimation ? PF.ochre : C.soft}`, background: f.estimation ? PF.ochre : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.estimation && <Check size={13} color="#fff" />}</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Estimation / pronostic</span>
+              <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée hypothétique (ex. simulation grande capacité) — n'affecte pas tes vraies statistiques de production.</span>
+            </span>
+          </button>
+          <button onClick={() => change({ exclu_stats: !f.exclu_stats })} className="ca-tap" style={{ width: "100%", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: f.exclu_stats ? "#faece5" : "#f7f4ec", border: `1.5px solid ${f.exclu_stats ? PF.warn : C.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer", textAlign: "left" }}>
+            <span style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${f.exclu_stats ? PF.warn : C.soft}`, background: f.exclu_stats ? PF.warn : "transparent", display: "grid", placeItems: "center", flexShrink: 0 }}>{f.exclu_stats && <Check size={13} color="#fff" />}</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Ne pas compter dans les statistiques</span>
+              <span style={{ display: "block", fontSize: 11.5, color: C.soft, marginTop: 1 }}>Fournée d'essai ou de démonstration : conservée ici, mais retirée de la consommation matières et du stock d'oignons cuits.</span>
+            </span>
+          </button>
           </div>
         </div>
       )}
