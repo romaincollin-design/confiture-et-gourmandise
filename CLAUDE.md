@@ -725,7 +725,11 @@ reste de la page. C'est visible sur la capture du propriétaire : seul le pannea
 ---
 
 ## 11. Agents : mémoire et méthode
-Les agents ne retiennent rien d'une session à l'autre. Leur mémoire est **`docs/REX.md`** (règles apprises, à compléter après chaque
-erreur), leurs définitions sont dans `.claude/agents/` (`implementeur-ui`, `qa-regression`, `maquettes`) et leurs contrôles dans
-`scripts/` (`qa-inventaire.py` : libellés disparus ; `qa-maquettes-alignement.js` : alignement). Règle d'or : **refaire un écran ne
-retire aucune fonction** ; une maquette validée est reproduite à l'identique ; les maquettes se montrent en image.
+Les agents ne retiennent rien d'une session à l'autre : leur mémoire est **`docs/rex.jsonl`** (leçons structurées ; `docs/REX.md` en est généré).
+Chaque agent démarre par `python3 scripts/rex.py brief <rôle>` (sa mission + ses leçons) ; toute erreur devient une leçon
+(`rex.py add`) dans le même commit que le correctif ; `rex.py suggest` propose des contrôles automatiques et des idées.
+Rôles, process (maquette → validation → code → QA → push → mémoire) et back end à connaître : **`docs/AGENTS.md`**.
+Définitions des agents : `.claude/agents/` (orchestrateur, maquettes, implementeur-ui, backend-supabase, illustrateur, qa-regression, memoire).
+Contrôles : `scripts/qa-inventaire.py` (libellés disparus), `scripts/qa-maquettes-alignement.js` (alignement).
+Prompt réutilisable pour d'autres projets : `docs/PROMPT-PROJET-TYPE.md`. Règle d'or : **refaire un écran ne retire aucune fonction** ;
+une maquette validée est reproduite à l'identique ; les maquettes se montrent en image ; on donne aux agents la dernière base.
