@@ -263,6 +263,34 @@ const SEED_SALES = [];
 const SEED_CLIENTS = [];
 
 /* ---------- Illustrations façon étiquette ---------- */
+/* Pictos des ingrédients et emballages (même style que Illu : 46x46, aplats, reflet). Clé choisie par le nom. */
+const ING_SVG = {"huile": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><rect x=\"19\" y=\"4\" width=\"8\" height=\"8\" rx=\"2\" fill=\"#6f8f3a\"></rect><path d=\"M19 12 h8 l5 9 v15 q0 5 -5 5 h-8 q-5 0 -5 -5 v-15 z\" fill=\"#C9A227\"></path><rect x=\"14\" y=\"26\" width=\"18\" height=\"10\" fill=\"#F7F1E2\" opacity=\".85\"></rect><path d=\"M23 28 q-3 4 0 6 q3 -2 0 -6\" fill=\"#6f8f3a\"></path><ellipse cx=\"19\" cy=\"20\" rx=\"1.8\" ry=\"4\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "sel": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M14 18 h18 l-2 21 q0 3 -3 3 h-8 q-3 0 -3 -3 z\" fill=\"#F4F1EA\" stroke=\"#D9D2C2\" stroke-width=\"1\"></path><path d=\"M15 18 q8 -11 16 0 z\" fill=\"#9AA5AD\"></path><g fill=\"#7a838a\"><circle cx=\"21\" cy=\"12\" r=\"1\"></circle><circle cx=\"25\" cy=\"11\" r=\"1\"></circle><circle cx=\"23\" cy=\"15\" r=\"1\"></circle></g><ellipse cx=\"18\" cy=\"29\" rx=\"1.8\" ry=\"6\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "poivre": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M16 14 h14 l3 25 q0 3 -3 3 h-14 q-3 0 -3 -3 z\" fill=\"#4A3A32\"></path><rect x=\"19\" y=\"6\" width=\"8\" height=\"8\" rx=\"3\" fill=\"#8a6a4a\"></rect><g fill=\"#241F17\"><circle cx=\"20\" cy=\"26\" r=\"2\"></circle><circle cx=\"26\" cy=\"30\" r=\"2\"></circle><circle cx=\"22\" cy=\"35\" r=\"2\"></circle></g><ellipse cx=\"18\" cy=\"28\" rx=\"1.8\" ry=\"7\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "anchois": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><ellipse cx=\"23\" cy=\"28\" rx=\"16\" ry=\"9\" fill=\"#C9CED3\"></ellipse><ellipse cx=\"23\" cy=\"26\" rx=\"14\" ry=\"7\" fill=\"#EFEAD9\"></ellipse><path d=\"M10 25 q12 -9 24 0 q-12 5 -24 0 z\" fill=\"#8B5A43\"></path><path d=\"M11 29 q12 -8 24 0 q-12 5 -24 0 z\" fill=\"#A0664D\"></path><circle cx=\"13\" cy=\"24.5\" r=\"1\" fill=\"#241F17\"></circle></svg>", "thym": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M23 42 q0 -18 4 -34\" stroke=\"#5E7F3A\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\"></path><g fill=\"#7d9a46\"><ellipse cx=\"19\" cy=\"30\" rx=\"4\" ry=\"2\" transform=\"rotate(-30 19 30)\"></ellipse><ellipse cx=\"27\" cy=\"26\" rx=\"4\" ry=\"2\" transform=\"rotate(30 27 26)\"></ellipse><ellipse cx=\"19\" cy=\"21\" rx=\"4\" ry=\"2\" transform=\"rotate(-30 19 21)\"></ellipse><ellipse cx=\"28\" cy=\"16\" rx=\"4\" ry=\"2\" transform=\"rotate(30 28 16)\"></ellipse><ellipse cx=\"22\" cy=\"11\" rx=\"3.6\" ry=\"1.8\" transform=\"rotate(-30 22 11)\"></ellipse></g></svg>", "ail": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M23 8 q-1 -4 2 -5\" stroke=\"#9AA27A\" stroke-width=\"1.7\" fill=\"none\" stroke-linecap=\"round\"></path><path d=\"M23 9 q13 7 13 19 q0 11 -13 11 q-13 0 -13 -11 q0 -12 13 -19 z\" fill=\"#F4EEDF\" stroke=\"#DCD2B8\" stroke-width=\"1\"></path><g stroke=\"#C9B994\" stroke-width=\"1.2\" fill=\"none\"><path d=\"M23 10 q-6 13 -4 28\"></path><path d=\"M23 10 q6 13 4 28\"></path></g><ellipse cx=\"17\" cy=\"26\" rx=\"2.2\" ry=\"4\" fill=\"rgba(255,255,255,.30)\" transform=\"rotate(-15 17 26)\"></ellipse></svg>", "farine": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M12 12 h22 l2 28 q0 3 -3 3 h-20 q-3 0 -3 -3 z\" fill=\"#F2E8D0\" stroke=\"#DCCFAE\" stroke-width=\"1\"></path><path d=\"M12 12 q11 -7 22 0 z\" fill=\"#E4D6B2\"></path><rect x=\"16\" y=\"22\" width=\"14\" height=\"9\" rx=\"2\" fill=\"#B5722B\" opacity=\".85\"></rect><path d=\"M19 27 h8\" stroke=\"#F2E8D0\" stroke-width=\"1.6\" stroke-linecap=\"round\"></path></svg>", "sucre": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><rect x=\"9\" y=\"22\" width=\"15\" height=\"15\" rx=\"2\" fill=\"#FBFBF6\" stroke=\"#E1DDD0\" stroke-width=\"1\"></rect><rect x=\"22\" y=\"26\" width=\"15\" height=\"12\" rx=\"2\" fill=\"#F4F1E8\" stroke=\"#E1DDD0\" stroke-width=\"1\"></rect><rect x=\"15\" y=\"9\" width=\"15\" height=\"15\" rx=\"2\" fill=\"#FFFFFF\" stroke=\"#E1DDD0\" stroke-width=\"1\"></rect><ellipse cx=\"19\" cy=\"14\" rx=\"2.4\" ry=\"1.6\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "oeuf": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M23 6 q11 0 11 18 q0 14 -11 14 q-11 0 -11 -14 q0 -18 11 -18 z\" fill=\"#F3E3C8\" stroke=\"#E0CBA6\" stroke-width=\"1\"></path><ellipse cx=\"18\" cy=\"17\" rx=\"2.4\" ry=\"5\" fill=\"rgba(255,255,255,.30)\" transform=\"rotate(-15 18 17)\"></ellipse></svg>", "vin": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M20 4 h6 v10 q6 5 6 14 v10 q0 4 -4 4 h-10 q-4 0 -4 -4 v-10 q0 -9 6 -14 z\" fill=\"#C8D77A\"></path><rect x=\"14\" y=\"26\" width=\"18\" height=\"10\" fill=\"#F7F1E2\" opacity=\".9\"></rect><path d=\"M20 30 h6 M21 33 h4\" stroke=\"#B5722B\" stroke-width=\"1.3\" stroke-linecap=\"round\"></path><ellipse cx=\"18\" cy=\"22\" rx=\"1.8\" ry=\"5\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "olive": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><path d=\"M30 8 q4 -3 7 0\" stroke=\"#5E7F3A\" stroke-width=\"1.8\" fill=\"none\" stroke-linecap=\"round\"></path><ellipse cx=\"22\" cy=\"27\" rx=\"11\" ry=\"13\" fill=\"#6F8F3A\" transform=\"rotate(25 22 27)\"></ellipse><circle cx=\"24\" cy=\"18\" r=\"3\" fill=\"#C4412B\"></circle><ellipse cx=\"17\" cy=\"23\" rx=\"2.2\" ry=\"4.4\" fill=\"rgba(255,255,255,.30)\" transform=\"rotate(25 17 23)\"></ellipse></svg>", "pot": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><rect x=\"12\" y=\"14\" width=\"22\" height=\"26\" rx=\"5\" fill=\"#F7F1E2\" stroke=\"#E2D6BC\" stroke-width=\"1\"></rect><rect x=\"11\" y=\"9\" width=\"24\" height=\"7\" rx=\"3\" fill=\"#B5722B\"></rect><rect x=\"15\" y=\"22\" width=\"16\" height=\"12\" rx=\"2\" fill=\"#E9DFC6\"></rect><ellipse cx=\"16\" cy=\"28\" rx=\"1.8\" ry=\"7\" fill=\"rgba(255,255,255,.30)\"></ellipse></svg>", "coffret": "<svg width=\"34\" height=\"34\" viewBox=\"0 0 46 46\" style=\"display: block;\"><rect x=\"7\" y=\"19\" width=\"32\" height=\"20\" rx=\"3\" fill=\"#123A52\"></rect><rect x=\"6\" y=\"14\" width=\"34\" height=\"8\" rx=\"3\" fill=\"#1E5272\"></rect><rect x=\"21\" y=\"14\" width=\"4\" height=\"25\" fill=\"#F4B32C\"></rect><path d=\"M23 14 q-6 -9 -9 -4 q2 5 9 4 q7 1 9 -4 q-3 -5 -9 4\" fill=\"#F4B32C\"></path></svg>"};
+const illuIngKey = (label) => {
+  const t = String(label || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/oignon/.test(t)) return "oignon";
+  if (/huile/.test(t)) return "huile";
+  if (/\bsel\b/.test(t)) return "sel";
+  if (/poivre/.test(t)) return "poivre";
+  if (/anchois/.test(t)) return "anchois";
+  if (/thym/.test(t)) return "thym";
+  if (/\bails?\b/.test(t)) return "ail";
+  if (/farine/.test(t)) return "farine";
+  if (/sucre/.test(t)) return "sucre";
+  if (/\bœufs?\b|\boeufs?\b/.test(t)) return "oeuf";
+  if (/\bvin\b/.test(t)) return "vin";
+  if (/olive/.test(t)) return "olive";
+  if (/tapenade|anchoiade/.test(t)) return "pot";
+  if (/citron/.test(t)) return "lemon";
+  if (/coffret/.test(t)) return "coffret";
+  return "";
+};
+function PictoIng({ label, size = 26, fallback = null }) {
+  const k = illuIngKey(label);
+  if (!k) return fallback;
+  const box = { width: size, height: size, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" };
+  if (k === "oignon" || k === "lemon") return <span style={box}><Illu k={k} col={k === "lemon" ? "#E3B100" : "#C08A5A"} s={size} /></span>;
+  return <span style={box} dangerouslySetInnerHTML={{ __html: ING_SVG[k].replace(/width="34" height="34"/, `width="${size}" height="${size}"`) }} />;
+}
 function Illu({ k, col, s = 46 }) {
   const hl = "rgba(255,255,255,.30)";
   const leaf = <path d="M23 8 Q21 3 16 4 Q18 9 23 10 Z" fill="#6f8f3a" />;
@@ -3355,20 +3383,20 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
 
       {heroCards(R, FAM)}
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", position: "sticky", top: 0, zIndex: 5, background: C.cream, padding: "8px 0" }}>
         {ETAPES.map((e, i) => (
-          <button key={e.k} onClick={() => setEtab(e.k)} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etabOk === e.k ? C.jam : C.line}`, background: etabOk === e.k ? C.jam : "#fff", color: etabOk === e.k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
+          <button key={e.k} onClick={() => { setEtab(e.k); const el = document.getElementById("et-" + e.k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etabOk === e.k ? C.jam : C.line}`, background: etabOk === e.k ? C.jam : "#fff", color: etabOk === e.k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
             <span style={{ width: 18, height: 18, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, background: etabOk === e.k ? "#ffffff2e" : C.cream, color: etabOk === e.k ? "#fff" : C.soft }}>{i + 1}</span>
             {e.label}
           </button>
         ))}
       </div>
 
-      {etabOk === "prep" && (
+      {(
         /* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
            la cuisson une fois le résultat déjà saisi. */
-        <div style={card()}>
+        <div id="et-prep" style={{ ...card(), scrollMarginTop: 64 }}>
           <EtapeFournee n={numEtape("prep")} titre="Préparation" sous="Ce qui entre dans la fournée" />
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
@@ -3407,7 +3435,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
                   const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
                   return (
                     <div key={ing.key}>
-                      <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />{ing.label}</span></Lbl>
+                      <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><PictoIng label={ing.label} size={26} fallback={<span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />} />{ing.label}</span></Lbl>
                       <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
                         <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
                           const raw = e.target.value.replace(",", ".");
@@ -3476,7 +3504,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           <div className="pf-ing">
             {(f.extra || []).map((e, i) => (
               <div key={"x" + i}>
-                <input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), fontSize: 12.5, padding: "7px 9px", fontWeight: 700 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}><PictoIng label={e.label} size={26} /><input value={e.label || ""} placeholder="ex. Fraises" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], label: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), flex: 1, minWidth: 0, fontSize: 12.5, padding: "7px 9px", fontWeight: 700 }} /></div>
                 <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
                   <input inputMode="decimal" value={e.qty == null ? "" : String(e.qty).replace(".", ",")} placeholder="0" onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], qty: ev.target.value.replace(",", ".") }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 14, fontWeight: 700, padding: "7px 9px" }} />
                   <select value={e.unit || "piece"} onChange={(ev) => { const ex = [...f.extra]; ex[i] = { ...ex[i], unit: ev.target.value }; change({ extra: ex }); }} style={{ ...inp(), marginTop: 3, fontSize: 12, padding: "7px 4px" }}>
@@ -3521,8 +3549,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
       )}
 
-      {etabOk === "cuis" && isPissa && (
-          <div style={card()}>
+      {isPissa && (
+          <div id="et-cuis" style={{ ...card(), scrollMarginTop: 64 }}>
             <EtapeFournee n={numEtape("cuis")} titre="Cuisson" sous="Feux, cycles et durée" />
             <div>
               <div style={{ ...h2 }}>Mode de préparation</div>
@@ -3700,8 +3728,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           </div>
         )}
 
-      {etabOk === "res" && (
-        <div style={card()}>
+      {(
+        <div id="et-res" style={{ ...card(), scrollMarginTop: 64 }}>
           <EtapeFournee n={numEtape("res")} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -3771,8 +3799,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
       )}
 
-      {etabOk === "mo" && (
-        <div style={card()}>
+      {(
+        <div id="et-mo" style={{ ...card(), scrollMarginTop: 64 }}>
           <div style={{ ...h2 }}>Temps de production</div>
           <div className="pf-row" style={{ marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
@@ -3838,8 +3866,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
       )}
 
-      {etabOk === "pot" && (
-        <div style={card()}>
+      {(
+        <div id="et-pot" style={{ ...card(), scrollMarginTop: 64 }}>
           <div style={{ ...h2 }}>Contenants & vente</div>
 
           {(() => {
@@ -6351,7 +6379,7 @@ function Qte({ value, onChange }) {
     </div>
   );
 }
-function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
+function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAjoute }) {
   const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
   const [nom, setNom] = useState(coffret.name);
   const [items, setItems] = useState((coffret.composition.items || []).map((i) => ({ pid: i.pid, qty: String(i.qty).replace(".", ",") })));
@@ -6359,6 +6387,9 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
   const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
   const [actif, setActif] = useState(coffret.active);
   const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false); const [costDraft, setCostDraft] = useState({});
+  const [rech, setRech] = useState(""); const [filtreCat, setFiltreCat] = useState("Tous"); const [nvP, setNvP] = useState(null); // nvP : { nom, unit, achat, vente, busy, erreur }
+  // Prix d'achat au kilo d'un produit fini : coût unitaire ÷ poids du conditionnement (jamais deviné si le poids n'est pas écrit).
+  const prixKg = (p) => { const g = grammesUnite(p && p.unit, false); return p && g > 0 && p.cost > 0 ? p.cost / (g / 1000) : null; };
   const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
   const { total, manquants, lignes } = coutCoffret(compo, byId);
   const pv = coffretNum(prix); const complet = manquants.length === 0 && compo.items.length > 0;
@@ -6395,6 +6426,19 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
     if (error) { setMsg({ bad: true, t: "Prix d'achat non enregistré — vérifiez la connexion" }); return; }
     onSaved({ ...p, cost: c });
   };
+  const ajouter = (pid) => setItems((l) => l.some((x) => x.pid === pid) ? l.map((x) => x.pid === pid ? { ...x, qty: String(coffretNum(x.qty) + 1).replace(".", ",") } : x) : [...l, { pid, qty: "1" }]);
+  // Création à la volée d'un produit fini (masqué : on le rend visible depuis l'écran Produits) puis ajout au coffret.
+  const creerProduit = async () => {
+    const nomP = (nvP && nvP.nom || "").trim();
+    if (!nomP || !supabase || !pass || nvP.busy) return;
+    setNvP((n) => ({ ...n, busy: true, erreur: "" }));
+    const id = nomP.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) + "-" + Date.now().toString(36).slice(-4);
+    const cost = coffretNum(nvP.achat), price = coffretNum(nvP.vente);
+    const { error } = await supabase.rpc("admin_save_product", { pass, p_id: id, p_name: nomP, p_cat: "Produits locaux", p_unit: (nvP.unit || "").trim(), p_price: price, p_cost: cost, p_coef: cost > 0 && price > 0 ? Math.round(price / cost * 100) / 100 : 0, p_stock: 0, p_illu: "", p_col: "", p_soon: false, p_active: false });
+    if (error) { setNvP((n) => ({ ...n, busy: false, erreur: "Non créé — vérifiez la connexion." })); return; }
+    if (onAjoute) onAjoute({ id, name: nomP, cat: "Produits locaux", unit: (nvP.unit || "").trim(), price, cost, coef: 0, stock: 0, active: false, soon: false, composition: null });
+    setItems((l) => [...l, { pid: id, qty: "1" }]); setNvP(null);
+  };
   const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
   return (
     <div className="ca-anim">
@@ -6403,22 +6447,59 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled }) {
       <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 270px", gap: 16, alignItems: "start" }}>
         <div>
           <div style={card()}>
+            <div style={h2}>Produits finis du catalogue</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              <input value={rech} onChange={(e) => setRech(e.target.value)} placeholder="Rechercher un produit…" style={{ ...inp(), flex: "1 1 200px", minWidth: 0 }} />
+              <button onClick={() => setNvP({ nom: "", unit: "", achat: "", vente: "", busy: false, erreur: "" })} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px dashed ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Nouveau produit</button>
+            </div>
+            {nvP && (
+              <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <div style={{ flex: "2 1 180px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
+                <div style={{ flex: "1 1 120px", minWidth: 0 }}><Lbl>Conditionnement</Lbl><input value={nvP.unit} onChange={(e) => setNvP({ ...nvP, unit: e.target.value })} placeholder="pot 100 g" style={inp()} /></div>
+                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Achat / unité</Lbl><input value={nvP.achat} onChange={(e) => setNvP({ ...nvP, achat: e.target.value })} inputMode="decimal" placeholder="3,49" style={inp()} /></div>
+                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Vente</Lbl><input value={nvP.vente} onChange={(e) => setNvP({ ...nvP, vente: e.target.value })} inputMode="decimal" placeholder="facultatif" style={inp()} /></div>
+                <button type="submit" disabled={!nvP.nom.trim() || nvP.busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, cursor: "pointer", opacity: !nvP.nom.trim() || nvP.busy ? .5 : 1 }}>{nvP.busy ? "Création…" : "Créer et ajouter"}</button>
+                <button type="button" onClick={() => setNvP(null)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontWeight: 600, color: C.soft, cursor: "pointer" }}>Annuler</button>
+                {nvP.erreur && <div style={{ width: "100%", color: "#a6482a", fontWeight: 600, fontSize: 13 }}><Warn size={13} /> {nvP.erreur}</div>}
+              </form>
+            )}
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", width: "100%", maxWidth: "100%", paddingBottom: 6 }}>
+              {["Tous", ...Array.from(new Set(catalogue.map((c) => c.cat).filter(Boolean)))].map((c) => (
+                <button key={c} onClick={() => setFiltreCat(c)} className="ca-tap" style={{ flex: "none", border: `1px solid ${filtreCat === c ? C.jam : C.line}`, background: filtreCat === c ? C.jam : "#fff", color: filtreCat === c ? "#fff" : C.ink, borderRadius: 999, padding: "7px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{c}</button>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 8, maxHeight: 360, overflowY: "auto", marginTop: 6 }}>
+              {catalogue.filter((c) => (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase()))).map((c) => { const kg = prixKg(c); const dans = items.some((x) => x.pid === c.id); return (
+                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "center", background: dans ? "#fff" : C.paper, border: `1.5px solid ${dans ? C.jam : C.line}`, borderRadius: 12, padding: "8px 10px", minWidth: 0 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 11, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(c.name) ? <PictoIng label={c.name} size={34} /> : <Illu k={illuDe(c)} col={couleurDe(c)} s={34} />}</div>
+                  <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, lineHeight: 1.35 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                    <div style={{ color: C.soft }}>{c.unit}{c.active ? "" : " · masqué"}</div>
+                    <div style={{ fontVariantNumeric: "lining-nums tabular-nums" }}>{c.cost > 0 ? <>achat <b>{eur2(c.cost)}</b>{kg != null && <> · <b>{eur2(kg)}/kg</b></>}</> : <span style={{ color: "#a6482a", fontWeight: 700 }}>achat à saisir</span>}{c.price > 0 && <> · vente <b>{eur2(c.price)}</b></>}</div>
+                  </div>
+                  <button onClick={() => ajouter(c.id)} aria-label={"Ajouter " + c.name} className="ca-tap" style={{ width: 34, height: 34, borderRadius: 17, border: "none", background: C.jam, color: "#fff", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Plus size={17} /></button>
+                </div>
+              ); })}
+            </div>
+          </div>
+          <div style={card()}>
             <div style={h2}>Composition</div>
             <div className="cof-h"><div>Article</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
             {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
               <div key={k}>
                 <div className="cof-l">
                   <label className="cof-cell cof-art"><span className="cof-lab">Article</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{p && <span style={{ width: 34, height: 34, borderRadius: 9, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(p.name) ? <PictoIng label={p.name} size={26} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={26} />}</span>}
                     <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
                       {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
                       {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
-                    </select></label>
+                    </select></span></label>
                   <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
                   <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
                   <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
                   <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
                 </div>
-                <div className="cof-note">Stock {p ? p.stock : "?"}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
+                <div className="cof-note">Stock {p ? p.stock : "?"}{p && prixKg(p) != null && <span style={{ fontVariantNumeric: "lining-nums tabular-nums" }}> · achat au kilo <b>{eur2(prixKg(p))}/kg</b></span>}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
               </div>
             ); })}
             <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
@@ -6524,7 +6605,7 @@ function ProCoffrets({ pass, products, setProducts }) {
     if (setProducts) setProducts((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
   };
   const cible = sel && coffrets.find((c) => c.id === sel);
-  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} />;
+  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} onAjoute={(p) => setAll((l) => [...l, p])} />;
   return (
     <div className="ca-anim">
       <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
