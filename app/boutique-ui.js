@@ -74,6 +74,8 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .cof2-catbody.ferme { display: none; }
 .cof2-catbody { padding-top: 12px; }
 @media (min-width: 1000px) { .cof2-tog { display: none; } .cof2-h2t { display: block; } .cof2-catbody.ferme { display: block; } .cof2-catbody { padding-top: 0; } }
+.cof2-addtop { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; margin: 0 0 12px; background: #7A2B33; color: #fff; border: none; border-radius: 12px; padding: 13px; font-weight: 700; font-size: 16px; cursor: pointer; }
+@media (min-width: 1000px) { .cof2-addtop { display: none; } }
 .cof2-seg { display: flex; background: #EFE7D5; border-radius: 12px; padding: 4px; gap: 2px; }
 .cof2-seg button { flex: 1 1 0; min-width: 0; border: none; background: transparent; color: #8C8068; font-weight: 700; font-size: 13.5px; padding: 8px 4px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
 .cof2-seg button.on { background: #7A2B33; color: #fff; }
@@ -111,7 +113,7 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .cof2-in:hover { border-color: #241F1730; } .cof2-in:focus { border-color: #7A2B33; background: #fff; }
 .cof2-in.vide { background: #F8DCD6; color: #a6482a; border-radius: 999px; text-align: center; font-size: 12px; padding: 5px 4px; }
 .cof2-in.vide::placeholder { color: #a6482a; opacity: 1; font-weight: 600; }
-.cof2-in.lib { text-align: left; font-weight: 600; font-size: 15px; padding-left: 0; padding-right: 0; border-radius: 0; }
+.cof2-in.lib { display: block; resize: none; overflow: hidden; min-height: 0 !important; line-height: 1.2; font-family: inherit; text-align: left; font-weight: 600; font-size: 15px; padding-left: 0; padding-right: 0; border-radius: 0; }
 .cof2-ajout { margin-top: 8px; background: #fff; color: #7A2B33; border: 1.5px solid #7A2B33; border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13px; }
 .cof2-sep { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B5722B; font-weight: 700; margin: 18px 0 2px; padding-top: 12px; border-top: 1px solid #241F1718; }
 .cof2-alerte { margin-top: 14px; background: #F8DCD6; color: #a6482a; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 500; }
@@ -7016,8 +7018,8 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
   const nbType = (t) => catalogue.filter((c) => t === "Tous" || typeDe(c) === t).length;
   const catFiltre = catalogue.filter((c) => (typeF === "Tous" || typeDe(c) === typeF) && (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase())));
   const nomVal = { fontVariantNumeric: "lining-nums tabular-nums" };
-  const finNom = (t) => String(t).split(" ").slice(-1)[0];
-  const nomSansFin = (t) => { const a = String(t).split(" "); return a.length > 1 ? a.slice(0, -1).join(" ") + " " : ""; };
+  const catRef = useRef(null);
+  const ouvrirCatalogue = () => { setCatOuvert(true); setTimeout(() => { if (catRef.current) catRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); };
   const fmt2 = (x) => (Number(x) > 0 ? (Math.round(Number(x) * 100) / 100).toFixed(2).replace(".", ",") : "");
   const h2k = { fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: C.soft, fontWeight: 700 };
   const subtitre = actif ? "Visible en Caisse et en boutique" : pv > 0 ? "Masqué pour l'instant — cochez « Visible » puis validez le coffret" : "Masqué tant que le prix de vente n'est pas saisi";
@@ -7032,9 +7034,10 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
           <div className="cof2-sub">{subtitre}</div>
         </div>
       </div>
+      <button type="button" onClick={ouvrirCatalogue} className="cof2-addtop ca-tap"><Plus size={18} /> Ajouter un produit</button>
       <div className="cof2-wrap">
         <div className="cof2-left">
-          <div className="cof2-card">
+          <div className="cof2-card" ref={catRef}>
             <button type="button" className="cof2-tog ca-tap" onClick={() => setCatOuvert((o) => !o)} aria-expanded={catOuvert}>
               <span style={h2k}>Produits finis <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>du catalogue ({catalogue.length})</span></span>
               <ChevronDown size={18} color={C.soft} style={{ transform: catOuvert ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
@@ -7067,6 +7070,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
                   </div>
                 ); })}
               </div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>masqué = pas visible en Caisse ni en boutique</div>
               {nvP ? (
                 <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                   <div style={{ flex: "2 1 140px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
@@ -7093,8 +7097,8 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
                   <span className="cof2-ap">{p ? (illuIngKey(p.name) ? <PictoIng label={p.name} size={34} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={34} />) : null}</span>
                   <span className="cof2-an">
                     <span style={{ position: "relative", display: "block" }}>
-                      <span className="cof2-nm">{nomSansFin(p ? p.name : it.pid)}<span style={{ whiteSpace: "nowrap" }}>{finNom(p ? p.name : it.pid)} <ChevronDown size={13} color={C.soft} style={{ verticalAlign: "-2px" }} /></span></span>
-                      <select aria-label="Changer d'article" value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} className="cof2-sel">
+                      <span className="cof2-nm">{p ? p.name : it.pid}</span>
+                      <select aria-label="Changer d'article" title="Changer d'article" value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} className="cof2-sel">
                         {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
                         {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
                       </select>
@@ -7120,7 +7124,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
                 <div className="cof2-art">
                   <span className="cof2-ap"><PictoEmb label={e.label} size={34} /></span>
                   <span className="cof2-an">
-                    <input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" aria-label="Libellé" title="Libellé de l'emballage" className="cof2-in lib" />
+                    <textarea rows={1} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value.replace(/\n/g, " ") })} onKeyDown={(ev) => { if (ev.key === "Enter") ev.preventDefault(); }} placeholder="Boîte, fascicule…" aria-label="Libellé" title={e.label || "Libellé de l'emballage"} className="cof2-in lib" />
                     <span className="cof2-as">emballage</span>
                   </span>
                 </div>
@@ -7164,8 +7168,9 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
             </div>
           </div>
           <div className="cof2-actions">
-            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap cof2-b1" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
+            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap cof2-b1" style={{ background: C.jam, color: "#fff", cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : dirty ? 1 : .45 }}>{busy ? "Enregistrement…" : "Valider le coffret"}</button>
             <button onClick={() => setAsm(true)} className="ca-tap cof2-b2">J'ai fabriqué des coffrets</button>
+            {!dirty && !busy && <span style={{ fontSize: 12.5, color: C.ok, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}><Ok size={14} /> enregistré</span>}
             <div className="cof2-leg">Fabriquer retire les composants du stock et ajoute les coffrets.</div>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
