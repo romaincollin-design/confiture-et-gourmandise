@@ -6750,7 +6750,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales, o
         </div>
       )}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Produits & stock</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Rangés par catégorie · cliquez pour déplier</div>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>{creating ? "Nouveau produit" : "Produits & stock"}</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{creating ? "3 questions, puis c'est en rayon." : "Rangés par catégorie · cliquez pour déplier"}</div>
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <span>Prix d&apos;achat :</span>
             <span style={puce("#123a5212", PF.navy + "33", PF.navy)}>{nbFournee} depuis les fournées</span>

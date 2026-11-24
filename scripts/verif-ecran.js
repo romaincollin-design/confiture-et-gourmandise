@@ -23,7 +23,7 @@ const CSS = '.pro-shell{height:auto!important;min-height:0!important}.pro-conten
     const n = NAV[ecran]; await p.locator('button:visible', { hasText: n }).first().click().catch(() => console.log('  ! onglet introuvable :', n)); await p.waitForTimeout(900);
     if (ecran === 'fiche') { await p.locator('button:visible', { hasText: /Pissaladière de ma mère/ }).first().click().catch(() => {}); await p.waitForTimeout(600); await p.locator('tr:visible').last().locator('td').nth(1).click().catch(() => {}); await p.waitForTimeout(900); }
     if (ecran === 'coffret') { await p.locator('[role=button]').first().click().catch(() => {}); await p.waitForTimeout(800); }
-    await p.addStyleTag({ content: CSS }); const png = path.join(OUT, `${ecran}-${W}.png`); await p.screenshot({ path: png, fullPage: true });
+    await p.addStyleTag({ content: CSS }); const hc = await p.evaluate(() => { const c = document.querySelector('.pro-content'); return c ? c.scrollHeight : 0; }); if (hc > 800) { await p.setViewportSize({ width: W, height: Math.min(6000, hc + 160) }); await p.waitForTimeout(300); } const png = path.join(OUT, `${ecran}-${W}.png`); await p.screenshot({ path: png, fullPage: true });
     const m = await p.evaluate(() => ({ el: document.querySelectorAll('button,input,select,td,h1,h2').length, deb: document.documentElement.scrollWidth - innerWidth, h: document.documentElement.scrollHeight }));
     const bad = m.el < 8 || m.deb > 0 || errs.length; if (bad) ko++;
     console.log(`${W}px ${bad ? 'KO' : 'ok'} : ${m.el} éléments rendus, débordement ${m.deb}px, hauteur ${m.h}px, erreurs JS : ${errs.join(' | ') || 'aucune'} → ${png}`); await p.close();

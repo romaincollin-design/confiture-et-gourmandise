@@ -70,6 +70,9 @@
 - **R022 · process · 2026-11-24** — Plusieurs écrans indépendants = plusieurs agents en parallèle dans des worktrees, une seule fusion, une seule passe de contrôle, un seul déploiement ; les agents se contrôlent eux-mêmes (captures contre maquette) avant de rendre.
   - Symptôme : Écrans livrés l'un après l'autre avec une fusion, un contrôle et un déploiement chacun.
   - Cause : Séquentiel par habitude.
+- **R023 · process · 2026-11-24** — Les fixtures de scripts/fixtures-admin.js suivent la forme BRUTE des RPC ; un écran de liste se contrôle toujours avec des données (au moins 4 lignes), jamais à vide.
+  - Symptôme : Captures Clients et Commandes à l'état vide : le contrôle n'a rien pu vérifier.
+  - Cause : Les fixtures de test avaient la forme déjà transformée alors que les RPC renvoient des lignes brutes (ref, items_count, created_at, opt_in…).
 
 ## Idées / suggestions
 - **R015 · ui · 2026-11-24** — Signaler « sans dessin » sur le produit validé, puis l'agent illustrateur dessine dans le style Illu et le propriétaire valide sur une planche.
