@@ -2540,9 +2540,10 @@ function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }
   const existants = useMemo(() => {
     const m = new Map();
     duType.forEach((b) => { const r = rubriqueDe(b); if (r.sansTitre) return; const e = m.get(r.cle) || { label: r.label, n: 0 }; e.n++; m.set(r.cle, e); });
-    const nq = normNom(valTitre);
+    // on ne filtre que sur une vraie frappe : l'intitulé prérempli ne doit pas masquer les autres produits du type
+    const nq = titre == null ? "" : normNom(titre);
     return [...m.values()].filter((e) => !nq || normNom(e.label).includes(nq)).sort((a, b) => b.n - a.n).slice(0, 6);
-  }, [fam, batches, valTitre]);
+  }, [fam, batches, titre]);
   const complet = !!mode && !!fam && !!valTitre.trim() && (mode !== "copie" || !!derniere);
   const apercu = fam ? (mode === "copie" && derniere ? nouvelleDepuis(derniere) : pfBlank(fam)) : null;
   const lot = apercu ? prochainLot(batches, apercu.date) : "";
@@ -2822,7 +2823,7 @@ function FicheSanitaire({ f, change, batches, profile, onOuvrir }) {
         <div className="fiche-tuile">
           <span className="k">Lot</span>
           <input value={h.lot || ""} onChange={(e) => set("lot", e.target.value)} placeholder="20261124-01" style={{ ...inp(), padding: "7px 9px", fontSize: 17, fontWeight: 800 }} />
-          {!h.lot && <button onClick={proposer} className="ca-tap" style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: C.jam, fontSize: 12, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>proposer le n° de lot</button>}
+          {!h.lot && <button onClick={proposer} className="ca-tap" style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: C.jam, fontSize: 12, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>{"Utiliser le n° de lot " + prochainLot(batches, f.date, f.id)}</button>}
           <span className="s">{h.date_fab ? `fabriqué le ${frDate(h.date_fab)} · DLC ${frDate(dlcDe(h))}` : ""}</span>
         </div>
         <div className="fiche-tuile">

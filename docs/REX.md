@@ -57,6 +57,9 @@
 - **R018 · outils · 2026-11-24** — Tuer uniquement son propre next-server (pid retrouvé par le port ou le répertoire de travail), jamais pkill global quand plusieurs agents tournent ; capture pleine page : .pro-content{height:auto;overflow:visible} ; formats de fournée valides en test : pot et kit.
   - Symptôme : Un test navigateur sert un ancien build ; un pkill tue le serveur d'un autre agent.
   - Cause : Le processus s'appelle next-server (pkill -f "next start -p PORT" ne le trouve pas) ; deux agents partagent les noms de processus.
+- **R019 · process · 2026-11-24** — Un point de comportement (sticky, défilement, clic) se vérifie en le mesurant dans le navigateur (position après défilement), pas par grep ni sur une capture ; l'orchestrateur recoupe les points bloquants du contrôle avant de renvoyer un chantier.
+  - Symptôme : Le contrôle qa-regression a signalé « aucun sticky » alors que le résumé collant fonctionnait.
+  - Cause : Il a cherché position: sticky dans le JSX alors que la règle est dans le CSS (.fiche-side) ; une capture pleine page ne montre pas un sticky.
 
 ## Idées / suggestions
 - **R015 · ui · 2026-11-24** — Signaler « sans dessin » sur le produit validé, puis l'agent illustrateur dessine dans le style Illu et le propriétaire valide sur une planche.

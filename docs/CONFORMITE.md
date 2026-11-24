@@ -5,9 +5,9 @@ Règle : on ne pousse un écran en production que lorsque la colonne « Écarts 
 
 | Écran | Maquette (scratchpad/maquettes/) | État au 24/11/2026 | Écarts connus |
 |---|---|---|---|
-| Fiche de fournée | v8-16.png | en cours (agent A) | résumé collant à droite ; fiche sanitaire en section 6 dans la page ; en-tête (vignette, fil d'Ariane, « enregistré ») ; menu de saut à 6 entrées ; tableau Formats & vente |
-| Coffrets | v8-17.png | en cours (agent C) | deux colonnes ; tuiles Coût connu / Prix de vente / Conseils ; filtre Fabriqués/Achetés ; Achat/kg en colonne ; en-tête |
-| Production, entrée | v6-10.png, v6-13.png | en cours (agent B) | 4 tuiles de suivi visibles ; cartes-produits en grand ; familles sur une ligne ; « Retrouver un lot » en bas ; fenêtre Nouvelle fournée |
+| Fiche de fournée | v8-16.png | CONFORME (contrôle du 24/11, 2e passe) | écarts mineurs acceptés : lot proposé en lien, refroidissement en deux heures natives |
+| Coffrets | v8-17.png | CONFORME (contrôle du 24/11, 2e passe) | mineurs : Valider grisé sans prix, emballages dans un bloc séparé |
+| Production, entrée | v6-10.png, v6-13.png | CONFORME (contrôle du 24/11, 2e passe ; liste des intitulés corrigée) | mineurs : pas de carte sélectionnée à l'entrée |
 | Clients (CRM) | v6-14.png | non codé | tout |
 | Commandes | v6-15.png | non codé | tout |
 | Stock | v8-5.png | non codé | tout |
