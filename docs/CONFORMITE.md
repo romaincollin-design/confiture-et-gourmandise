@@ -12,4 +12,4 @@ Règle : on ne pousse un écran en production que lorsque la colonne « Écarts 
 | Commandes | v6-15.png | CONFORME (captures avec 5 commandes, 24/11) | non testés : suppression, modification d'une commande déjà remise, échec réseau |
 | Stock | v8-5.png | CONFORME (contrôle, 24/11) | mineur : onglet « Lots · DLC » coupé à 390 px (défilement horizontal) |
 | Nouveau produit | v8-4.png | CONFORME après correction du titre (24/11) | mineur : lien format → produit à faire dans la fournée ; produit « Créer masqué » à retrouver dans la liste |
-| Caisse | v8-6.png | validée, non codée telle quelle (pictos grands) | à vérifier |
+| Caisse | v8-6.png | cartes verticales, barre segmentée, ticket complet | conforme (contrôle indépendant 24/11) ; écarts mineurs : ticket mobile en flux, catégorie « Gourmandises » vs « Fêtes » (données), défilement catégories 390 px non vérifié |
