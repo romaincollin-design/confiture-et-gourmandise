@@ -54,6 +54,9 @@
 - **R017 · process · 2026-11-24** — Une page = un implémenteur dans son worktree, puis qa-regression sur le résultat, puis correction ; l'orchestrateur ne code pas à la place des agents.
   - Symptôme : Un agent unique code seul plusieurs pages d'un coup.
   - Cause : Pas de boucle implémenteur puis contrôle.
+- **R018 · outils · 2026-11-24** — Tuer uniquement son propre next-server (pid retrouvé par le port ou le répertoire de travail), jamais pkill global quand plusieurs agents tournent ; capture pleine page : .pro-content{height:auto;overflow:visible} ; formats de fournée valides en test : pot et kit.
+  - Symptôme : Un test navigateur sert un ancien build ; un pkill tue le serveur d'un autre agent.
+  - Cause : Le processus s'appelle next-server (pkill -f "next start -p PORT" ne le trouve pas) ; deux agents partagent les noms de processus.
 
 ## Idées / suggestions
 - **R015 · ui · 2026-11-24** — Signaler « sans dessin » sur le produit validé, puis l'agent illustrateur dessine dans le style Illu et le propriétaire valide sur une planche.
