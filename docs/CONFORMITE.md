@@ -8,8 +8,8 @@ Règle : on ne pousse un écran en production que lorsque la colonne « Écarts 
 | Fiche de fournée | v8-16.png | CONFORME (contrôle du 24/11, 2e passe) | écarts mineurs acceptés : lot proposé en lien, refroidissement en deux heures natives |
 | Coffrets | v8-17.png | CONFORME (contrôle du 24/11, 2e passe) | mineurs : Valider grisé sans prix, emballages dans un bloc séparé |
 | Production, entrée | v6-10.png, v6-13.png | CONFORME (contrôle du 24/11, 2e passe ; liste des intitulés corrigée) | mineurs : pas de carte sélectionnée à l'entrée |
-| Clients (CRM) | v6-14.png | non codé | tout |
-| Commandes | v6-15.png | non codé | tout |
-| Stock | v8-5.png | non codé | tout |
-| Nouveau produit | v8-4.png | non codé | tout (achat au kilo ou à l'unité) |
+| Clients (CRM) | v6-14.png | CONFORME (contrôle + captures avec données, 24/11) | mineur : titre « Clients · CRM », bouton Export CSV en plus ; édition impossible sans email (RPC par id/téléphone à faire avec le propriétaire) |
+| Commandes | v6-15.png | CONFORME (captures avec 5 commandes, 24/11) | non testés : suppression, modification d'une commande déjà remise, échec réseau |
+| Stock | v8-5.png | CONFORME (contrôle, 24/11) | mineur : onglet « Lots · DLC » coupé à 390 px (défilement horizontal) |
+| Nouveau produit | v8-4.png | CONFORME après correction du titre (24/11) | mineur : lien format → produit à faire dans la fournée ; produit « Créer masqué » à retrouver dans la liste |
 | Caisse | v8-6.png | validée, non codée telle quelle (pictos grands) | à vérifier |

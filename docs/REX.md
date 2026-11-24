@@ -60,6 +60,19 @@
 - **R019 · process · 2026-11-24** — Un point de comportement (sticky, défilement, clic) se vérifie en le mesurant dans le navigateur (position après défilement), pas par grep ni sur une capture ; l'orchestrateur recoupe les points bloquants du contrôle avant de renvoyer un chantier.
   - Symptôme : Le contrôle qa-regression a signalé « aucun sticky » alors que le résumé collant fonctionnait.
   - Cause : Il a cherché position: sticky dans le JSX alors que la règle est dans le CSS (.fiche-side) ; une capture pleine page ne montre pas un sticky.
+- **R020 · tokens · 2026-11-24** — Un brief d'agent = 3 à 5 lignes (écran, maquette, port) + « lis docs/BRIEF-COMMUN.md » ; vérifier un écran avec la commande `NODE_PATH=/opt/node-tools/node_modules node scripts/verif-ecran.js <ecran>` (captures pleine page 1280 et 390, éléments rendus, débordement, erreurs JS) au lieu d'écrire un script.
+  - Symptôme : Chaque agent recevait un brief de 2 000 jetons recopié par l'orchestrateur ; chaque écran réécrivait un script Playwright de 80 lignes.
+  - Cause : Pas de brief commun ni de script de vérification partagés.
+  - Contrôle : `scripts/verif-ecran.js`
+- **R021 · tokens · 2026-11-24** — Lire une image une seule fois par cycle (maquette, puis capture finale) ; pour les contrôles de routine, se fier aux mesures chiffrées de verif-ecran.js ; en itération, lint seulement ; UN seul npm run build avant le test final (≈ 1 min) ; rapports d'agents de 15 lignes maximum.
+  - Symptôme : Images relues plusieurs fois, builds complets à chaque retouche.
+  - Cause : Vérification par réflexe plutôt que par mesure.
+- **R022 · process · 2026-11-24** — Plusieurs écrans indépendants = plusieurs agents en parallèle dans des worktrees, une seule fusion, une seule passe de contrôle, un seul déploiement ; les agents se contrôlent eux-mêmes (captures contre maquette) avant de rendre.
+  - Symptôme : Écrans livrés l'un après l'autre avec une fusion, un contrôle et un déploiement chacun.
+  - Cause : Séquentiel par habitude.
+- **R023 · process · 2026-11-24** — Les fixtures de scripts/fixtures-admin.js suivent la forme BRUTE des RPC ; un écran de liste se contrôle toujours avec des données (au moins 4 lignes), jamais à vide.
+  - Symptôme : Captures Clients et Commandes à l'état vide : le contrôle n'a rien pu vérifier.
+  - Cause : Les fixtures de test avaient la forme déjà transformée alors que les RPC renvoient des lignes brutes (ref, items_count, created_at, opt_in…).
 
 ## Idées / suggestions
 - **R015 · ui · 2026-11-24** — Signaler « sans dessin » sur le produit validé, puis l'agent illustrateur dessine dans le style Illu et le propriétaire valide sur une planche.
