@@ -38,6 +38,8 @@
 - Après une erreur : ajouter UNE règle ci-dessus (quoi, pourquoi, comment l'éviter) dans le même commit que le correctif.
 
 ## Pièges d'outils
+- Un `next start` apparaît dans `ps` comme `next-server` : `pkill -f "next start -p PORT"` ne le tue pas (port resté occupé, tests faits sur l'ancien build) et `pkill next-server` tue celui des autres agents. Tuer par PID après avoir vérifié `readlink /proc/PID/cwd` = son propre worktree.
+- Fiche de fournée : `position: sticky` ne colle pas si `.pro-content` défile lui-même (mobile : `overflow: visible`).
 - `mcp__Supabase__execute_sql` en **écriture** demande une confirmation humaine (délai 230 s) : pour un texte d'annonce,
   passer par l'écran Enseigne ou attendre la confirmation.
 - Vérifier un déploiement : chercher une chaîne **sans accent** dans les `static/chunks/*.js` de `/admin` (le minifieur

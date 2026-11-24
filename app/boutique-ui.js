@@ -98,6 +98,40 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pf-duo { display: grid; grid-template-columns: minmax(0, 2fr) 128px 40px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
 .pf-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
 .pf-lbl { display: none; }
+/* --- Fiche de fournée : contenu au centre, résumé collant à droite (maquette v8-16) --- */
+.fiche-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.fiche-main { min-width: 0; width: 100%; max-width: 780px; }
+.fiche-side { order: -1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; align-content: start; }
+.fiche-bar { display: none; }
+.fiche-nav { display: flex; gap: 4px; position: sticky; top: 0; z-index: 6; background: #E6DCC3; padding: 5px; border-radius: 14px; margin-bottom: 12px; overflow-x: auto; max-width: 100%; }
+.fiche-nav-b { flex: 1 0 auto; border: none; background: transparent; color: #241F17; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; text-align: center; }
+.fiche-nav-b.on { background: #7A2B33; color: #fff; }
+.fiche-sec { scroll-margin-top: 72px; max-width: 100%; }
+.fiche-tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: stretch; }
+.fiche-tuile { display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; min-height: 104px; min-width: 0; background: #fff; border: 1px solid #241F1718; border-radius: 14px; padding: 11px 12px; }
+.fiche-tuile .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #8C8068; font-weight: 700; }
+.fiche-tuile .v { font-size: 26px; font-weight: 800; color: #241F17; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
+.fiche-tuile .s { font-size: 11.5px; color: #8C8068; margin-top: auto; }
+.fiche-tuile input { max-width: 100%; }
+.fiche-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 120px; border: 1.5px dashed #7A2B3366; border-radius: 14px; background: transparent; color: #7A2B33; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.fiche-valider-bas { display: block; }
+.fiche-fmt-wrap { width: 100%; max-width: 100%; overflow-x: auto; margin-bottom: 14px; }
+.fiche-fmt { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; font-variant-numeric: lining-nums tabular-nums; }
+.fiche-fmt th { text-align: left; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 700; padding: 6px 8px; border-bottom: 1px solid #241F1718; white-space: nowrap; }
+.fiche-fmt td { padding: 9px 8px; border-bottom: 1px solid #241F1710; vertical-align: middle; }
+@media (min-width: 900px) {
+  .fiche-grid { grid-template-columns: minmax(0, 780px) 290px; gap: 20px; }
+  .fiche-side { order: 0; position: sticky; top: 16px; grid-template-columns: 1fr; }
+  .fiche-valider-bas { display: none !important; }
+}
+@media (max-width: 719px) {
+  .fiche-side { display: none; }
+  /* sticky ne colle à l'écran que si .pro-content ne défile pas lui-même (la page défile sur téléphone) */
+  .pro-content { overflow: visible; }
+  .fiche-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 8; background: #16140F; color: #fff; border-radius: 12px; padding: 9px 13px; margin-bottom: 8px; }
+  .fiche-nav { top: 56px; }
+  .fiche-sec { scroll-margin-top: 128px; }
+}
 .pf-prix { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
 /* Largeur FIXE : « €/kg », « €/L » et « €/u » n'ont pas la même longueur, sans elle les
    champs de prix n'auraient pas tous la même largeur d'une ligne à l'autre. */
@@ -2481,6 +2515,85 @@ function FicheHygiene({ f, change, onClose, profile, batches }) {
 /* En-tête d'étape de la fiche fournée. AU NIVEAU MODULE : défini à l'intérieur de
    ProProduction, chaque frappe au clavier en recréerait le type et React démonterait
    tout le sous-arbre — le champ en cours de saisie perdrait le focus. */
+function PastilleCtrl({ rempli, ok, texte }) {
+  if (!rempli) return <span style={{ fontSize: 11, color: C.soft, marginTop: 5, display: "inline-block" }}>à relever</span>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 5, fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: "3px 9px", background: ok ? "#3F7A4B1c" : "#a6482a22", color: ok ? C.ok : PF.warn, alignSelf: "flex-start" }}>
+      {ok ? <Ok size={12} /> : <Warn size={12} />}{texte}
+    </span>
+  );
+}
+/* Section 6 de la fiche fournée : la fiche sanitaire se saisit DANS la page (données dans
+   data.hygiene, aucune migration). La fenêtre FicheHygiene reste disponible pour le détail
+   (origine, nombre de bacs, responsable). AU NIVEAU MODULE : elle porte des champs de saisie. */
+function FicheSanitaire({ f, change, batches, profile, onOuvrir }) {
+  const h = f.hygiene || {};
+  const set = (k, v) => change({ hygiene: { ...h, [k]: v } });
+  const enseigne = (profile && profile.name) || "Comme Avant";
+  if (!h.initialise) {
+    return (
+      <div>
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginBottom: 10 }}>Pas encore de fiche pour cette fournée. Le n° de lot est proposé d&apos;après la date ({String(f.date || "").replace(/-/g, "") || "AAAAMMJJ"}-NN) : on ne redemande rien de ce que la fournée sait déjà.</div>
+        <button onClick={() => change({ hygiene: hygieneInitiale(f, batches) })} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 12, padding: "12px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Créer le n° de lot et démarrer la fiche</button>
+      </div>
+    );
+  }
+  const ctrl = controlesHygiene(h);
+  const cu = ctrl[0], re = ctrl[1], co = ctrl[2];
+  const dRef = dureeMin(h.h_fin_cuisson, h.h_refroidi);
+  const doublons = fourneesDuLot(batches, h.lot, f.id);
+  const horsSeuil = ctrl.some((c) => c.rempli && !c.ok);
+  const champT = (k, ph) => <input inputMode="decimal" value={h[k] == null ? "" : String(h[k]).replace(".", ",")} placeholder={ph} onChange={(e) => set(k, e.target.value.replace(",", "."))} style={{ ...inp(), padding: "7px 9px", fontSize: 15, fontWeight: 700, maxWidth: 110 }} />;
+  const heure = (k, lab) => (
+    <label style={{ display: "block", fontSize: 11, color: C.soft }}>{lab}
+      <input type="time" value={h[k] || ""} onChange={(e) => set(k, e.target.value)} style={{ ...inp(), padding: "6px 8px", fontSize: 14, fontWeight: 700, marginTop: 2, maxWidth: 130 }} />
+    </label>
+  );
+  return (
+    <div>
+      <div className="fiche-tuiles">
+        <div className="fiche-tuile">
+          <span className="k">Lot</span>
+          <input value={h.lot || ""} onChange={(e) => set("lot", e.target.value)} placeholder="20261124-01" style={{ ...inp(), padding: "7px 9px", fontSize: 17, fontWeight: 800 }} />
+          <span className="s">{h.date_fab ? `fabriqué le ${frDate(h.date_fab)} · DLC ${frDate(dlcDe(h))}` : ""}</span>
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Cuisson ≥ {HYG.cuissonMin} °C</span>
+          {champT("temp_cuisson", "°C")}
+          <PastilleCtrl rempli={cu.rempli} ok={cu.ok} texte={cu.ok ? "conforme" : `hors seuil (${HYG.cuissonMin} °C mini)`} />
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Refroid. &lt; {HYG.refroidMaxMin / 60} h</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{heure("h_fin_cuisson", "fin cuisson")}{heure("h_refroidi", `à ${HYG.refroidCible} °C`)}</div>
+          <PastilleCtrl rempli={re.rempli} ok={re.ok} texte={re.ok ? `${fmtDuree(dRef)} · conforme` : `${fmtDuree(dRef)} · dépassement de ${fmtDuree((dRef || 0) - HYG.refroidMaxMin)}`} />
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Conservation ≤ {HYG.conservMax} °C</span>
+          {champT("temp_conservation", "°C")}
+          <PastilleCtrl rempli={co.rempli} ok={co.ok} texte={co.ok ? "conforme" : `hors seuil (${HYG.conservMax} °C maxi)`} />
+        </div>
+      </div>
+      {doublons.length > 0 && (
+        <div style={{ marginTop: 10, background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12.5, color: C.ink, display: "flex", gap: 7, alignItems: "flex-start" }}>
+          <Warn size={15} /> <span>Ce n° de lot est déjà utilisé par {doublons.length} autre{doublons.length > 1 ? "s" : ""} fournée{doublons.length > 1 ? "s" : ""} : la traçabilité serait impossible.{" "}
+            <button onClick={() => set("lot", prochainLot(batches, h.date_fab, f.id))} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "3px 9px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Prendre {prochainLot(batches, h.date_fab, f.id)}</button></span>
+        </div>
+      )}
+      {horsSeuil && (
+        <div style={{ marginTop: 10 }}>
+          <Lbl>Action corrective — obligatoire quand un point sort des seuils</Lbl>
+          <input value={h.correctif || ""} onChange={(e) => set("correctif", e.target.value)} placeholder="ex. lot écarté / remis au froid immédiatement" style={{ ...inp(), marginTop: 3 }} />
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
+        <button onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML(h, enseigne))} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>Imprimer la fiche A4</button>
+        <button onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(h, enseigne), 62)} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>Étiquette du bac</button>
+        <button onClick={onOuvrir} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline", padding: "6px 4px" }}>ouvrir la fiche complète</button>
+      </div>
+      <div style={{ fontSize: 11.5, color: C.soft, marginTop: 10, lineHeight: 1.5 }}>Seuils par défaut (arrêté du 21 décembre 2009, règlement CE 852/2004). Le guide de bonnes pratiques de l&apos;atelier et la DDPP font foi, pas cette application.</div>
+    </div>
+  );
+}
 function EtapeFournee({ n, titre, sous }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
@@ -2516,6 +2629,17 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const [cumulFormat, setCumulFormat] = useState("");
   const [selectionManuelle, setSelectionManuelle] = useState(null); // null = pas de selection manuelle (utilise les dates) ; Set d'ids sinon
   const timer = useRef(null);
+  // Menu de saut : l'onglet actif suit la section visible (défilement de .pro-content ou de la page).
+  useEffect(() => {
+    if (view !== "edit") return;
+    const onScroll = () => {
+      let cur = null;
+      ["prep", "cuis", "res", "mo", "pot", "san"].forEach((k) => { const el = document.getElementById("et-" + k); if (el && el.getBoundingClientRect().top < 170) cur = k; });
+      if (cur) setEtab(cur);
+    };
+    document.addEventListener("scroll", onScroll, true);
+    return () => document.removeEventListener("scroll", onScroll, true);
+  }, [view]);
 
   const load = async () => {
     if (!supabase || !pass) return;
@@ -2718,8 +2842,38 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     );
   };
 
-  const heroCards = (r, fam) => (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
+  const heroCards = (r, fam) => {
+    const sgn = r.margeMoyenne != null && r.margeMoyenne < 0 ? "−" : "+";
+    const tuile = { background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 15px" };
+    const cap = { fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 700 };
+    const h = cur && cur.hygiene ? cur.hygiene : {};
+    return (
+      <>
+        <div style={{ ...tuile, background: C.board, color: "#fff", border: "none" }}>
+          <div style={{ ...cap, opacity: .75 }}>Coût de revient</div>
+          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 3, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutKg)}<span style={{ fontSize: 14, opacity: .8 }}>/kg</span></div>
+          {r.coutMatieresKg != null && r.coutTempsKg != null ? (
+            <div style={{ fontSize: 11.5, opacity: .85, marginTop: 3 }}>matières <b>{(Math.round(r.coutMatieresKg * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</b> · temps et frais <b>{(Math.round(r.coutTempsKg * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</b></div>
+          ) : null}
+          <div style={{ fontSize: 11.5, opacity: .7, marginTop: 2 }}>coût total fournée {eur2(r.revientHE)}</div>
+        </div>
+        <div style={{ ...tuile, background: r.margeMoyenne >= 0 ? "#fff" : "#faece5" }}>
+          <div style={{ ...cap, color: C.soft }}>Marge / unité</div>
+          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 3, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, fontVariantNumeric: "lining-nums tabular-nums" }}>{r.margeMoyenne != null ? sgn + " " + eur2(Math.abs(r.margeMoyenne)) : "—"}</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>vendu <b style={{ color: C.ink }}>{eur2(r.prixVenteMoyen)}</b> · coef <b style={{ color: C.ink }}>{r.coefMoyen ? r.coefMoyen.toFixed(1).replace(".", ",") : "—"}</b></div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 2 }}>marge totale {eur2(r.margeTotale)}</div>
+        </div>
+        <div style={{ ...tuile }}>
+          <div style={{ ...cap, color: C.soft, marginBottom: 7 }}>Cette fournée</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.9, color: C.soft }}>
+            <div>Lot <b style={{ color: C.ink }}>{h.lot || "—"}</b></div>
+            <div>Date <b style={{ color: C.ink }}>{cur && cur.date ? frDate(cur.date) : "—"}</b></div>
+            <div>Lieu <span style={{ color: C.ink }}>{(cur && cur.lieu) || "—"}</span></div>
+          </div>
+        </div>
+        <details style={{ ...tuile, padding: "10px 14px" }}>
+          <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: C.soft, listStyle: "none" }}>Autres indicateurs</summary>
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
       {fam.key === "pissaladiere" ? (
         <div style={{ ...card(), background: "#fff", margin: 0 }}>
           <div style={{ ...h2, marginBottom: 8 }}>Transformation</div>
@@ -2746,20 +2900,6 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{(r.poidsFini && r.poidsBrut) ? `${r.poidsFini.toFixed(2)} kg cuit / ${r.poidsBrut.toFixed(2)} kg cru` : "poids cru (ingrédients) et cuit à renseigner"}</div>
         </div>
       )}
-      <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
-        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
-        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{eur2(r.coutKg)}<span style={{ fontSize: 13, opacity: .8 }}>/kg</span></div>
-        {/* Les deux lectures séparées : sans ça, « 48,60 €/kg » sur une petite fournée est
-            incompréhensible alors que les matières n'en font que 8,18. */}
-        {r.coutMatieresKg != null && r.coutTempsKg > 0 ? (
-          <div style={{ fontSize: 11.5, opacity: .85, marginTop: 5, lineHeight: 1.5 }}>
-            dont <b>{eur2(r.coutMatieresKg)}/kg</b> de matières et <b>{eur2(r.coutTempsKg)}/kg</b> de temps &amp; frais
-            <div style={{ opacity: .75, marginTop: 2 }}>coût total fournée {eur2(r.revientHE)}</div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>coût total fournée {eur2(r.revientHE)}</div>
-        )}
-      </div>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / {fam.unitWord} moyen</div>
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.navy }}>{eur3(r.coutPotMoyen)}</div>
@@ -2771,13 +2911,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.ochre }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</div>
         <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>PV moyen {eur2(r.prixVenteMoyen)}</div>
       </div>
-      <div style={{ ...card(), background: r.margeMoyenne >= 0 ? "#e7f0e8" : "#faece5", margin: 0, borderColor: r.margeMoyenne >= 0 ? PF.good + "55" : PF.warn + "55" }}>
-        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Marge / {fam.unitWord}</div>
-        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: r.margeMoyenne >= 0 ? PF.good : PF.warn }}>{eur3(r.margeMoyenne)}</div>
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>marge totale {eur2(r.margeTotale)}</div>
-      </div>
-    </div>
-  );
+          </div>
+        </details>
+        <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Valider la fournée</button>
+      </>
+    );
+  };
 
   // ================= VUE CHOIX DU PRODUIT (vignettes) =================
   // On entrait dans Production directement sur la pissaladière, avec une rangée de pastilles
@@ -3330,11 +3469,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   // d'étape Cuisson (ni feux ni cycles) : on renumérote plutôt que d'afficher une étape
   // vide (CLAUDE.md §5.1 ter).
   const ETAPES = [
-    { k: "prep", label: "Préparation" },
+    { k: "prep", label: "Recette" },
     ...(isPissa ? [{ k: "cuis", label: "Cuisson" }] : []),
     { k: "res", label: "Résultat" },
     { k: "mo", label: "Temps & frais" },
-    { k: "pot", label: "Contenants & vente" },
+    { k: "pot", label: "Formats & vente" },
+    { k: "san", label: "Fiche sanitaire" },
   ];
   // Changer la famille depuis l'étape Cuisson (pissaladière → confiture) faisait disparaître
   // l'étape affichée : plus aucun panneau ne correspondait et l'écran restait vide.
@@ -3369,35 +3509,66 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const relierFormat = (sg) => change({ pots: (cur.pots || []).map((p, i) => i === sg.i ? { ...p, pid: sg.pid } : p) });
   return (
     <div className="ca-anim">
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <button onClick={() => setView("list")} title="Retour à la liste" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
-            {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "non enregistré — vérifiez la connexion" : (saved ? "enregistré" : "enregistrement automatique")}</div>
-        </div>
-        {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
+      {(() => {
+        const prodLie = (products || []).find((x) => x.id === ((f.pots || []).find((q) => q.pid) || {}).pid) || (products || []).find((x) => x.id === f.pissa_plaque_pid);
+        const pIllu = prodLie || { name: f.titre || FAM.label, illu: "", col: "" };
+        const kIllu = illuDe(pIllu) || (isPissa ? "pissa" : "");
+        const etat = echecSauvegarde ? { t: "non enregistré — vérifiez la connexion", bg: "#a6482a22", fg: PF.warn } : saved ? { t: "enregistré", bg: "#3F7A4B1c", fg: C.ok } : { t: "enregistrement automatique", bg: "#8C806822", fg: C.soft };
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 13, color: C.soft, marginBottom: 8 }}>
+              <button onClick={() => setView("list")} title="Retour à la liste" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 32, height: 32, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0, marginRight: 4 }}><ChevronLeft size={17} /></button>
+              <button onClick={() => setView("list")} style={{ background: "none", border: "none", padding: 0, color: C.soft, fontSize: 13, cursor: "pointer" }}>Production</button>
+              <span>›</span>
+              <span>{f.titre || FAM.label}</span>
+              <span>›</span>
+              <b style={{ color: C.jam }}>Fournée du {frDate(f.date)}</b>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                {kIllu ? <Illu k={kIllu} col={couleurDe(pIllu)} s={46} /> : <PictoIng label={f.titre || ""} size={40} />}
+              </div>
+              <div style={{ flex: "1 1 190px", minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <h2 style={{ fontFamily: SCRIPT, fontSize: "clamp(25px, 6.5vw, 32px)", lineHeight: 1.15, margin: 0, color: C.jam, overflowWrap: "anywhere" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
+                  {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
+                </div>
+                <div style={{ fontSize: 12, color: C.soft, marginTop: 2 }}>{f.titre ? FAM.label : ""}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "4px 12px", background: etat.bg, color: etat.fg, flexShrink: 0, textAlign: "center", maxWidth: 200 }}>{etat.t}</span>
+              {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Mobile : le résumé se replie en barre collante (coût + marge). */}
+      <div className="fiche-bar">
+        <span style={{ fontSize: 12.5 }}>Coût <b style={{ fontSize: 16 }}>{eur2(R.coutKg)}</b>/kg</span>
+        <span style={{ fontSize: 12.5 }}>Marge / {FAM.unitWord} <b style={{ fontSize: 16, color: R.margeMoyenne >= 0 ? "#9BD3A6" : "#F4B3A0" }}>{R.margeMoyenne != null ? (R.margeMoyenne < 0 ? "−" : "+") + eur2(Math.abs(R.margeMoyenne)) : "—"}</b></span>
       </div>
 
-      {heroCards(R, FAM)}
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", position: "sticky", top: 0, zIndex: 5, background: C.cream, padding: "8px 0" }}>
-        {ETAPES.map((e, i) => (
-          <button key={e.k} onClick={() => { setEtab(e.k); const el = document.getElementById("et-" + e.k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etabOk === e.k ? C.jam : C.line}`, background: etabOk === e.k ? C.jam : "#fff", color: etabOk === e.k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
-            <span style={{ width: 18, height: 18, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, background: etabOk === e.k ? "#ffffff2e" : C.cream, color: etabOk === e.k ? "#fff" : C.soft }}>{i + 1}</span>
-            {e.label}
-          </button>
+      <div className="fiche-grid">
+      <div className="fiche-main">
+      <nav className="fiche-nav" aria-label="Aller à une section">
+        {ETAPES.map((e) => (
+          <button key={e.k} onClick={() => { setEtab(e.k); const el = document.getElementById("et-" + e.k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"fiche-nav-b" + (etabOk === e.k ? " on" : "")}>{e.label}</button>
         ))}
-      </div>
+      </nav>
 
       {(
         /* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
            la cuisson une fois le résultat déjà saisi. */
-        <div id="et-prep" style={{ ...card(), scrollMarginTop: 64 }}>
-          <EtapeFournee n={numEtape("prep")} titre="Préparation" sous="Ce qui entre dans la fournée" />
+        <div id="et-prep" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("prep")} titre="Recette" sous={isPissa ? `Préremplie avec la recette type de la famille ${FAM.label} : tout se modifie` : "Préparation : ce qui entre dans la fournée"} />
+          {isPissa && (
+            <div style={{ background: "#e3efe5", color: "#2f5f3b", borderRadius: 10, padding: "10px 13px", fontSize: 13, fontWeight: 600, lineHeight: 1.45, marginBottom: 12 }}>
+              Recette type chargée : {PF_ING.length} matières premières. Changez une quantité ou un prix, le coût se met à jour.
+            </div>
+          )}
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} list="titres-fournees" autoComplete="off" style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
@@ -3460,9 +3631,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
                           <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
                         </div>
                       </div>
+                      <div style={{ textAlign: "right", marginTop: 6, fontSize: 14.5, fontWeight: 800, color: PF.navy, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2((pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]))}</div>
                     </div>
                   );
                 })}
+                <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap fiche-add"><span>+ Ajouter</span><span style={{ fontSize: 12, fontWeight: 500, color: C.soft }}>un ingrédient</span></button>
               </div>
             </div>
           )}
@@ -3524,7 +3697,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
               </div>
             ))}
           </div>
-          <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+          {isPissa
+            ? <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+            : <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap fiche-add" style={{ marginTop: 10, width: "100%", maxWidth: 240 }}><span>+ Ajouter un ingrédient</span></button>}
           <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
             <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
@@ -3550,7 +3725,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       )}
 
       {isPissa && (
-          <div id="et-cuis" style={{ ...card(), scrollMarginTop: 64 }}>
+          <div id="et-cuis" className="fiche-sec" style={{ ...card() }}>
             <EtapeFournee n={numEtape("cuis")} titre="Cuisson" sous="Feux, cycles et durée" />
             <div>
               <div style={{ ...h2 }}>Mode de préparation</div>
@@ -3729,12 +3904,41 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         )}
 
       {(
-        <div id="et-res" style={{ ...card(), scrollMarginTop: 64 }}>
+        <div id="et-res" className="fiche-sec" style={{ ...card() }}>
           <EtapeFournee n={numEtape("res")} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
-          </div>
+          {(() => {
+            const pct = isPissa ? (R.rendement ? R.rendement * 100 : null) : (R.rendementGeneric != null ? R.rendementGeneric * 100 : null);
+            const cru = isPissa ? (R.oignonTotalRondes || pfNum(f.oignon_kg)) : R.poidsBrut;
+            const nf = (v) => (Math.round(v * 100) / 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+            return (
+              <div className="fiche-tuiles">
+                <div className="fiche-tuile">
+                  <span className="k">{isPissa ? "Oignons crus" : "Poids cru"}</span>
+                  <span className="v">{cru ? nf(cru) : "—"}{cru ? <span style={{ fontSize: 17, fontWeight: 700 }}> kg</span> : null}</span>
+                  <span className="s">{isPissa ? "saisi dans la recette" : "ingrédients pesés"}</span>
+                </div>
+                <div className="fiche-tuile">
+                  <span className="k">{isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input inputMode="decimal" value={f.poids_fini_kg == null ? "" : String(f.poids_fini_kg).replace(".", ",")} placeholder="0" onChange={(e) => change({ poids_fini_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 9px", fontSize: 20, fontWeight: 800, maxWidth: 120 }} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.soft }}>kg</span>
+                  </div>
+                </div>
+                <div className="fiche-tuile">
+                  <span className="k">Rendement</span>
+                  <span className="v" style={{ color: pct != null ? PF.good : C.soft }}>{pct != null ? Math.round(pct) : "—"}{pct != null ? <span style={{ fontSize: 17, fontWeight: 700 }}> %</span> : null}</span>
+                  <span className="s">moyenne <b style={{ color: C.ink }}>{rendementEstime.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></span>
+                </div>
+                {isPissa && (
+                  <div className="fiche-tuile">
+                    <span className="k">Plaques</span>
+                    <input inputMode="numeric" value={f.pissa_nb_plaques == null ? "" : String(f.pissa_nb_plaques).replace(".", ",")} placeholder="0" onChange={(e) => change({ pissa_nb_plaques: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 9px", fontSize: 20, fontWeight: 800, maxWidth: 100 }} />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Le chiffre qu'on cherche en fin de fournée : combien de produits finis en sont
               sortis. Proposé d'après le poids obtenu ÷ le format du contenant, corrigeable à
@@ -3800,7 +4004,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       )}
 
       {(
-        <div id="et-mo" style={{ ...card(), scrollMarginTop: 64 }}>
+        <div id="et-mo" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("mo")} titre="Temps & frais" sous={`Lieu : ${f.lieu || "—"}${pfNum(f.taux_local) === 0 ? ", aucun loyer réel" : ""}`} />
           <div style={{ ...h2 }}>Temps de production</div>
           <div className="pf-row" style={{ marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
@@ -3850,16 +4055,18 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
             const tempsAffiche = R.tempsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
             const tempsManquant = R.tempsTotal === 0 && (tauxSum > 0 || pfNum(f.taux_local) > 0);
             return (
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Matières</span><span style={{ color: C.ink }}>{eur2(R.totalMatieres)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Main d'œuvre <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutMO)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Local <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutLocal)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+                <div className="fiche-tuiles">
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Matières</span><b style={{ fontSize: 18 }}>{eur2(R.totalMatieres)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Main d'œuvre</span><b style={{ fontSize: 18 }}>{eur2(R.coutMO)}</b><span className="s">{tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""}</span></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Local</span><b style={{ fontSize: 18 }}>{eur2(R.coutLocal)}</b><span className="s">{tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h</span></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Transport</span><b style={{ fontSize: 18 }}>{eur2(R.coutTransport)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Autres frais</span><b style={{ fontSize: 18 }}>{eur2(R.coutFraisExtra)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76, background: PF.navy, border: "none" }}><span className="k" style={{ color: "#fff", opacity: .8 }}>Coût de revient total</span><b style={{ fontSize: 22, color: "#fff" }}>{eur2(R.revientHE)}</b></div>
+                </div>
                 {tempsManquant && (
                   <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}><Warn /> Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
                 )}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
               </div>
             );
           })()}
@@ -3867,8 +4074,47 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       )}
 
       {(
-        <div id="et-pot" style={{ ...card(), scrollMarginTop: 64 }}>
-          <div style={{ ...h2 }}>Contenants & vente</div>
+        <div id="et-pot" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("pot")} titre="Formats & vente" sous="Contenants & vente : chaque format est relié à un produit du catalogue" />
+          {((f.pots || []).length > 0 || (isPissa && (pfNum(f.pissa_nb_plaques) > 0 || f.pissa_plaque_pid))) && (
+            <div className="fiche-fmt-wrap">
+              <table className="fiche-fmt">
+                <thead><tr><th>Format</th><th>Poids</th><th>Nombre</th><th>Produit lié</th><th style={{ textAlign: "right" }}>Coût/u.</th><th style={{ textAlign: "right" }}>Vente</th></tr></thead>
+                <tbody>
+                  {isPissa && (pfNum(f.pissa_nb_plaques) > 0 || f.pissa_plaque_pid) && (() => {
+                    const pr = (products || []).find((x) => x.id === f.pissa_plaque_pid);
+                    const pq = pr || { name: "plaque", illu: "pissa", col: "" };
+                    return (
+                      <tr key="plq">
+                        <td style={{ fontWeight: 700 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 34, height: 34, borderRadius: 10, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center" }}><Illu k={illuDe(pq) || "pissa"} col={couleurDe(pq)} s={26} /></span>Plaque</span></td>
+                        <td>{pfNum(f.pissa_poids_plaque) > 0 ? `${pfNum(f.pissa_poids_plaque).toLocaleString("fr-FR")} kg` : "—"}</td>
+                        <td style={{ fontWeight: 700 }}>{pfNum(f.pissa_nb_plaques) || 0}</td>
+                        <td><select value={f.pissa_plaque_pid || ""} onChange={(ev) => change({ pissa_plaque_pid: ev.target.value || null })} style={{ ...inp(), padding: "6px 8px", fontSize: 13, maxWidth: 200 }}><option value="">— non lié —</option>{(products || []).map((q) => <option key={q.id} value={q.id}>{q.name}{q.unit ? " · " + q.unit : ""}</option>)}</select></td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(R.coutPlaque)}</td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(R.pxVentePlaque)}</td>
+                      </tr>
+                    );
+                  })()}
+                  {(f.pots || []).map((p, i) => {
+                    const pl = R.potLines[i] || {};
+                    const pr = (products || []).find((x) => x.id === p.pid);
+                    const pp = pr || { name: f.titre || FAM.label, illu: "", col: "" };
+                    const kk = illuDe(pp) || (isPissa ? "pissa" : "");
+                    return (
+                      <tr key={"fm" + i}>
+                        <td style={{ fontWeight: 700 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 34, height: 34, borderRadius: 10, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center" }}>{kk ? <Illu k={kk} col={couleurDe(pp)} s={26} /> : null}</span>{isPissa && p.type === "kit" ? "Kit" : FAM.unitWord.charAt(0).toUpperCase() + FAM.unitWord.slice(1)} {pfNum(p.format_g) || "—"} g</span></td>
+                        <td>{pfNum(p.format_g) ? `${pfNum(p.format_g)} g` : "—"}</td>
+                        <td style={{ fontWeight: 700 }}>{pl.nb != null ? pl.nb : (pfNum(p.nb) || 0)}</td>
+                        <td><select value={p.pid || ""} onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], pid: ev.target.value || null }; change({ pots }); }} style={{ ...inp(), padding: "6px 8px", fontSize: 13, maxWidth: 200 }}><option value="">— non lié —</option>{(products || []).map((q) => <option key={q.id} value={q.id}>{q.name}{q.unit ? " · " + q.unit : ""}</option>)}</select></td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(pl.coutUnitaireTotal)}</td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(pl.pxVenteEffectif)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {(() => {
             const nbCandidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).length;
@@ -4187,16 +4433,20 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
       )}
 
-      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
-          cuisine par quelqu'un qui ne connaît pas le reste de l'app. Elle vient EN FIN de parcours,
-          juste avant la validation : on la remplit quand la fournée est faite, pas avant. */}
-      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
-      </button>
+      {/* Fiche sanitaire = section 6 de la page (data.hygiene, aucune migration). La fenêtre
+          FicheHygiene reste ouvrable pour le détail (origine, bacs, responsable) et la recherche de lot. */}
+      <div id="et-san" className="fiche-sec" style={{ ...card() }}>
+        <EtapeFournee n={numEtape("san")} titre="Fiche sanitaire" sous="Contrôle hygiène : liée au lot, à la date et au lieu de cette fournée" />
+        <FicheSanitaire f={f} change={change} batches={batches} profile={profile} onOuvrir={() => setHygieneOuverte(true)} />
+      </div>
+      </div>
+      <aside className="fiche-side" aria-label="Résumé de la fournée">
+        {heroCards(R, FAM)}
+      </aside>
+      </div>
       {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} batches={batches} onClose={() => setHygieneOuverte(false)} />}
 
-      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
+      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap fiche-valider-bas" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
 
       {confirmValide && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
