@@ -333,6 +333,9 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 }
 /* --- Tableau de bord / Aujourd'hui : chiffres alignés, puces de période --- */
 .pro-content { font-variant-numeric: lining-nums; }
+.crm-show-sm { display: none; }
+@media (max-width: 899px) { .crm-grid { grid-template-columns: minmax(0, 1fr) !important; } }
+@media (max-width: 719px) { .crm-t td, .crm-t th { padding-left: 4px !important; padding-right: 4px !important; } .crm-hide-sm { display: none; } .crm-show-sm { display: block; } }
 .stat-chip { display: inline-flex; align-items: center; gap: 4px; border: none; border-radius: 20px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; background: #ebe4d2; color: #8C8068; white-space: nowrap; }
 .stat-chip.on { background: #16140F; color: #fff; }
 .stat-ic { background: transparent; border: none; padding: 0 2px; color: inherit; display: inline-grid; place-items: center; cursor: pointer; }
@@ -1739,7 +1742,7 @@ function ProFournisseurs({ pass }) {
                 ))}
 
               <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                <button onClick={() => setEdit({ ...selS })} className="ca-tap" style={{ flex: 1, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Settings size={16} /> Modifier</button>
+                <button onClick={() => setEdit({ ...selS })} className="ca-tap" style={{ flex: 1, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Settings size={16} style={{ flexShrink: 0 }} /> Modifier</button>
                 <button onClick={() => remove(selS.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 13, padding: "13px 15px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}><Trash2 size={16} /></button>
               </div>
             </div>
@@ -2520,11 +2523,12 @@ const fmtKg = (x, d = 1) => (Number(x) || 0).toLocaleString("fr-FR", { maximumFr
 // qu'une valeur ne tombe jamais à une hauteur différente d'une tuile à l'autre.
 function TuileSuivi({ libelle, valeur, pct, couleur, detail, onClick }) {
   const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  const sansJauge = pct === null;
   const corps = (
     <>
       <span style={{ display: "block", minHeight: 32, fontSize: 11, lineHeight: "16px", letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{libelle}</span>
       <span style={{ display: "block", fontSize: "clamp(20px, 6vw, 26px)", lineHeight: "34px", fontWeight: 700, color: C.ink, marginTop: 4, whiteSpace: "nowrap", ...NUM }}>{valeur}</span>
-      <span style={{ display: "block", height: 8, borderRadius: 4, background: "#e6dec9", marginTop: 8, overflow: "hidden" }}><span style={{ display: "block", width: p + "%", height: "100%", background: couleur, borderRadius: 4 }} /></span>
+      <span style={{ display: "block", height: 8, borderRadius: 4, background: sansJauge ? "transparent" : "#e6dec9", marginTop: 8, overflow: "hidden" }}><span style={{ display: "block", width: p + "%", height: "100%", background: couleur, borderRadius: 4 }} /></span>
       <span style={{ display: "block", minHeight: 36, fontSize: 12, lineHeight: "18px", color: C.soft, marginTop: 8, ...NUM }}>{detail}</span>
     </>
   );
@@ -7064,12 +7068,119 @@ const cleClient = (c) => {
   return num ? "tel:" + num : "";
 };
 
+// Champ de saisie de la fenêtre « Modifier la fiche » : AU NIVEAU MODULE (défini dans ProClients, chaque
+// frappe recréait le type React et le champ perdait le focus).
+function ChampCrm({ l, v, on }) {
+  return (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input value={v || ""} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+}
+
+// Vrai à partir de 900 px : la fiche s'affiche alors à droite du tableau ; en dessous elle s'ouvre en fenêtre.
+function useLargeCrm() {
+  const [large, setLarge] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia("(min-width: 900px)");
+    const maj = () => setLarge(mq.matches);
+    maj();
+    if (mq.addEventListener) mq.addEventListener("change", maj); else mq.addListener(maj);
+    return () => { if (mq.removeEventListener) mq.removeEventListener("change", maj); else mq.removeListener(maj); };
+  }, []);
+  return large;
+}
+
+const initialesCrm = (c) => (((c.prenom || "").trim()[0] || "") + ((c.nom || "").trim()[0] || "")).toUpperCase() || "?";
+function AvatarCrm({ c, s = 40 }) {
+  return <span style={{ width: s, height: s, borderRadius: "50%", background: "#E8DFC9", color: C.jam, display: "grid", placeItems: "center", fontSize: s * 0.34, fontWeight: 700, flexShrink: 0, letterSpacing: ".02em" }}>{initialesCrm(c)}</span>;
+}
+function PuceAccord({ oui }) {
+  return <span style={{ display: "inline-block", fontSize: 12, fontWeight: 600, borderRadius: 999, padding: "3px 11px", background: oui ? "#DCEBDD" : "#EBE4D2", color: oui ? C.ok : C.soft }}>{oui ? "Oui" : "Non"}</span>;
+}
+
+// Fiche d'un client (module : évite de recréer le type à chaque rendu).
+function FicheCrm({ c, os, onClose, onEdit, inline }) {
+  const totalP = os.reduce((a, o) => a + (Number(o.total) || 0), 0);
+  const byProd = {};
+  os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
+  const favs = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const histo = [...os].sort((a, b) => b.ts - a.ts);
+  const tel = String(c.tel || "").trim();
+  const waNum = tel.replace(/\D/g, "").replace(/^0/, "33");
+  const adresse = [c.adresse, c.cp, c.ville].filter(Boolean).join(", ");
+  const lien = { flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 12, padding: "11px 10px", fontSize: 13.5, cursor: "pointer", textDecoration: "none", boxSizing: "border-box", fontFamily: "inherit", fontWeight: 700 };
+  const carte = (
+    <div className={inline ? undefined : "ca-anim"} onClick={(e) => e.stopPropagation()} style={inline
+      ? { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 18, padding: "18px 18px 16px", position: "sticky", top: 8 }
+      : { width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <AvatarCrm c={c} s={52} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: SCRIPT, fontSize: 26, color: C.jam, lineHeight: 1.1, overflowWrap: "anywhere" }}>{capNom(c.prenom)} {capNom(c.nom)}</div>
+          <div style={{ fontSize: 12.5, color: C.soft, marginTop: 3, ...NUM }}>Client depuis le <b>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</b>{os.length > 0 && <> · 1ère commande le <b>{new Date(Math.min(...os.map((o) => o.ts))).toLocaleDateString("fr-FR")}</b></>}</div>
+        </div>
+        <button onClick={onClose} aria-label="Fermer la fiche" style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0, alignSelf: "flex-start" }}><X size={20} /></button>
+      </div>
+
+      <div style={{ ...h2 }}>Coordonnées</div>
+      <div style={{ display: "grid", gap: 7, fontSize: 14, marginBottom: 14, color: C.ink }}>
+        <div style={{ fontWeight: 700, ...NUM }}>{formatTel(tel) || "— téléphone non renseigné"}</div>
+        {c.email ? <div style={{ overflowWrap: "anywhere" }}>{c.email}</div> : <div style={{ color: C.soft }}>— pas d&apos;email</div>}
+        <div style={{ color: adresse ? C.ink : C.soft }}>{adresse || "— non renseignée"}</div>
+        {c.notes && <div style={{ color: C.soft, fontStyle: "italic" }}>{c.notes}</div>}
+        <div style={{ fontSize: 12.5, color: C.soft }}>Prévenir des nouvelles fournées : <PuceAccord oui={!!c.optin} /></div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+        {[["Commandes", String(os.length)], ["Dépensé", eur(totalP)], ["Panier moy.", eur(os.length ? totalP / os.length : 0)]].map(([l, v]) => (
+          <div key={l} style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 11px", background: "#fff", minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{l}</div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.ink, marginTop: 3, whiteSpace: "nowrap", ...NUM }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {favs.length > 0 && (<>
+        <div style={{ ...h2 }}>Produits préférés</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+          {favs.map(([n, q2]) => <span key={n} style={{ background: "#7A2B3312", color: C.jam, border: `1px solid ${C.jam}33`, borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 600 }}>{n} · {q2}</span>)}
+        </div>
+      </>)}
+
+      <div style={{ ...h2, marginBottom: 6 }}>Historique d&apos;achats ({os.length})</div>
+      {os.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginBottom: 12 }}>Aucune commande enregistrée.</div>
+        : histo.map((o) => (
+          <div key={o.id} style={{ padding: "9px 0", borderTop: `1px solid ${C.line}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, ...NUM }}>{new Date(o.ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} <span style={{ fontWeight: 500, color: C.soft }}>· {o.items} art. · {o.id}</span></div>
+                <div style={{ fontSize: 12, color: C.soft }}>{(o.lines || []).map((l) => `${l.qty}× ${l.name}`).join(", ") || `${o.items} art.`}</div>
+              </div>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.ink, flexShrink: 0, ...NUM }}>{eur(o.total)}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: o.status === "Remise" ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{o.status}</span>
+            </div>
+          </div>
+        ))}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+        {waNum ? <a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="ca-tap" style={{ ...lien, background: C.jam, color: "#fff", border: `1.5px solid ${C.jam}` }}><MessageCircle size={16} style={{ flexShrink: 0 }} /> WhatsApp</a> : null}
+        {waNum ? <a href={`tel:${tel.replace(/[^\d+]/g, "")}`} className="ca-tap" style={{ ...lien, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}` }}><Phone size={16} style={{ flexShrink: 0 }} /> Appeler</a> : null}
+        <button onClick={onEdit} className="ca-tap" style={{ ...lien, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}` }}><Settings size={16} style={{ flexShrink: 0 }} /> Modifier</button>
+      </div>
+    </div>
+  );
+  return inline ? carte : (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>{carte}</div>
+  );
+}
+
 function ProClients({ clients, orders, pass }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
   const [sort, setSort] = useState({ k: "nom", dir: 1 });
+  const [filtre, setFiltre] = useState("tous");
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+  const large = useLargeCrm();
 
   // Rapprocher sur "" ramassait TOUTES les commandes sans email et les collait au client sans email.
   const ordersOf = (c) => {
@@ -7077,130 +7188,123 @@ function ProClients({ clients, orders, pass }) {
     if (!cle) return [];
     return (orders || []).filter((o) => cleClient(o) === cle);
   };
-  const base = (clients || []).filter((c) => ((c.prenom || "") + " " + (c.nom || "") + " " + (c.email || "") + " " + (c.tel || "") + " " + (c.ville || "")).toLowerCase().includes(q.toLowerCase().trim()));
+  const tous = clients || [];
+  const nbCmd = (c) => Number(c.orders) || 0;
+  const cats = {
+    tous: tous.length,
+    optin: tous.filter((c) => c.optin).length,
+    cmd: tous.filter((c) => nbCmd(c) > 0).length,
+    pros: tous.filter((c) => nbCmd(c) === 0).length,
+  };
+  const FILTRES = [["tous", "Tous"], ["optin", "Consentement"], ["cmd", "Ont commandé"], ["pros", "Prospects"]];
+  const passe = (c) => filtre === "optin" ? !!c.optin : filtre === "cmd" ? nbCmd(c) > 0 : filtre === "pros" ? nbCmd(c) === 0 : true;
+  const base = tous.filter((c) => passe(c) && ((c.prenom || "") + " " + (c.nom || "") + " " + (c.email || "") + " " + (c.tel || "") + " " + (c.ville || "")).toLowerCase().includes(q.toLowerCase().trim()));
   const rows = [...base].sort((a, b) => {
     const k = sort.k;
-    let va = a[k], vb = b[k];
-    if (k === "spent" || k === "orders") { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * sort.dir; }
-    if (k === "created_at") { va = va ? new Date(va).getTime() : 0; vb = vb ? new Date(vb).getTime() : 0; return (va - vb) * sort.dir; }
-    va = String(va || "").toLowerCase(); vb = String(vb || "").toLowerCase();
-    return va.localeCompare(vb) * sort.dir;
+    if (k === "spent" || k === "orders") return ((Number(a[k]) || 0) - (Number(b[k]) || 0)) * sort.dir;
+    if (k === "optin") return ((a.optin ? 1 : 0) - (b.optin ? 1 : 0)) * sort.dir;
+    const cle = (c) => k === "nom" ? ((c.nom || "") + " " + (c.prenom || "")) : String(c[k] || "");
+    return cle(a).toLowerCase().localeCompare(cle(b).toLowerCase()) * sort.dir;
   });
-  const selClient = sel ? (rows.find((c) => cleClient(c) === sel) || null) : null;
-  const th = (k, label, w) => (
-    <th onClick={() => setSort((s) => ({ k, dir: s.k === k ? -s.dir : 1 }))}
-      style={{ padding: "9px 8px", textAlign: k === "spent" || k === "orders" ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `2px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, width: w, userSelect: "none" }}>
-      {label} <span style={{ opacity: sort.k === k ? 1 : .3 }}>{sort.k === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>
+  const selClient = sel ? (rows.find((c) => cleClient(c) === sel) || tous.find((c) => cleClient(c) === sel) || null) : null;
+
+  // Tuiles : agrégats des fiches déjà chargées (commandes / dépensé viennent de admin_customers), rien n'est recompté.
+  const nTot = tous.length;
+  const dansMois = tous.filter((c) => { if (!c.created_at) return false; const d = new Date(c.created_at), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth(); }).length;
+  const totCmd = tous.reduce((a, c) => a + nbCmd(c), 0);
+  const totDep = tous.reduce((a, c) => a + (Number(c.spent) || 0), 0);
+  const panier = totCmd > 0 ? totDep / totCmd : 0;
+  const panierMax = tous.reduce((m, c) => (nbCmd(c) > 0 ? Math.max(m, (Number(c.spent) || 0) / nbCmd(c)) : m), 0);
+  const pctOpt = nTot ? Math.round((cats.optin / nTot) * 100) : 0;
+  const pctCmd = nTot ? Math.round((cats.cmd / nTot) * 100) : 0;
+
+  const fleche = (k) => <span style={{ opacity: sort.k === k ? 1 : .3 }}>{sort.k === k ? (sort.dir === 1 ? "▲" : "▼") : "↕"}</span>;
+  const th = (k, label, align, cls) => (
+    <th className={cls} onClick={() => setSort((s) => ({ k, dir: s.k === k ? -s.dir : 1 }))} aria-sort={sort.k === k ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
+      style={{ padding: "9px 8px", textAlign: align || "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", color: sort.k === k ? C.jam : C.soft, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", borderBottom: `1.5px solid ${C.line}`, background: "transparent", userSelect: "none" }}>
+      {label} {fleche(k)}
     </th>
   );
   const exportCsv = () => downloadCSV(`clients-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Inscrit le", "Commandes", "Total dépensé"],
-    rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "", c.orders || 0, (c.spent || 0) + " €"]));
+    ["Prénom", "Nom", "Téléphone", "Email", "Adresse", "CP", "Ville", "Inscrit le", "Commandes", "Total dépensé", "Consentement"],
+    rows.map((c) => [c.prenom, c.nom, c.tel || "", c.email, c.adresse || "", c.cp || "", c.ville || "", c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "", c.orders || 0, (c.spent || 0) + " €", c.optin ? "oui" : "non"]));
   const save = async () => {
     // `admin_save_customer` identifie la fiche par son email : sans email il n'y a rien a mettre a
     // jour, et envoyer quand meme creerait une SECONDE fiche. On ne touche pas aux donnees, on le dit.
     if (!edit || !supabase || !pass) return;
     if (!String(edit.email || "").trim()) return;
-    setBusy(true);
-    try { await supabase.rpc("admin_save_customer", { pass, p_email: edit.email, p_prenom: edit.prenom || "", p_nom: edit.nom || "", p_tel: edit.tel || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_notes: edit.notes || "" }); } catch (e) {}
+    setBusy(true); setSaveErr("");
+    try {
+      const { error } = await supabase.rpc("admin_save_customer", { pass, p_email: edit.email, p_prenom: edit.prenom || "", p_nom: edit.nom || "", p_tel: edit.tel || "", p_adresse: edit.adresse || "", p_cp: edit.cp || "", p_ville: edit.ville || "", p_notes: edit.notes || "" });
+      if (error) { setSaveErr("Non enregistré : " + (error.message || "erreur")); setBusy(false); return; }
+    } catch (e) { setSaveErr("Non enregistré — vérifiez la connexion."); setBusy(false); return; }
     setBusy(false); setEdit(null);
   };
-  const F = ({ l, v, on }) => (<div style={{ flex: 1, minWidth: 130 }}><Lbl>{l}</Lbl><input value={v || ""} onChange={(e) => on(e.target.value)} style={{ ...inp(), marginTop: 4 }} /></div>);
+  const ouvrirEdition = () => { if (selClient) { setSaveErr(""); setEdit({ ...selClient }); } };
+  const fiche = selClient ? <FicheCrm c={selClient} os={ordersOf(selClient)} onClose={() => setSel(null)} onEdit={ouvrirEdition} inline={large} /> : null;
 
   return (
     <div className="ca-anim">
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Clients · CRM</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{(clients || []).length} contacts · triez en cliquant sur les colonnes</div></div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: 0, color: C.jam, lineHeight: 1.2 }}>Clients · CRM</h2>
+          <div style={{ fontSize: 14, color: C.soft, marginTop: 3 }}>Votre fichier client, alimenté par le QR du stand et les commandes. {nTot} contacts · triez en cliquant sur les colonnes.</div>
+        </div>
         <button onClick={exportCsv} disabled={!rows.length} className="ca-tap" style={{ background: rows.length ? C.board : C.line, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: rows.length ? "pointer" : "default", display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, whiteSpace: "nowrap" }}><Send size={14} /> Export CSV</button>
       </div>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : nom, email, téléphone, ville…" style={{ ...inp(), marginBottom: 12 }} />
 
-      <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
-        <div style={{ overflowX: "auto", maxHeight: "60vh", overflowY: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
-            <thead><tr>
-              {th("prenom", "Prénom")}{th("nom", "Nom")}{th("tel", "Téléphone")}{th("email", "Email")}{th("ville", "Ville")}{th("created_at", "Inscrit le")}{th("orders", "Cmd")}{th("spent", "Total")}
-            </tr></thead>
-            <tbody>
-              {rows.length === 0 ? <tr><td colSpan={8} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
-                : rows.map((c, i) => (
-                  <tr key={cleClient(c) || `ligne-${i}`} onClick={() => setSel(cleClient(c))} className="ca-tap" style={{ cursor: "pointer", background: (sel && cleClient(c) === sel) ? "#7A2B3312" : (i % 2 ? "#ffffff66" : "transparent"), borderBottom: `1px solid ${C.line}` }}>
-                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.prenom) || "—"}</td>
-                    <td style={{ padding: "10px 8px", fontWeight: 600, color: C.ink }}>{capNom(c.nom) || "—"}</td>
-                    {/* tabular-nums : sans chasse fixe, les chiffres ne s'alignent pas d'une ligne à l'autre */}
-                    <td style={{ padding: "10px 8px", color: C.ink, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{formatTel(c.tel) || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: c.ville ? C.ink : "#C9C0AE" }}>{capNom(c.ville) || "—"}</td>
-                    <td style={{ padding: "10px 8px", color: C.soft, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("fr-FR") : "—"}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 600, color: (c.orders || 0) > 0 ? C.ink : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{c.orders || 0}</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontWeight: 700, color: (c.spent || 0) > 0 ? C.jam : "#C9C0AE", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{eur(c.spent || 0)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <TuileSuivi libelle="Clients" valeur={nTot} pct={null} couleur={C.ok} detail={dansMois > 0 ? <><b>+{dansMois}</b> ce mois-ci</> : "aucun nouveau ce mois-ci"} />
+        <TuileSuivi libelle="Consentement" valeur={cats.optin} pct={pctOpt} couleur={C.ok} detail={<><b>{pctOpt} %</b> peuvent être prévenus</>} />
+        <TuileSuivi libelle="Ont commandé" valeur={cats.cmd} pct={pctCmd} couleur={C.jam} detail={<><b>{pctCmd} %</b> des clients</>} />
+        <TuileSuivi libelle="Panier moyen client" valeur={eur2(panier)} pct={panierMax > 0 ? (panier / panierMax) * 100 : 0} couleur={C.caramel} detail={<>sur <b>{totCmd}</b> commande{totCmd > 1 ? "s" : ""}</>} />
       </div>
-      <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche client.</div>
 
-      {selClient && (() => {
-        const os = ordersOf(selClient);
-        const totalP = os.reduce((a, o) => a + (Number(o.total) || 0), 0);
-        const byProd = {};
-        os.forEach((o) => (o.lines || []).forEach((l) => { byProd[l.name] = (byProd[l.name] || 0) + (l.qty || 0); }));
-        const favs = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 5);
-        return (
-          <div onClick={() => setSel(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
-            <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: C.board, color: C.chalk, display: "grid", placeItems: "center", fontFamily: SCRIPT, fontSize: 18, flexShrink: 0, paddingTop: 3 }}>{(selClient.prenom || "")[0]}{(selClient.nom || "")[0]}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: SCRIPT, fontSize: 22, color: C.jam, lineHeight: 1.15 }}>{selClient.prenom} {selClient.nom}</div>
-                  <div style={{ fontSize: 12, color: C.soft }}>Inscrit le {selClient.created_at ? new Date(selClient.created_at).toLocaleDateString("fr-FR") : "—"}{os.length > 0 && <> · 1ère commande le {new Date(Math.min(...os.map((o) => o.ts))).toLocaleDateString("fr-FR")}</>}</div>
-                </div>
-                <button onClick={() => setSel(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
-              </div>
-
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                <div style={{ flex: 1, background: C.jam, color: "#fff", borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .75, textTransform: "uppercase", letterSpacing: ".1em" }}>Total dépensé</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(totalP)}</div></div>
-                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Commandes</div><div style={{ fontSize: 22, fontWeight: 700 }}>{os.length}</div></div>
-                <div style={{ flex: 1, background: C.board, color: C.chalk, borderRadius: 12, padding: "11px 12px" }}><div style={{ fontSize: 10, opacity: .7, textTransform: "uppercase", letterSpacing: ".1em" }}>Panier moy.</div><div style={{ fontSize: 22, fontWeight: 700 }}>{eur(os.length ? totalP / os.length : 0)}</div></div>
-              </div>
-
-              <div style={{ ...h2 }}>Coordonnées</div>
-              <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", fontSize: 13, marginBottom: 14 }}>
-                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Téléphone</span><br /><b>{selClient.tel || "—"}</b></div>
-                <div><span style={{ color: C.soft, fontSize: 11.5 }}>Email</span><br /><b style={{ wordBreak: "break-all", fontSize: 12.5 }}>{selClient.email}</b></div>
-                <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Adresse</span><br /><b>{[selClient.adresse, selClient.cp, selClient.ville].filter(Boolean).join(", ") || "— non renseignée"}</b></div>
-                {selClient.notes && <div style={{ gridColumn: "1 / -1" }}><span style={{ color: C.soft, fontSize: 11.5 }}>Notes</span><br />{selClient.notes}</div>}
-              </div>
-
-              {favs.length > 0 && (<>
-                <div style={{ ...h2 }}>Produits préférés</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                  {favs.map(([n, q2]) => <span key={n} style={{ background: "#7A2B3312", color: C.jam, border: `1px solid ${C.jam}33`, borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 600 }}>{n} · {q2}</span>)}
-                </div>
-              </>)}
-
-              <div style={{ ...h2 }}>Historique d'achats ({os.length})</div>
-              {os.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginBottom: 12 }}>Aucune commande enregistrée.</div>
-                : os.sort((a, b) => b.ts - a.ts).map((o) => (
-                  <div key={o.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{o.id} <span style={{ fontWeight: 500, color: C.soft }}>· {new Date(o.ts).toLocaleDateString("fr-FR")}</span></div>
-                        <div style={{ fontSize: 12, color: C.soft }}>{(o.lines || []).map((l) => `${l.qty}× ${l.name}`).join(", ") || `${o.items} art.`}</div>
-                      </div>
-                      <span style={{ fontFamily: SCRIPT, fontSize: 16, color: C.jam, flexShrink: 0 }}>{eur(o.total)}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: o.status === "Remise" ? C.ok : C.caramel, borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>{o.status}</span>
-                    </div>
-                  </div>
-                ))}
-
-              <button onClick={() => setEdit({ ...selClient })} className="ca-tap" style={{ width: "100%", marginTop: 16, background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 13, padding: "13px", fontWeight: 700, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Settings size={17} /> Modifier la fiche</button>
-            </div>
+      <div className="crm-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 360px", gap: 14, alignItems: "start" }}>
+        <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, minWidth: 0 }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher : nom, email, téléphone, ville…" style={{ ...inp(), marginBottom: 10 }} />
+          <div role="tablist" style={{ display: "flex", gap: 4, background: "#E8DFC9", borderRadius: 14, padding: 5, marginBottom: 8 }}>
+            {FILTRES.map(([k, l]) => (
+              <button key={k} role="tab" aria-selected={filtre === k} onClick={() => setFiltre(k)} className="ca-tap" style={{ flex: 1, minWidth: 0, border: "none", borderRadius: 10, padding: "9px 4px", fontSize: 13, fontWeight: 600, lineHeight: 1.25, cursor: "pointer", background: filtre === k ? C.jam : "transparent", color: filtre === k ? "#fff" : C.soft, ...NUM }}>
+                {l} · {cats[k]}
+              </button>
+            ))}
           </div>
-        );
-      })()}
+          <div style={{ overflowX: "auto", width: "100%", maxWidth: "100%" }}>
+            <table className="crm-t" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead><tr>
+                {th("nom", "Client")}{th("tel", "Téléphone", "left", "crm-hide-sm")}{th("orders", "Cmd", "right", "crm-hide-sm")}{th("spent", "Dépensé", "right")}{th("optin", "Accord", "right")}
+              </tr></thead>
+              <tbody>
+                {rows.length === 0 ? <tr><td colSpan={5} style={{ padding: 18, textAlign: "center", color: C.soft, fontSize: 13 }}>Aucun client pour ce filtre.</td></tr>
+                  : rows.map((c, i) => {
+                    const actif = sel && cleClient(c) === sel;
+                    return (
+                      <tr key={cleClient(c) || `ligne-${i}`} onClick={() => setSel(cleClient(c))} className="ca-tap" style={{ cursor: "pointer", background: actif ? "#7A2B3312" : "transparent", borderBottom: `1px solid ${C.line}` }}>
+                        <td style={{ padding: "9px 8px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                            <AvatarCrm c={c} s={38} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, color: C.ink }}>{capNom(c.prenom)} {capNom(c.nom)}{!c.prenom && !c.nom ? "—" : ""}</div>
+                              <div className="crm-show-sm" style={{ fontSize: 12, color: C.soft, whiteSpace: "nowrap", ...NUM }}>{formatTel(c.tel) || "—"}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="crm-hide-sm" style={{ padding: "9px 8px", fontWeight: 600, color: C.ink, whiteSpace: "nowrap", ...NUM }}>{formatTel(c.tel) || "—"}</td>
+                        <td className="crm-hide-sm" style={{ padding: "9px 8px", textAlign: "right", fontWeight: 600, color: nbCmd(c) > 0 ? C.ink : "#C9C0AE", ...NUM }}>{nbCmd(c)}</td>
+                        <td style={{ padding: "9px 8px", textAlign: "right", fontWeight: 600, color: (c.spent || 0) > 0 ? C.ink : "#C9C0AE", whiteSpace: "nowrap", ...NUM }}>{eur(c.spent || 0)}</td>
+                        <td style={{ padding: "9px 8px", textAlign: "right" }}><PuceAccord oui={!!c.optin} /></td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez une ligne pour ouvrir la fiche client.</div>
+        </div>
+        {large && (fiche || <div style={{ background: C.paper, border: `1px dashed ${C.line}`, borderRadius: 18, padding: "26px 18px", color: C.soft, fontSize: 13.5, textAlign: "center" }}>Touchez un client pour ouvrir sa fiche.</div>)}
+      </div>
+      {!large && fiche}
 
       {edit && (
         <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 101, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
@@ -7210,12 +7314,12 @@ function ProClients({ clients, orders, pass }) {
               <button onClick={() => setEdit(null)} style={{ background: "transparent", border: "none", color: C.soft, cursor: "pointer", lineHeight: 0 }}><X size={20} /></button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <F l="Prénom" v={edit.prenom} on={(v) => setEdit({ ...edit, prenom: v })} />
-              <F l="Nom" v={edit.nom} on={(v) => setEdit({ ...edit, nom: v })} />
-              <F l="Téléphone" v={edit.tel} on={(v) => setEdit({ ...edit, tel: v })} />
-              <div style={{ flexBasis: "100%" }}><F l="Adresse" v={edit.adresse} on={(v) => setEdit({ ...edit, adresse: v })} /></div>
-              <F l="Code postal" v={edit.cp} on={(v) => setEdit({ ...edit, cp: v })} />
-              <F l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
+              <ChampCrm l="Prénom" v={edit.prenom} on={(v) => setEdit({ ...edit, prenom: v })} />
+              <ChampCrm l="Nom" v={edit.nom} on={(v) => setEdit({ ...edit, nom: v })} />
+              <ChampCrm l="Téléphone" v={edit.tel} on={(v) => setEdit({ ...edit, tel: v })} />
+              <div style={{ flexBasis: "100%" }}><ChampCrm l="Adresse" v={edit.adresse} on={(v) => setEdit({ ...edit, adresse: v })} /></div>
+              <ChampCrm l="Code postal" v={edit.cp} on={(v) => setEdit({ ...edit, cp: v })} />
+              <ChampCrm l="Ville" v={edit.ville} on={(v) => setEdit({ ...edit, ville: v })} />
               <div style={{ flexBasis: "100%" }}><Lbl>Notes</Lbl><textarea value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} rows={2} style={{ ...inp(), marginTop: 4, resize: "vertical" }} /></div>
             </div>
             {String(edit.email || "").trim() ? (
@@ -7225,6 +7329,7 @@ function ProClients({ clients, orders, pass }) {
                 <b style={{ color: PF.warn }}>Fiche sans email — enregistrement impossible.</b> Cette fiche vient d&apos;un contact laissé sans email : elle est identifiée par son téléphone. L&apos;enregistrement passe par l&apos;email, en saisir un ici créerait une <b>deuxième</b> fiche au lieu de corriger celle-ci. Le reste de l&apos;écran fonctionne normalement.
               </div>
             )}
+            {saveErr && <div role="alert" style={{ marginTop: 10, fontSize: 12.5, fontWeight: 700, color: PF.warn }}>{saveErr}</div>}
             <button onClick={save} disabled={busy || !String(edit.email || "").trim()} className="ca-tap" style={{ width: "100%", marginTop: 14, background: (busy || !String(edit.email || "").trim()) ? C.line : C.ok, color: "#fff", border: "none", borderRadius: 13, padding: "14px", fontWeight: 700, fontSize: 15, cursor: (busy || !String(edit.email || "").trim()) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> {busy ? "…" : "Enregistrer"}</button>
           </div>
         </div>
