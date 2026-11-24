@@ -180,6 +180,10 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
    donc 7 matieres premieres donnaient 7 colonnes de 132 px et 12 ingredients 8 colonnes de
    114 px — deux grilles qui ne tombaient pas l'une sous l'autre. auto-fill fixe le nombre
    de colonnes sur la LARGEUR disponible : toutes les recettes partagent la meme trame. */
+.cmd-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; align-items: stretch; }
+@media (max-width: 1000px) { .cmd-wrap { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 360px) { .cmd-grid { grid-template-columns: minmax(0, 1fr); } }
 .pf-ing { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 /* --- Rangées de champs alignées en grille plutôt qu'en flex qui enroule (fin du quinconce) --- */
 .pf-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
@@ -258,6 +262,8 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   /* Les grilles à colonnes fixes de l'admin (fiche produit, coordonnées client, promos,
      réglages) tenaient sur 6 colonnes : illisibles sur un téléphone. */
   .pro-cols { grid-template-columns: 1fr !important; }
+  .cmd-onglets { display: flex !important; width: 100%; box-sizing: border-box; }
+  .cmd-onglets button { flex: 1 1 auto; padding: 10px 6px !important; font-size: 13.5px !important; }
   .pro-cols2 { grid-template-columns: 1fr 1fr !important; }
   .pf-ing { grid-template-columns: repeat(2, 1fr); }
   .pf-row { grid-template-columns: repeat(2, 1fr); }
@@ -5699,6 +5705,94 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
 }
 
 const STATUSES = ["À préparer", "Prête", "Remise"];
+const WA_NUM = (t) => (t || "").replace(/\D/g, "").replace(/^0/, "33");
+const WA_MSG_PRETE = (o) => `Bonjour ${capNom((o.name || "").split(" ")[0])}, votre commande ${o.id} est prête.\nRetrait : ${o.pickup || "à convenir"}.\nTotal : ${eur(o.total)}${o.paid ? " (déjà réglé)" : " à régler au retrait"}.\nÀ très vite, Comme Avant.`;
+const NUM_CMD = { fontVariantNumeric: "lining-nums tabular-nums" };
+
+// Carte d'une commande : une même grille interne pour toutes (en-tête, retrait, lignes qui s'étirent,
+// étape + montant, boutons), donc les cartes d'une même rangée ont la même hauteur et se lisent pareil.
+function CarteCommande({ o, onStatut, onModifier, onPrete }) {
+  const idx = Math.max(0, STATUSES.indexOf(o.status));
+  const lignes = o.lines || [];
+  const btnBase = { height: 40, borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", boxSizing: "border-box", whiteSpace: "nowrap", minWidth: 0 };
+  const plein = (bg) => ({ ...btnBase, background: bg, color: "#fff", border: "none" });
+  const creux = { ...btnBase, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}` };
+  const waLien = o.tel ? `https://wa.me/${WA_NUM(o.tel)}` : null;
+  return (
+    <div className="cmd-carte" style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: "16px 18px", display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: C.ink, lineHeight: 1.25, overflowWrap: "anywhere" }}>{o.id} {capNom(o.name)}</div>
+          {o.tel ? <a href={`tel:${o.tel.replace(/\s/g, "")}`} style={{ display: "inline-block", fontSize: 12.5, fontWeight: 700, color: C.soft, textDecoration: "none", marginTop: 2, ...NUM_CMD }}>{formatTel(o.tel)}</a> : <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>pas de téléphone</div>}
+        </div>
+        <span style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: "3px 10px", background: o.paid ? "#3F7A4B22" : "#B5722B22", color: o.paid ? C.ok : "#9A5C1E" }}>{o.paid ? "Payée" : "À payer"}</span>
+      </div>
+      <div style={{ fontSize: 13.5, color: C.soft, marginTop: 14, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Calendar size={14} style={{ flexShrink: 0 }} /> Retrait : <b style={{ color: C.ink, fontWeight: 700 }}>{o.pickup || "à convenir"}</b></div>
+      <div style={{ flex: 1, borderTop: `1px solid ${C.line}`, marginTop: 12, paddingTop: 4 }}>
+        {lignes.length ? lignes.map((l, k) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14.5, padding: "7px 0", borderBottom: k < lignes.length - 1 ? `1px solid ${C.line}` : "none", ...NUM_CMD }}>
+            <span style={{ minWidth: 0 }}><b>{l.qty}</b> × {l.name}{l.unit ? <span style={{ color: C.soft }}> · {l.unit}</span> : null}</span>
+            <b style={{ flexShrink: 0 }}>{eur(l.price * l.qty)}</b>
+          </div>
+        )) : <div style={{ fontSize: 12.5, color: C.soft, padding: "8px 0" }}>{o.items} article(s) — le détail produit par produit est enregistré pour les nouvelles commandes.</div>}
+        {o.parrain && <div style={{ fontSize: 12, color: C.caramel, fontWeight: 600, marginTop: 6 }}>Parrainé par : {o.parrain}</div>}
+        {o.email && <a href={`mailto:${o.email}`} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: C.soft, textDecoration: "none", marginTop: 6, overflowWrap: "anywhere" }}><Mail size={12} /> {o.email}</a>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 14 }}>
+        <div role="group" aria-label="Étape de la commande" style={{ display: "flex", gap: 5, flexWrap: "wrap", minWidth: 0 }}>
+          {STATUSES.map((s, i) => (
+            <button key={s} type="button" onClick={() => onStatut(o, s)} aria-pressed={i === idx} className="ca-tap" style={{ border: "none", borderRadius: 999, padding: "5px 11px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", background: i === idx ? C.jam : "#EFE7D5", color: i === idx ? "#fff" : C.soft }}>{s}</button>
+          ))}
+        </div>
+        <span style={{ flexShrink: 0, fontSize: 24, fontWeight: 700, color: C.ink, ...NUM_CMD }}>{eur(o.total)}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr)", gap: 10, marginTop: 14 }}>
+        {o.status === "Prête" ? <button type="button" onClick={() => onStatut(o, "Remise")} className="ca-tap" style={plein(C.ok)}><Check size={15} /> Valider le retrait</button>
+          : o.status === "Remise" ? <button type="button" onClick={() => onModifier(o)} className="ca-tap" style={creux}>Modifier la commande</button>
+          : <button type="button" onClick={() => onPrete(o)} className="ca-tap" style={plein(C.jam)}>{o.tel ? "Prête + WhatsApp" : "Prête"}</button>}
+        {o.status === "Prête" ? (waLien ? <a href={`${waLien}?text=${encodeURIComponent(WA_MSG_PRETE(o))}`} target="_blank" rel="noreferrer" className="ca-tap" style={creux}>WhatsApp</a> : <button type="button" onClick={() => onModifier(o)} className="ca-tap" style={creux}>Modifier</button>)
+          : o.status === "Remise" ? (waLien ? <a href={waLien} target="_blank" rel="noreferrer" className="ca-tap" style={creux}><MessageCircle size={14} /> WhatsApp</a> : <span />)
+          : <button type="button" onClick={() => onModifier(o)} className="ca-tap" style={creux}>Modifier</button>}
+      </div>
+      {o.status === "Prête" && <button type="button" onClick={() => onModifier(o)} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", marginTop: 8, padding: 4, textDecoration: "underline" }}>Modifier la commande</button>}
+    </div>
+  );
+}
+
+// « À sortir pour ces commandes » : additionne par produit ce qu'il faut préparer et prévient
+// quand le stock ne suffit pas. Calcul pur, rien n'est stocké.
+function ASortir({ aPreparer, products, nonRegle }) {
+  const agg = {};
+  aPreparer.forEach((o) => (o.lines || []).forEach((l) => {
+    const k = l.pid || `${l.name}|${l.unit || ""}`;
+    const a = agg[k] = agg[k] || { name: l.name, unit: l.unit || "", pid: l.pid, qty: 0 };
+    a.qty += Number(l.qty) || 0;
+  }));
+  const rows = Object.values(agg).sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name, "fr"));
+  const prod = (a) => (a.pid ? (products || []).find((p) => p.id === a.pid) : null) || (products || []).find((p) => p.name === a.name && (!a.unit || p.unit === a.unit)) || null;
+  const alertes = rows.map((a) => { const p = prod(a); if (!p) return null; const st = Number(p.stock) || 0; return st < a.qty ? { a, st } : null; }).filter(Boolean);
+  return (
+    <aside className="cmd-aside" style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: "16px 18px", minWidth: 0 }}>
+      <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700, color: C.soft, lineHeight: 1.4 }}>À sortir pour ces commandes</div>
+      {rows.length === 0 ? <div style={{ fontSize: 13, color: C.soft, marginTop: 10 }}>Rien à préparer.</div> : (
+        <div style={{ marginTop: 8 }}>
+          {rows.map((a, k) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14.5, padding: "7px 0", borderBottom: k < rows.length - 1 ? `1px solid ${C.line}` : "none", ...NUM_CMD }}>
+              <span style={{ minWidth: 0 }}>{a.name}{a.unit ? <span style={{ color: C.soft }}> · {a.unit}</span> : null}</span>
+              <b style={{ flexShrink: 0 }}>{a.qty}</b>
+            </div>
+          ))}
+        </div>
+      )}
+      {alertes.map(({ a, st }) => (
+        <div key={a.pid || a.name} role="alert" style={{ marginTop: 12, background: "#F8DDD6", color: "#B8401F", borderRadius: 12, padding: "10px 14px", fontSize: 14, fontWeight: 700, lineHeight: 1.35, display: "flex", gap: 8, alignItems: "flex-start", ...NUM_CMD }}>
+          <Warn size={15} /><span>{a.name} : {st <= 0 ? "stock 0, à fabriquer" : `stock ${st}, ${a.qty} demandés`}</span>
+        </div>
+      ))}
+      <div style={{ fontSize: 13, color: C.soft, marginTop: 14, ...NUM_CMD }}>Total à encaisser au retrait : <b style={{ color: C.ink }}>{eur(nonRegle)}</b></div>
+    </aside>
+  );
+}
 
 function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setProducts }) {
   const ordersRef = useRef(orders); ordersRef.current = orders;
@@ -5707,7 +5801,7 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setP
   const ctxCmd = { pass, ordersRef, productsRef, setOrders, setProducts };
   const montrer = (r) => { if (!r) return; if (r.erreur) setErreur(r.erreur); else if (r.avertissement) setErreur(r.avertissement); };
   const sellable = (products || []).filter((p) => !p.soon && p.active !== false);
-  const [openId, setOpenId] = useState(null);
+  const [onglet, setOnglet] = useState("À préparer");
   const [edit, setEdit] = useState(null);
   const [busy, setBusy] = useState(false);
   const addItem = (p) => setEdit((e) => {
@@ -5722,6 +5816,12 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setP
     if (courante.status === s) return;
     if (courante.status === "Remise" && s !== "Remise" && !window.confirm(`Repasser la commande ${o.id} à « ${s} » ?\n\nLes articles seront remis en stock.`)) return;
     montrer(await enregistrerCommande({ ...ctxCmd, o, patch: { status: s } }));
+  };
+  // « Prête + WhatsApp » : la fenêtre WhatsApp s'ouvre dans le geste du clic (sinon le navigateur la bloque),
+  // puis la commande passe à « Prête ».
+  const prete = (o) => {
+    if (o.tel) { try { window.open(`https://wa.me/${WA_NUM(o.tel)}?text=${encodeURIComponent(WA_MSG_PRETE(o))}`, "_blank", "noopener"); } catch (e) {} }
+    persistStatus(o, "Prête");
   };
   const openEdit = (o) => setEdit({ id: o.id, ref: o.id, oid: o.oid, name: o.name, items: (o.lines || []).map((l) => ({ ...l })), pickup: o.pickup || "", status: o.status || STATUSES[0] });
   const editTotal = edit ? edit.items.reduce((a, i) => a + i.price * i.qty, 0) : 0;
@@ -5745,70 +5845,46 @@ function ProOrders({ orders, setOrders, onRefresh, loading, pass, products, setP
     montrer(r);
     setBusy(false); if (!r || r.ok) setEdit(null);
   };
+  const nb = (s) => orders.filter((o) => (o.status || STATUSES[0]) === s).length;
+  const ONGLETS = [["À préparer", `À préparer · ${nb("À préparer")}`], ["Prête", `Prêtes · ${nb("Prête")}`], ["Remise", `Remises · ${nb("Remise")}`], ["Toutes", "Toutes"]];
+  const visibles = onglet === "Toutes" ? orders : orders.filter((o) => (o.status || STATUSES[0]) === onglet);
+  const aPreparer = orders.filter((o) => (o.status || STATUSES[0]) === "À préparer");
+  const nonRegle = orders.filter((o) => o.status !== "Remise" && !o.paid).reduce((s, o) => s + o.total, 0);
   const groups = {};
-  orders.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
+  visibles.forEach((o) => { const k = o.date || "—"; (groups[k] = groups[k] || []).push(o); });
   const keys = Object.keys(groups);
-  const waNum = (t) => (t || "").replace(/\D/g, "").replace(/^0/, "33");
+  const carte = (o) => <CarteCommande key={o.id} o={o} onStatut={persistStatus} onModifier={openEdit} onPrete={prete} />;
   return (
     <div className="ca-anim">
       <BandeauErreur msg={erreur} onClose={() => setErreur(null)} />
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Commandes</h2><div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>{orders.length} commande{orders.length > 1 ? "s" : ""} · {eur(orders.reduce((s, o) => s + o.total, 0))}</div></div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+        <div><h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: 0, color: C.jam, lineHeight: 1.2 }}>Commandes</h2><div style={{ fontSize: 14, color: C.soft, marginTop: 3 }}>Commandes passées en ligne par vos clients. <span style={NUM_CMD}>{orders.length} commande{orders.length > 1 ? "s" : ""} · {eur(orders.reduce((s, o) => s + o.total, 0))}</span></div></div>
         {onRefresh && <button onClick={onRefresh} disabled={loading} className="ca-tap" style={{ background: C.board, color: C.chalk, border: "none", borderRadius: 10, padding: "10px 14px", fontWeight: 600, cursor: loading ? "default" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", flexShrink: 0, opacity: loading ? .6 : 1 }}>{loading ? "Actualisation…" : "↻ Actualiser"}</button>}
       </div>
-      {keys.length === 0 && <div style={{ fontSize: 13.5, color: C.soft, padding: "8px 2px" }}>Aucune commande pour le moment.</div>}
-      {keys.map((day) => {
-        const list = groups[day];
-        const dayTotal = list.reduce((s, o) => s + o.total, 0);
-        return (
-          <div key={day} style={{ marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 8px" }}>
-              <div style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam, textTransform: "capitalize" }}>{day}</div>
-              <div style={{ fontSize: 12, color: C.soft }}>{list.length} cmd · {eur(dayTotal)}</div>
-            </div>
-            {list.map((o) => {
-              const open = openId === o.id;
-              return (
-                <div key={o.id} style={card()}>
-                  <div onClick={() => setOpenId(open ? null : o.id)} className="ca-tap" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, cursor: "pointer" }}>
-                    <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
-                      <ChevronDown size={16} color={C.soft} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14.5 }}>{o.name} <span style={{ color: C.soft, fontWeight: 500 }}>· {o.id}</span></div>
-                        <div style={{ fontSize: 12, color: C.soft, marginTop: 3, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><Calendar size={13} /> Retrait : <b style={{ color: C.ink, fontWeight: 600 }}>{o.pickup || "à convenir"}</b> · {o.items} art.{o.paid ? <span style={{ color: C.ok, fontWeight: 600 }}> · payé</span> : <span style={{ color: C.caramel, fontWeight: 600 }}> · à régler</span>}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                      <span style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam }}>{eur(o.total)}</span>
-                      <select value={o.status} onChange={(e) => persistStatus(o, e.target.value)} style={sel(o.status)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
-                    </div>
-                  </div>
-                  {open && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
-                      {o.lines && o.lines.length ? o.lines.map((l, k) => (
-                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
-                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.qty}× {l.name}{l.unit ? <span style={{ color: C.soft }}> · {l.unit}</span> : null}</span>
-                          <span style={{ flexShrink: 0, marginLeft: 8 }}>{eur(l.price * l.qty)}</span>
-                        </div>
-                      )) : <div style={{ fontSize: 12.5, color: C.soft }}>{o.items} article(s) — le détail produit par produit est enregistré pour les nouvelles commandes.</div>}
-                      {o.parrain && <div style={{ fontSize: 12, color: C.caramel, fontWeight: 600, marginTop: 8 }}>Parrainé par : {o.parrain}</div>}
-                      <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 8, paddingTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {o.tel && <a href={`tel:${o.tel.replace(/\s/g, "")}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Phone size={14} /> {formatTel(o.tel)}</a>}
-                        {o.tel && <a href={`https://wa.me/${waNum(o.tel)}`} target="_blank" rel="noreferrer" className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#1FA855", textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><MessageCircle size={14} /> WhatsApp</a>}
-                        {o.email && <a href={`mailto:${o.email}`} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 9, padding: "8px 12px" }}><Mail size={14} /> {o.email}</a>}
-                      </div>
-                      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                        <button onClick={() => openEdit(o)} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: C.jam, background: "#fff", border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", cursor: "pointer" }}><Settings size={14} /> Modifier la commande</button>
-                        <button onClick={() => persistStatus(o, "Prête")} className="ca-tap" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "#fff", background: C.ok, border: "none", borderRadius: 10, padding: "9px 14px", cursor: "pointer", opacity: o.status === "Prête" || o.status === "Remise" ? .5 : 1 }}><Check size={14} /> {o.status === "Prête" || o.status === "Remise" ? "Validée" : "Valider la commande"}</button>
-                      </div>
-                    </div>
-                  )}
+      <div role="tablist" className="cmd-onglets" style={{ display: "inline-flex", maxWidth: "100%", overflowX: "auto", gap: 2, background: "#E8DEC6", borderRadius: 14, padding: 5, marginBottom: 16 }}>
+        {ONGLETS.map(([k, lib]) => (
+          <button key={k} role="tab" aria-selected={onglet === k} type="button" onClick={() => setOnglet(k)} className="ca-tap" style={{ border: "none", borderRadius: 10, padding: "10px 18px", fontSize: 15, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", background: onglet === k ? C.jam : "transparent", color: onglet === k ? "#fff" : C.soft, ...NUM_CMD }}>{lib}</button>
+        ))}
+      </div>
+      <div className="cmd-wrap">
+        <div style={{ minWidth: 0 }}>
+          {orders.length === 0 && <div style={{ fontSize: 13.5, color: C.soft, padding: "8px 2px" }}>Aucune commande pour le moment.</div>}
+          {orders.length > 0 && visibles.length === 0 && <div style={{ fontSize: 13.5, color: C.soft, padding: "8px 2px" }}>Aucune commande dans « {ONGLETS.find((x) => x[0] === onglet)[1].split(" · ")[0]} ».</div>}
+          {onglet === "Toutes" ? keys.map((day) => {
+            const list = groups[day];
+            return (
+              <div key={day} style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 2px 8px" }}>
+                  <div style={{ fontFamily: SCRIPT, fontSize: 18, color: C.jam, textTransform: "capitalize" }}>{day}</div>
+                  <div style={{ fontSize: 12, color: C.soft, ...NUM_CMD }}>{list.length} cmd · {eur(list.reduce((s, o) => s + o.total, 0))}</div>
                 </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                <div className="cmd-grid">{list.map(carte)}</div>
+              </div>
+            );
+          }) : <div className="cmd-grid">{visibles.map(carte)}</div>}
+        </div>
+        <ASortir aPreparer={aPreparer} products={products} nonRegle={nonRegle} />
+      </div>
       {edit && (
         <div onClick={() => !busy && setEdit(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#16140fcc", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px", overflowY: "auto" }}>
           <div className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.paper, borderRadius: 20, padding: "18px 16px", maxHeight: "min(90vh, 880px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -16px #000" }}>
