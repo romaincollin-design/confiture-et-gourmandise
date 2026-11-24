@@ -32,4 +32,10 @@
 - **Apprentissage** : un agent n'apprend pas seul ; il lit son brief. Une leçon qui revient 2 fois doit devenir un **contrôle automatique** (script), pas une règle de plus.
 - **Sauvegarde** : tout est dans git ; une leçon est commitée avec le correctif ; `rex.py check` valide le fichier avant commit.
 - **Suggestion** : `python3 scripts/rex.py suggest` (catégories récurrentes, leçons sans contrôle, idées ouvertes). À lancer en fin de cycle ; les propositions sont soumises au propriétaire, jamais appliquées seules.
-- **Économie de jetons** : brief ciblé (`rex.py brief`), `grep -n` puis 40 lignes, pas de relecture complète des gros fichiers, réutiliser `scripts/`.
+- **Économie de jetons et de temps** :
+  - brief d'agent de 3 à 5 lignes + renvoi à `docs/BRIEF-COMMUN.md` (règles, contrôle intégré, livraison) ; `rex.py brief <rôle>` pour ses leçons ;
+  - `grep -n` puis 40 lignes, jamais un gros fichier entier ; une image lue une seule fois par cycle ;
+  - vérification d'un écran en une commande : `NODE_PATH=/opt/node-tools/node_modules node scripts/verif-ecran.js <ecran>` (fixtures partagées `scripts/fixtures-admin.js`) ;
+  - itérer avec `npm run lint`, un seul `npm run build` avant le test final ;
+  - écrans indépendants en parallèle (worktrees), une fusion, une passe de contrôle, un déploiement ;
+  - rapports d'agents de 15 lignes maximum.
