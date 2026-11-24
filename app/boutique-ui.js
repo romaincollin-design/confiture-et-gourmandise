@@ -57,6 +57,95 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .cof-h2 { display: none; }
   .cof-stk { text-align: left; }
 }
+/* Coffrets (maquette v8-17) : catalogue à gauche (>= 1000 px), composition + tuiles à droite. Le tableau et les tuiles
+   s'adaptent à LEUR largeur (container queries), pas à celle de l'écran : le même tableau tient à 390 px et à 1280 px. */
+.cof2-wrap { display: grid; grid-template-columns: minmax(0,1fr); gap: 16px; align-items: start; }
+.cof2-col, .cof2-left { min-width: 0; }
+.cof2-col { container-type: inline-size; order: -1; }
+@media (min-width: 1000px) { .cof2-wrap { grid-template-columns: clamp(290px, 28vw, 350px) minmax(0,1fr); } .cof2-col { order: 0; } }
+.cof2-card { background: #FBF6EA; border: 1px solid #241F1718; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.cof2-head { display: flex; align-items: center; gap: 14px; margin: 10px 0 16px; }
+.cof2-vign { width: 64px; height: 64px; border-radius: 16px; background: #fff; display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 1px 3px #241F1722; }
+.cof2-titre { display: block; width: 100%; box-sizing: border-box; font-family: 'Pacifico', cursive; font-size: clamp(26px, 4.2vw, 42px); line-height: 1.2; color: #7A2B33; background: transparent; border: none; border-bottom: 2px dashed transparent; border-radius: 0; padding: 0; outline: none; font-weight: 400; box-shadow: none; }
+.cof2-titre:hover, .cof2-titre:focus { border-bottom-color: #7A2B3355; }
+.cof2-sub { font-size: 14px; color: #8C8068; margin-top: 2px; }
+.cof2-tog { display: flex; width: 100%; align-items: center; justify-content: space-between; background: transparent; border: none; padding: 0; cursor: pointer; text-align: left; }
+.cof2-h2t { display: none; margin-bottom: 12px; }
+.cof2-catbody.ferme { display: none; }
+.cof2-catbody { padding-top: 12px; }
+@media (min-width: 1000px) { .cof2-tog { display: none; } .cof2-h2t { display: block; } .cof2-catbody.ferme { display: block; } .cof2-catbody { padding-top: 0; } }
+.cof2-seg { display: flex; background: #EFE7D5; border-radius: 12px; padding: 4px; gap: 2px; }
+.cof2-seg button { flex: 1 1 0; min-width: 0; border: none; background: transparent; color: #8C8068; font-weight: 700; font-size: 13.5px; padding: 8px 4px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.cof2-seg button.on { background: #7A2B33; color: #fff; }
+.cof2-seg .n { font-size: 11px; opacity: .75; font-variant-numeric: lining-nums tabular-nums; }
+.cof2-list { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
+@media (min-width: 1000px) { .cof2-list { max-height: min(640px, calc(100vh - 360px)); min-height: 220px; } }
+.cof2-prod { display: flex; align-items: center; gap: 10px; background: #FBF6EA; border: 1.5px solid #241F1718; border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.cof2-prod.dans { background: #fff; border-color: #7A2B33; }
+.cof2-pic { width: 56px; height: 56px; border-radius: 14px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.cof2-pt { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.4; color: #8C8068; }
+.cof2-pt b { color: #241F17; font-weight: 700; white-space: nowrap; }
+.cof2-pn { font-weight: 700; font-size: 15px; color: #241F17; line-height: 1.25; }
+.cof2-ps { color: #8C8068; }
+.cof2-plus { width: 42px; height: 42px; border-radius: 21px; border: none; background: #7A2B33; color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; padding: 0; }
+.cof2-nouv { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; background: transparent; color: #7A2B33; border: 1.5px dashed #241F1733; border-radius: 12px; padding: 14px; font-weight: 700; font-size: 15px; cursor: pointer; }
+.cof2 { container-type: inline-size; }
+.cof2-h, .cof2-r { display: grid; grid-template-columns: minmax(0,1fr) 80px 98px 112px 68px 30px; column-gap: 8px; align-items: center; }
+.cof2-h { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #8C8068; font-weight: 600; padding: 4px 0 10px; border-bottom: 1px solid #241F1718; }
+.cof2-h .r { text-align: right; } .cof2-h .c { text-align: center; }
+.cof2-r { padding: 10px 0; border-top: 1px solid #241F1710; }
+.cof2-art { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cof2-nums { display: contents; }
+.cof2-u { grid-column: 2; grid-row: 1; } .cof2-kg { grid-column: 3; grid-row: 1; } .cof2-qte { grid-column: 4; grid-row: 1; } .cof2-cout { grid-column: 5; grid-row: 1; } .cof2-del { grid-column: 6; grid-row: 1; }
+.cof2-ap { width: 46px; height: 46px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.cof2-an { display: block; min-width: 0; flex: 1; }
+.cof2-nm { font-weight: 600; font-size: 15px; line-height: 1.2; color: #241F17; }
+.cof2-sel { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.cof2-as { display: block; font-size: 12px; color: #8C8068; margin-top: 2px; }
+.cof2-lab { display: none; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
+.cof2-v { display: block; text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.cof2-uf { position: relative; display: block; }
+.cof2-eur { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-weight: 700; font-size: 14px; pointer-events: none; color: #241F17; }
+.cof2-uf .cof2-in:not(.vide) { padding-right: 22px; }
+.cof2-in { width: 100%; box-sizing: border-box; text-align: right; font-weight: 700; font-size: 14px; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 6px 6px; color: #241F17; font-variant-numeric: lining-nums tabular-nums; outline: none; }
+.cof2-in:hover { border-color: #241F1730; } .cof2-in:focus { border-color: #7A2B33; background: #fff; }
+.cof2-in.vide { background: #F8DCD6; color: #a6482a; border-radius: 999px; text-align: center; font-size: 12px; padding: 5px 4px; }
+.cof2-in.vide::placeholder { color: #a6482a; opacity: 1; font-weight: 600; }
+.cof2-in.lib { text-align: left; font-weight: 600; font-size: 15px; padding-left: 0; padding-right: 0; border-radius: 0; }
+.cof2-ajout { margin-top: 8px; background: #fff; color: #7A2B33; border: 1.5px solid #7A2B33; border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.cof2-sep { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B5722B; font-weight: 700; margin: 18px 0 2px; padding-top: 12px; border-top: 1px solid #241F1718; }
+.cof2-alerte { margin-top: 14px; background: #F8DCD6; color: #a6482a; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 500; }
+@container (max-width: 600px) {
+  .cof2-h { display: none; }
+  .cof2-r { grid-template-columns: minmax(0,1fr) 112px 30px; row-gap: 8px; }
+  .cof2-art { grid-column: 1; grid-row: 1; } .cof2-qte { grid-column: 2; grid-row: 1; } .cof2-del { grid-column: 3; grid-row: 1; }
+  .cof2-nums { display: grid; grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; align-items: start; }
+  .cof2-v { padding-top: 9px; }
+  .cof2-u, .cof2-kg, .cof2-cout { grid-column: auto; grid-row: auto; display: block; min-width: 0; }
+  .cof2-lab { display: block; }
+  .cof2-in { border-color: #241F1722; background: #fff; }
+  .cof2-in.vide { background: #F8DCD6; border-color: transparent; }
+}
+.cof2-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+.cof2-tile { background: #FBF6EA; border: 1px solid #241F1718; border-radius: 16px; padding: 16px; min-height: 168px; display: flex; flex-direction: column; min-width: 0; }
+.cof2-tile.noir { background: #16140F; color: #F3ECD6; border-color: #16140F; }
+.cof2-tl { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; color: #8C8068; min-height: 30px; }
+.cof2-tile.noir .cof2-tl { color: #F3ECD6cc; }
+.cof2-tv { font-size: 28px; font-weight: 700; line-height: 1.1; margin-top: 4px; }
+.cof2-td { font-size: 12.5px; color: #8C8068; margin-top: 8px; }
+.cof2-tile.noir .cof2-td { color: #F3ECD6cc; }
+.cof2-prix { width: 100%; box-sizing: border-box; font-size: 24px; font-weight: 700; border: 1.5px solid #7A2B3322; border-radius: 10px; background: #fff; padding: 8px 12px; color: #241F17; outline: none; }
+.cof2-cons { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 4px 2px; cursor: pointer; color: #8C8068; font-size: 15px; }
+.cof2-cons b { color: #241F17; } .cof2-cons .v { font-size: 26px; font-weight: 700; color: #241F17; }
+.cof2-cons:hover { background: #EFE7D5; }
+.cof2-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.cof2-b1, .cof2-b2 { border-radius: 12px; padding: 14px 22px; font-weight: 700; font-size: 16px; display: inline-flex; align-items: center; gap: 7px; }
+.cof2-b1 { border: none; }
+.cof2-b2 { background: #fff; color: #7A2B33; border: 1.5px solid #7A2B33; cursor: pointer; }
+.cof2-leg { flex: 1 1 160px; font-size: 12.5px; color: #8C8068; }
+.cof2-extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+@container (max-width: 560px) { .cof2-tiles { grid-template-columns: minmax(0,1fr); } .cof2-tile { min-height: 0; } .cof2-tl { min-height: 0; margin-bottom: 4px; } .cof2-extras { grid-template-columns: minmax(0,1fr); } .cof2-b1, .cof2-b2 { flex: 1 1 100%; justify-content: center; } }
+@media (max-width: 720px) { .cof2-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); } }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
@@ -290,6 +379,11 @@ function PictoIng({ label, size = 26, fallback = null }) {
   const box = { width: size, height: size, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" };
   if (k === "oignon" || k === "lemon") return <span style={box}><Illu k={k} col={k === "lemon" ? "#E3B100" : "#C08A5A"} s={size} /></span>;
   return <span style={box} dangerouslySetInnerHTML={{ __html: ING_SVG[k].replace(/width="34" height="34"/, `width="${size}" height="${size}"`) }} />;
+}
+// emballage (boîte, fascicule, étiquette…) : pictogramme par nom, sinon le pot générique
+function PictoEmb({ label, size = 26 }) {
+  if (illuIngKey(label)) return <PictoIng label={label} size={size} />;
+  return <span style={{ width: size, height: size, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }} dangerouslySetInnerHTML={{ __html: ING_SVG.pot.replace(/width="34" height="34"/, `width="${size}" height="${size}"`) }} />;
 }
 function Illu({ k, col, s = 46 }) {
   const hl = "rgba(255,255,255,.30)";
@@ -1142,7 +1236,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
-        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts }} />}
+        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts, batches }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -6379,15 +6473,18 @@ function Qte({ value, onChange }) {
     </div>
   );
 }
-function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAjoute }) {
+function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAjoute, batches }) {
   const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
   const [nom, setNom] = useState(coffret.name);
   const [items, setItems] = useState((coffret.composition.items || []).map((i) => ({ pid: i.pid, qty: String(i.qty).replace(".", ",") })));
-  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: String(e.cost).replace(".", ",") })));
+  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: coffretNum(e.cost) > 0 ? (Math.round(coffretNum(e.cost) * 100) / 100).toFixed(2).replace(".", ",") : "" })));
   const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
   const [actif, setActif] = useState(coffret.active);
   const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false); const [costDraft, setCostDraft] = useState({});
   const [rech, setRech] = useState(""); const [filtreCat, setFiltreCat] = useState("Tous"); const [nvP, setNvP] = useState(null); // nvP : { nom, unit, achat, vente, busy, erreur }
+  const [typeF, setTypeF] = useState("Tous"); const [catOuvert, setCatOuvert] = useState(true);
+  useEffect(() => { if (typeof window !== "undefined" && window.innerWidth < 1000) setCatOuvert(false); }, []);
+  const origines = useMemo(() => origineCouts(batches, all), [batches, all]);
   // Prix d'achat au kilo d'un produit fini : coût unitaire ÷ poids du conditionnement (jamais deviné si le poids n'est pas écrit).
   const prixKg = (p) => { const g = grammesUnite(p && p.unit, false); return p && g > 0 && p.cost > 0 ? p.cost / (g / 1000) : null; };
   const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
@@ -6400,7 +6497,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
   const [snapOk, setSnapOk] = useState(null);
   const dirty = snap !== (snapOk != null ? snapOk : snapInit.current);
   const parts = [...lignes.filter((l) => l.ligne > 0).map((l) => ({ label: l.name, v: l.ligne })), ...compo.emballage.filter((e) => e.cost * e.qty > 0).map((e) => ({ label: e.label || "Emballage", v: e.cost * e.qty }))];
-  const conseils = complet && total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
+  const conseils = total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
   const catalogue = all.filter((p) => !p.composition).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   const setItem = (k, patch) => setItems((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
   const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
@@ -6440,106 +6537,177 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
     setItems((l) => [...l, { pid: id, qty: "1" }]); setNvP(null);
   };
   const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
+  const typeDe = (c) => (origines[c.id] && origines[c.id].src === "fournee") ? "Fabriqués" : "Achetés";
+  const nbType = (t) => catalogue.filter((c) => t === "Tous" || typeDe(c) === t).length;
+  const catFiltre = catalogue.filter((c) => (typeF === "Tous" || typeDe(c) === typeF) && (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase())));
+  const nomVal = { fontVariantNumeric: "lining-nums tabular-nums" };
+  const finNom = (t) => String(t).split(" ").slice(-1)[0];
+  const nomSansFin = (t) => { const a = String(t).split(" "); return a.length > 1 ? a.slice(0, -1).join(" ") + " " : ""; };
+  const fmt2 = (x) => (Number(x) > 0 ? (Math.round(Number(x) * 100) / 100).toFixed(2).replace(".", ",") : "");
+  const h2k = { fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: C.soft, fontWeight: 700 };
+  const subtitre = actif ? "Visible en Caisse et en boutique" : pv > 0 ? "Masqué pour l'instant — cochez « Visible » puis validez le coffret" : "Masqué tant que le prix de vente n'est pas saisi";
+  const manquantsTxt = manquants.map((m) => "+ " + (byId[m] ? byId[m].name : m)).join(" ");
   return (
-    <div className="ca-anim">
+    <div className="ca-anim cof2-page">
       <button onClick={onBack} style={backBtn()}><ChevronLeft size={15} /> Coffrets</button>
-      <div style={{ margin: "8px 0 14px" }}><input value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inp(), fontFamily: SCRIPT, fontSize: 22, color: C.jam, fontWeight: 400, maxWidth: 460 }} /></div>
-      <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 270px", gap: 16, alignItems: "start" }}>
-        <div>
-          <div style={card()}>
-            <div style={h2}>Produits finis du catalogue</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-              <input value={rech} onChange={(e) => setRech(e.target.value)} placeholder="Rechercher un produit…" style={{ ...inp(), flex: "1 1 200px", minWidth: 0 }} />
-              <button onClick={() => setNvP({ nom: "", unit: "", achat: "", vente: "", busy: false, erreur: "" })} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px dashed ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Nouveau produit</button>
-            </div>
-            {nvP && (
-              <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <div style={{ flex: "2 1 180px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
-                <div style={{ flex: "1 1 120px", minWidth: 0 }}><Lbl>Conditionnement</Lbl><input value={nvP.unit} onChange={(e) => setNvP({ ...nvP, unit: e.target.value })} placeholder="pot 100 g" style={inp()} /></div>
-                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Achat / unité</Lbl><input value={nvP.achat} onChange={(e) => setNvP({ ...nvP, achat: e.target.value })} inputMode="decimal" placeholder="3,49" style={inp()} /></div>
-                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Vente</Lbl><input value={nvP.vente} onChange={(e) => setNvP({ ...nvP, vente: e.target.value })} inputMode="decimal" placeholder="facultatif" style={inp()} /></div>
-                <button type="submit" disabled={!nvP.nom.trim() || nvP.busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, cursor: "pointer", opacity: !nvP.nom.trim() || nvP.busy ? .5 : 1 }}>{nvP.busy ? "Création…" : "Créer et ajouter"}</button>
-                <button type="button" onClick={() => setNvP(null)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontWeight: 600, color: C.soft, cursor: "pointer" }}>Annuler</button>
-                {nvP.erreur && <div style={{ width: "100%", color: "#a6482a", fontWeight: 600, fontSize: 13 }}><Warn size={13} /> {nvP.erreur}</div>}
-              </form>
-            )}
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", width: "100%", maxWidth: "100%", paddingBottom: 6 }}>
-              {["Tous", ...Array.from(new Set(catalogue.map((c) => c.cat).filter(Boolean)))].map((c) => (
-                <button key={c} onClick={() => setFiltreCat(c)} className="ca-tap" style={{ flex: "none", border: `1px solid ${filtreCat === c ? C.jam : C.line}`, background: filtreCat === c ? C.jam : "#fff", color: filtreCat === c ? "#fff" : C.ink, borderRadius: 999, padding: "7px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{c}</button>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 8, maxHeight: 360, overflowY: "auto", marginTop: 6 }}>
-              {catalogue.filter((c) => (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase()))).map((c) => { const kg = prixKg(c); const dans = items.some((x) => x.pid === c.id); return (
-                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "center", background: dans ? "#fff" : C.paper, border: `1.5px solid ${dans ? C.jam : C.line}`, borderRadius: 12, padding: "8px 10px", minWidth: 0 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(c.name) ? <PictoIng label={c.name} size={34} /> : <Illu k={illuDe(c)} col={couleurDe(c)} s={34} />}</div>
-                  <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, lineHeight: 1.35 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-                    <div style={{ color: C.soft }}>{c.unit}{c.active ? "" : " · masqué"}</div>
-                    <div style={{ fontVariantNumeric: "lining-nums tabular-nums" }}>{c.cost > 0 ? <>achat <b>{eur2(c.cost)}</b>{kg != null && <> · <b>{eur2(kg)}/kg</b></>}</> : <span style={{ color: "#a6482a", fontWeight: 700 }}>achat à saisir</span>}{c.price > 0 && <> · vente <b>{eur2(c.price)}</b></>}</div>
+      <div className="cof2-head">
+        <div className="cof2-vign"><PictoIng label="coffret" size={48} /></div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <input className="cof2-titre" aria-label="Nom du coffret" value={nom} onChange={(e) => setNom(e.target.value)} />
+          <div className="cof2-sub">{subtitre}</div>
+        </div>
+      </div>
+      <div className="cof2-wrap">
+        <div className="cof2-left">
+          <div className="cof2-card">
+            <button type="button" className="cof2-tog ca-tap" onClick={() => setCatOuvert((o) => !o)} aria-expanded={catOuvert}>
+              <span style={h2k}>Produits finis <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>du catalogue ({catalogue.length})</span></span>
+              <ChevronDown size={18} color={C.soft} style={{ transform: catOuvert ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            <div className="cof2-h2t" aria-label="Produits finis du catalogue" style={h2k}>Produits finis <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>du catalogue</span></div>
+            <div className={"cof2-catbody" + (catOuvert ? "" : " ferme")}>
+              <input value={rech} onChange={(e) => setRech(e.target.value)} placeholder="Rechercher un produit…" aria-label="Rechercher un produit" style={{ ...inp(), background: "#fff", fontWeight: 500, marginBottom: 10 }} />
+              <div className="cof2-seg" role="tablist">
+                {["Tous", "Fabriqués", "Achetés"].map((t) => (
+                  <button key={t} role="tab" aria-selected={typeF === t} onClick={() => setTypeF(t)} className={"ca-tap" + (typeF === t ? " on" : "")}>{t} <span className="n">{nbType(t)}</span></button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", width: "100%", maxWidth: "100%", padding: "10px 0 6px" }}>
+                {["Tous", ...Array.from(new Set(catalogue.map((c) => c.cat).filter(Boolean)))].map((c) => (
+                  <button key={c} onClick={() => setFiltreCat(c)} className="ca-tap" style={{ flex: "none", border: `1px solid ${filtreCat === c ? C.jam : C.line}`, background: filtreCat === c ? C.jam : "#fff", color: filtreCat === c ? "#fff" : C.ink, borderRadius: 999, padding: "5px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{c}</button>
+                ))}
+              </div>
+              <div className="cof2-list">
+                {catFiltre.length === 0 && <div style={{ color: C.soft, fontSize: 13, padding: "12px 4px" }}>Aucun produit ne correspond{typeF === "Fabriqués" ? " (aucun coût n'est encore descendu d'une fournée validée)" : ""}.</div>}
+                {catFiltre.map((c) => { const kg = prixKg(c); const dans = items.some((x) => x.pid === c.id); return (
+                  <div key={c.id} className={"cof2-prod" + (dans ? " dans" : "")}>
+                    <div className="cof2-pic">{illuIngKey(c.name) ? <PictoIng label={c.name} size={52} /> : <Illu k={illuDe(c)} col={couleurDe(c)} s={52} />}</div>
+                    <div className="cof2-pt">
+                      <div className="cof2-pn">{c.name}</div>
+                      <div className="cof2-ps">{c.unit}{c.active ? "" : " · masqué"}</div>
+                      <div style={nomVal}>achat {c.cost > 0 ? <><b>{eur2(c.cost)}</b>{kg != null && <> · <b>{eur2(kg)}/kg</b></>}</> : <><b>manquant</b> · <b>—</b></>}</div>
+                      <div style={nomVal}>vente <b>{c.price > 0 ? eur2(c.price) : "—"}</b></div>
+                    </div>
+                    <button onClick={() => ajouter(c.id)} aria-label={"Ajouter " + c.name} className="cof2-plus ca-tap"><Plus size={20} /></button>
                   </div>
-                  <button onClick={() => ajouter(c.id)} aria-label={"Ajouter " + c.name} className="ca-tap" style={{ width: 34, height: 34, borderRadius: 17, border: "none", background: C.jam, color: "#fff", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Plus size={17} /></button>
-                </div>
-              ); })}
+                ); })}
+              </div>
+              {nvP ? (
+                <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div style={{ flex: "2 1 140px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
+                  <div style={{ flex: "1 1 120px", minWidth: 0 }}><Lbl>Conditionnement</Lbl><input value={nvP.unit} onChange={(e) => setNvP({ ...nvP, unit: e.target.value })} placeholder="pot 100 g" style={inp()} /></div>
+                  <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Achat / unité</Lbl><input value={nvP.achat} onChange={(e) => setNvP({ ...nvP, achat: e.target.value })} inputMode="decimal" placeholder="3,49" style={inp()} /></div>
+                  <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Vente</Lbl><input value={nvP.vente} onChange={(e) => setNvP({ ...nvP, vente: e.target.value })} inputMode="decimal" placeholder="facultatif" style={inp()} /></div>
+                  <button type="submit" disabled={!nvP.nom.trim() || nvP.busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, cursor: "pointer", opacity: !nvP.nom.trim() || nvP.busy ? .5 : 1 }}>{nvP.busy ? "Création…" : "Créer et ajouter"}</button>
+                  <button type="button" onClick={() => setNvP(null)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontWeight: 600, color: C.soft, cursor: "pointer" }}>Annuler</button>
+                  {nvP.erreur && <div style={{ width: "100%", color: "#a6482a", fontWeight: 600, fontSize: 13 }}><Warn size={13} /> {nvP.erreur}</div>}
+                </form>
+              ) : (
+                <button onClick={() => setNvP({ nom: "", unit: "", achat: "", vente: "", busy: false, erreur: "" })} className="cof2-nouv ca-tap"><Plus size={16} /> Nouveau produit</button>
+              )}
             </div>
           </div>
-          <div style={card()}>
-            <div style={h2}>Composition</div>
-            <div className="cof-h"><div>Article</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
-            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
-              <div key={k}>
-                <div className="cof-l">
-                  <label className="cof-cell cof-art"><span className="cof-lab">Article</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{p && <span style={{ width: 34, height: 34, borderRadius: 9, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(p.name) ? <PictoIng label={p.name} size={26} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={26} />}</span>}
-                    <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
-                      {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
-                      {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
-                    </select></span></label>
-                  <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
-                  <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                  <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
-                  <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
+        </div>
+        <div className="cof2-col">
+          <div className="cof2-card cof2" style={{ padding: "16px 18px" }}>
+            <div className="cof2-h"><div title="Composition">Dans le coffret</div><div className="r u">Achat/u.</div><div className="r kg">Achat/kg</div><div className="c">Qté</div><div className="r">Coût</div><div /></div>
+            {items.length === 0 && <div style={{ color: C.soft, fontSize: 13, padding: "14px 0" }}>Aucun article : touchez le bouton + d'un produit fini du catalogue.</div>}
+            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; const kg = prixKg(p); const brouillon = costDraft[it.pid]; const vide = brouillon != null ? !String(brouillon).trim() : !(p && p.cost > 0); return (
+              <div className="cof2-r" key={k}>
+                <div className="cof2-art">
+                  <span className="cof2-ap">{p ? (illuIngKey(p.name) ? <PictoIng label={p.name} size={34} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={34} />) : null}</span>
+                  <span className="cof2-an">
+                    <span style={{ position: "relative", display: "block" }}>
+                      <span className="cof2-nm">{nomSansFin(p ? p.name : it.pid)}<span style={{ whiteSpace: "nowrap" }}>{finNom(p ? p.name : it.pid)} <ChevronDown size={13} color={C.soft} style={{ verticalAlign: "-2px" }} /></span></span>
+                      <select aria-label="Changer d'article" value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} className="cof2-sel">
+                        {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
+                        {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
+                      </select>
+                    </span>
+                    <span className="cof2-as" style={nomVal}>{p ? p.unit : ""} · Stock {p ? p.stock : "?"}</span>
+                  </span>
                 </div>
-                <div className="cof-note">Stock {p ? p.stock : "?"}{p && prixKg(p) != null && <span style={{ fontVariantNumeric: "lining-nums tabular-nums" }}> · achat au kilo <b>{eur2(prixKg(p))}/kg</b></span>}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
+                <div className="cof2-nums">
+                  <label className="cof2-u"><span className="cof2-lab">Achat/u.</span><span className="cof2-uf">
+                    <input className={"cof2-in" + (vide ? " vide" : "")} value={brouillon != null ? brouillon : (p && p.cost > 0 ? fmt2(p.cost) : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" title={vide ? "achat à saisir : prix d'achat à renseigner" : "Prix d'achat à l'unité"} aria-label={"Achat à l'unité de " + (p ? p.name : it.pid)} />{!vide && <span className="cof2-eur">€</span>}</span>
+                  </label>
+                  <div className="cof2-kg"><span className="cof2-lab">Achat/kg</span><span className="cof2-v" style={{ color: kg != null ? C.ink : "#C9C0AE" }}>{kg != null ? eur2(kg) + "/kg" : "—"}</span></div>
+                  <div className="cof2-cout"><span className="cof2-lab">Coût</span><span className="cof2-v" style={{ fontWeight: 700, color: l && l.cost > 0 ? C.ink : "#C9C0AE" }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</span></div>
+                </div>
+                <div className="cof2-qte"><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
+                <div className="cof2-del"><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
               </div>
             ); })}
-            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
-          </div>
-          <div style={card()}>
-            <div style={h2}>Emballage et impressions</div>
-            <div className="cof-h"><div>Libellé</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
+            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap cof2-ajout">+ Ajouter un article du catalogue</button>
+            <div className="cof2-sep">Emballage et impressions</div>
             {emb.map((e, k) => (
-              <div className="cof-l" key={k}>
-                <label className="cof-cell cof-art"><span className="cof-lab">Libellé</span><input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
-                <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="à saisir" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: coffretNum(e.cost) > 0 ? C.ink : C.soft }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</div></div>
-                <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
+              <div className="cof2-r" key={"e" + k}>
+                <div className="cof2-art">
+                  <span className="cof2-ap"><PictoEmb label={e.label} size={34} /></span>
+                  <span className="cof2-an">
+                    <input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" aria-label="Libellé" title="Libellé de l'emballage" className="cof2-in lib" />
+                    <span className="cof2-as">emballage</span>
+                  </span>
+                </div>
+                <div className="cof2-nums">
+                  <label className="cof2-u"><span className="cof2-lab">Achat/u.</span><span className="cof2-uf"><input className={"cof2-in" + (coffretNum(e.cost) > 0 ? "" : " vide")} value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} onBlur={(ev) => { const n = coffretNum(ev.target.value); if (n > 0) setEmbl(k, { cost: fmt2(n) }); }} inputMode="decimal" placeholder="à saisir" aria-label="Achat à l'unité de l'emballage" />{coffretNum(e.cost) > 0 && <span className="cof2-eur">€</span>}</span></label>
+                  <div className="cof2-kg"><span className="cof2-lab">Achat/kg</span><span className="cof2-v" style={{ color: "#C9C0AE" }}>—</span></div>
+                  <div className="cof2-cout"><span className="cof2-lab">Coût</span><span className="cof2-v" style={{ fontWeight: 700, color: coffretNum(e.cost) > 0 ? C.ink : "#C9C0AE" }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</span></div>
+                </div>
+                <div className="cof2-qte"><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
+                <div className="cof2-del"><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
               </div>
             ))}
-            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 10, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
+            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap cof2-ajout">+ Ajouter une ligne</button>
+            {!complet && <div className="cof2-alerte">{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {[[complet ? "Coût de revient" : "Coût connu", total > 0 ? eur2(total) : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
-              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl.startsWith("Coût") ? C.paper : C.board, color: lbl.startsWith("Coût") ? C.ink : "#fff", border: lbl.startsWith("Coût") ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
-                <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
-                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{val}</div>}
-              </div>
-            ))}
+          <div className="cof2-tiles">
+            <div className="cof2-tile noir">
+              <div className="cof2-tl">{complet ? "Coût de revient" : "Coût connu"}</div>
+              <div className="cof2-tv" style={nomVal}>{total > 0 ? eur2(total) : "—"}</div>
+              {!complet && manquants.length > 0 && <div className="cof2-td">{manquantsTxt}</div>}
+              {complet && <div className="cof2-td">tous les prix d'achat sont connus</div>}
+            </div>
+            <div className="cof2-tile">
+              <div className="cof2-tl">Prix de vente</div>
+              <input className="cof2-prix" value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" aria-label="Prix de vente" style={nomVal} />
+              {marge != null ? (
+                <div style={{ marginTop: 12 }}>
+                  <div className="cof2-td" style={{ color: C.ink, display: "flex", justifyContent: "space-between", gap: 8, marginTop: 0, ...nomVal }}><span title="Marge sur le prix de vente">Marge <b>{eur2(marge)}</b> · coef <b>{coef != null ? coef.toFixed(2).replace(".", ",") : "—"}</b></span><span style={{ color: marge > 0 ? C.ok : "#a6482a", fontWeight: 700 }}>{Math.round(marge / pv * 100)} %</span></div>
+                  <div style={{ height: 7, borderRadius: 5, background: C.cream, overflow: "hidden", marginTop: 5 }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
+                </div>
+              ) : <div className="cof2-td" style={{ marginTop: 10 }}>{pv > 0 ? "Marge et coef : affichés quand tous les prix d'achat sont connus." : "Saisi par vous, jamais recalculé."}</div>}
+            </div>
+            <div className="cof2-tile">
+              <div className="cof2-tl" title="Repères de prix (un geste)">Conseils (coef)</div>
+              {conseils.length > 0 ? (
+                <div style={{ display: "grid", gap: 2 }}>
+                  {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="cof2-cons ca-tap" aria-label={"Fixer le prix à " + eur2(c.v)}><span>coef <b>{String(c.m).replace(".", ",")}</b></span><span className="v" style={nomVal}>{c.v} €</span></button>)}
+                  {!complet && <div className="cof2-td" style={{ marginTop: 2 }}>sur le coût connu seulement</div>}
+                </div>
+              ) : <div className="cof2-td">Disponibles dès qu'un prix d'achat est connu.</div>}
+            </div>
           </div>
-          {conseils.length > 0 && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-              <span style={{ fontSize: 12, color: C.soft, fontWeight: 600 }}>Repères de prix (un geste)</span>
-              {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="ca-tap" style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "6px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", color: C.ink }}>coef {String(c.m).replace(".", ",")} · {eur2(c.v)}</button>)}
+          <div className="cof2-actions">
+            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap cof2-b1" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
+            <button onClick={() => setAsm(true)} className="ca-tap cof2-b2">J'ai fabriqué des coffrets</button>
+            <div className="cof2-leg">Fabriquer retire les composants du stock et ajoute les coffrets.</div>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
+            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
+          </div>
+          <div className="cof2-extras">
+            <div className="cof2-card" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
+            <div className="cof2-card" style={{ marginBottom: 0 }}>
+              <div style={h2}>Stock</div>
+              <div style={{ fontSize: 28, fontWeight: 700, ...nomVal }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
             </div>
-          )}
-          {marge != null && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, fontWeight: 600, marginBottom: 4 }}><span>Marge sur le prix de vente</span><span style={{ color: marge > 0 ? C.ok : "#a6482a" }}>{Math.round(marge / pv * 100)} %</span></div>
-              <div style={{ height: 8, borderRadius: 5, background: C.cream, overflow: "hidden" }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
-            </div>
-          )}
+          </div>
           {total > 0 && (
-            <div style={{ ...card(), marginTop: 12 }}>
+            <div className="cof2-card" style={{ marginTop: 12 }}>
               <div style={h2}>Répartition du coût</div>
               <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", background: C.cream }}>
                 {parts.map((p, i) => <div key={i} title={p.label} style={{ width: (p.v / total * 100) + "%", background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6] }} />)}
@@ -6549,29 +6717,13 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
               </div>
             </div>
           )}
-          {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
-            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1, display: "inline-flex", alignItems: "center", gap: 7 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
-            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
-          </div>
-        </div>
-        <div>
-          <div style={{ ...card(), padding: 0, overflow: "hidden" }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
-          <div style={card()}>
-            <div style={h2}>Stock</div>
-            <div style={{ fontSize: 28, fontWeight: 700 }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
-            <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
-            <button onClick={() => setAsm(true)} className="ca-tap" style={{ marginTop: 12, width: "100%", background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 700, cursor: "pointer" }}>J'ai fabriqué des coffrets</button>
-            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
-          </div>
         </div>
       </div>
       {asm && <CoffretAssembler coffret={coffret} lignes={lignes} pass={pass} onClose={() => setAsm(false)} onDone={(res) => { setAsm(false); onAssembled(res); }} />}
     </div>
   );
 }
-function ProCoffrets({ pass, products, setProducts }) {
+function ProCoffrets({ pass, products, setProducts, batches }) {
   const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null); const [asmFor, setAsmFor] = useState(null);
   const [nouveau, setNouveau] = useState(null); // null = fermé, sinon { nom, busy, erreur }
   // Création : un coffret est un produit masqué (catégorie « Coffrets », prix 0) + une composition vide.
@@ -6605,7 +6757,7 @@ function ProCoffrets({ pass, products, setProducts }) {
     if (setProducts) setProducts((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
   };
   const cible = sel && coffrets.find((c) => c.id === sel);
-  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} onAjoute={(p) => setAll((l) => [...l, p])} />;
+  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} onAjoute={(p) => setAll((l) => [...l, p])} batches={batches} />;
   return (
     <div className="ca-anim">
       <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
