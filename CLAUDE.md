@@ -721,3 +721,11 @@ reste de la page. C'est visible sur la capture du propriétaire : seul le pannea
   automatique. Nécessiterait l'API WhatsApp Business (compte + coût) — à décider ensemble.
 - Doublons de noms de produits (15 noms partagés) : gênent l'appariement automatique format → produit.
   À fusionner ou différencier (le grammage dans le nom suffirait).
+
+---
+
+## 11. Agents : mémoire et méthode
+Les agents ne retiennent rien d'une session à l'autre. Leur mémoire est **`docs/REX.md`** (règles apprises, à compléter après chaque
+erreur), leurs définitions sont dans `.claude/agents/` (`implementeur-ui`, `qa-regression`, `maquettes`) et leurs contrôles dans
+`scripts/` (`qa-inventaire.py` : libellés disparus ; `qa-maquettes-alignement.js` : alignement). Règle d'or : **refaire un écran ne
+retire aucune fonction** ; une maquette validée est reproduite à l'identique ; les maquettes se montrent en image.

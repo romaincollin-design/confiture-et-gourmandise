@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');const path=require('path');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1200,height:900}});
+await p.goto('file://'+path.join(process.cwd(),process.argv[2]||'maquettes.html'));await p.evaluate(()=>document.fonts.ready);await p.waitForTimeout(300);
+const r=await p.evaluate(()=>{const bad=[];
+document.querySelectorAll('table').forEach((t,ti)=>{const rows=[...t.rows];const head=rows[0];if(!head)return;
+ [...head.cells].forEach((h,ci)=>{const isN=h.classList.contains('n');const hr=h.getBoundingClientRect();
+  rows.slice(1).forEach((row,ri)=>{const c=row.cells[ci];if(!c||c.colSpan>1)return;const cr=c.getBoundingClientRect();
+   if(isN!==c.classList.contains('n'))bad.push(`table${ti} col${ci} row${ri}: alignement entête/cellule différent`);
+   if(Math.abs(hr.left-cr.left)>1||Math.abs(hr.right-cr.right)>1)bad.push(`table${ti} col${ci} row${ri}: bords différents`);});});});
+document.querySelectorAll('td,th').forEach((c)=>{if(c.scrollWidth>c.clientWidth+1)bad.push('cellule coupée/débordante : '+c.textContent.trim().slice(0,30));});
+document.querySelectorAll('.frame').forEach((f,i)=>{if(f.scrollWidth>f.clientWidth+1)bad.push('frame'+i+' déborde');
+ f.querySelectorAll('*').forEach(e=>{const er=e.getBoundingClientRect(),fr=f.getBoundingClientRect();if(er.width&&(er.right>fr.right+1))bad.push('frame'+i+' '+e.tagName+'.'+e.className+' dépasse à droite');});});
+return bad.slice(0,30);});
+console.log(r.length?r.join('\n'):'OK : alignements et débordements');await b.close();})();
