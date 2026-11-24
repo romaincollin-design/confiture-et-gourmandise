@@ -48,6 +48,12 @@
 - **R014 · process · 2026-11-24** — Ne jamais retirer du contenu existant sans le demander ; ajouter, pas remplacer.
   - Symptôme : Fonctions de l'app retirées sans demande.
   - Cause : Réflexe de simplifier.
+- **R016 · process · 2026-11-24** — Avant d'annoncer qu'un écran est fait : capture PLEINE PAGE 1280 et 390 px, comparée image contre image à la maquette par l'agent qa-regression (liste d'écarts BLOQUANT/MOYEN/MINEUR) ; on ne dit « conforme » que quand la liste est vide.
+  - Symptôme : Fiche de fournée, coffrets et Production annoncés « faits » alors que les écrans n'étaient pas conformes aux maquettes validées (résumé collant, fiche sanitaire dans la page, tuiles de suivi, disposition deux colonnes).
+  - Cause : Aucun contrôle de conformité maquette contre capture avant d'annoncer ; tests limités au fonctionnement.
+- **R017 · process · 2026-11-24** — Une page = un implémenteur dans son worktree, puis qa-regression sur le résultat, puis correction ; l'orchestrateur ne code pas à la place des agents.
+  - Symptôme : Un agent unique code seul plusieurs pages d'un coup.
+  - Cause : Pas de boucle implémenteur puis contrôle.
 
 ## Idées / suggestions
 - **R015 · ui · 2026-11-24** — Signaler « sans dessin » sur le produit validé, puis l'agent illustrateur dessine dans le style Illu et le propriétaire valide sur une planche.
