@@ -60,7 +60,7 @@
 - **R019 · process · 2026-11-24** — Un point de comportement (sticky, défilement, clic) se vérifie en le mesurant dans le navigateur (position après défilement), pas par grep ni sur une capture ; l'orchestrateur recoupe les points bloquants du contrôle avant de renvoyer un chantier.
   - Symptôme : Le contrôle qa-regression a signalé « aucun sticky » alors que le résumé collant fonctionnait.
   - Cause : Il a cherché position: sticky dans le JSX alors que la règle est dans le CSS (.fiche-side) ; une capture pleine page ne montre pas un sticky.
-- **R020 · tokens · 2026-11-24** — Un brief d'agent = 3 à 5 lignes (écran, maquette, port) + « lis docs/BRIEF-COMMUN.md » ; vérifier un écran avec  (captures pleine page 1280 et 390, éléments rendus, débordement, erreurs JS) au lieu d'écrire un script.
+- **R020 · tokens · 2026-11-24** — Un brief d'agent = 3 à 5 lignes (écran, maquette, port) + « lis docs/BRIEF-COMMUN.md » ; vérifier un écran avec la commande `NODE_PATH=/opt/node-tools/node_modules node scripts/verif-ecran.js <ecran>` (captures pleine page 1280 et 390, éléments rendus, débordement, erreurs JS) au lieu d'écrire un script.
   - Symptôme : Chaque agent recevait un brief de 2 000 jetons recopié par l'orchestrateur ; chaque écran réécrivait un script Playwright de 80 lignes.
   - Cause : Pas de brief commun ni de script de vérification partagés.
   - Contrôle : `scripts/verif-ecran.js`
