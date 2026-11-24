@@ -159,8 +159,10 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
 .pro-nav { width: 212px; background: #FBF6EA; border-right: 1px solid #241F1718; padding: 12px; flex-shrink: 0; }
-.pro-tab { width: 100%; display: flex; align-items: center; gap: 10px; border: none; cursor: pointer; padding: 11px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 3px; text-align: left; background: transparent; color: #241F17; position: relative; }
-.pro-tab.on { background: #16140F; color: #F3ECD6; }
+.pro-logo { font-family: 'Pacifico', cursive; font-size: 26px; line-height: 1.1; color: #7A2B33; padding: 10px 12px 18px; }
+.pro-tab .ic-nav { display: none; }
+.pro-tab { width: 100%; display: flex; align-items: center; gap: 10px; border: none; cursor: pointer; padding: 13px 18px; border-radius: 14px; font-size: 16px; font-weight: 500; margin-bottom: 5px; text-align: left; background: transparent; color: #241F17; position: relative; }
+.pro-tab.on { background: #16140F; color: #F3ECD6; font-weight: 600; }
 .lbl-m, .nav-plus, .pro-plus-wrap { display: none; }
 .pro-content { flex: 1; padding: 24px 26px; max-height: 706px; overflow-y: auto; background: #EFE7D5; }
 .caisse-mobilebar { display: none; }
@@ -269,7 +271,8 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
      l'écran n'est pas atteignable. Même liste, même ordre — seule la position change. */
   .pro-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; width: 100%; box-sizing: border-box; display: flex; gap: 2px; overflow-x: hidden; border-right: none; border-bottom: none; border-top: 1px solid #241F1718; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 22px -14px #00000066; }
   /* 4 onglets fixes + « Plus » (les autres sont dans la grille .pro-plus) : cinq colonnes égales, jamais de défilement */
-  .pro-nav .nav-extra, .lbl-d { display: none !important; }
+  .pro-nav .nav-extra, .lbl-d, .pro-logo { display: none !important; }
+  .pro-tab .ic-nav { display: inline-block; }
   .lbl-m { display: inline; }
   .nav-plus { display: flex; }
   .pro-nav button { width: auto !important; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 3px !important; white-space: nowrap; margin-bottom: 0 !important; font-size: 10.5px !important; padding: 7px 2px !important; justify-content: center; align-items: center; }
@@ -1319,8 +1322,9 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
   return (
     <div className="pro-shell">
       <div className="pro-nav">
+        <div className="pro-logo">{(profile && profile.name) || "Comme Avant"}</div>
         {NAV.map(([k, lbl, lblM, Ic, fixe]) => (
-          <button key={k} onClick={() => go(k)} className={`ca-tap pro-tab${tab === k && !plusOpen ? " on" : ""}${fixe ? "" : " nav-extra"}`} aria-current={tab === k ? "page" : undefined}><Ic size={16} /> <span className="lbl-d">{lbl}</span><span className="lbl-m">{lblM}</span></button>
+          <button key={k} onClick={() => go(k)} className={`ca-tap pro-tab${tab === k && !plusOpen ? " on" : ""}${fixe ? "" : " nav-extra"}`} aria-current={tab === k ? "page" : undefined}><Ic size={16} className="ic-nav" /> <span className="lbl-d">{lbl}</span><span className="lbl-m">{lblM}</span></button>
         ))}
         <button onClick={() => setPlusOpen((v) => !v)} className={`ca-tap pro-tab nav-plus${plusActif || plusOpen ? " on" : ""}`} aria-expanded={plusOpen} aria-label="Plus d'onglets"><MoreHorizontal size={16} /> <span className="lbl-m">Plus</span></button>
       </div>
@@ -5356,7 +5360,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
   const sMax = Math.max(1, ...subs.map((s) => s.ca));
 
   const kpi = (l, v, sub, accent) => (
-    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.board, color: accent ? "#fff" : C.chalk, borderRadius: 14, padding: "13px 14px", display: "flex", flexDirection: "column" }}>
+    <div style={{ flex: "1 1 130px", minWidth: 128, background: accent ? C.jam : C.paper, border: accent ? "none" : `1px solid ${C.line}`, color: accent ? "#fff" : C.ink, borderRadius: 14, padding: "13px 14px", display: "flex", flexDirection: "column" }}>
       <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", opacity: .7, minHeight: 26 }}>{l}</div>
       <div style={{ fontSize: "clamp(20px, 2.4vw, 26px)", fontWeight: 700, marginTop: "auto" }}>{v}</div>
       <div style={{ fontSize: 11, opacity: .68, marginTop: 2, minHeight: 15 }}>{sub || ""}</div>
@@ -5472,6 +5476,77 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
             })}
           </div>
         </>)}
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Répartition des ventes par produit</div>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
+          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
+              {arcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
+              <text x={CX} y={CY - 4} textAnchor="middle" style={{ fontSize: 15, fontWeight: 700, fill: C.ink }}>{eur(A.ca)}</text>
+              <text x={CX} y={CY + 10} textAnchor="middle" style={{ fontSize: 8, fill: C.soft }}>{prods.length} produits</text>
+            </svg>
+            <div style={{ flex: "1 1 200px", minWidth: 190 }}>
+              {arcs.map((a, i) => (
+                <div key={i}>
+                  <div onClick={() => a.p.name === "Autres" && setAutresOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5, cursor: a.p.name === "Autres" ? "pointer" : "default" }}>
+                    <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}{a.p.name === "Autres" ? (autresOpen ? " ▲" : " ▼") : ""}</span>
+                    <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
+                  </div>
+                  {a.p.name === "Autres" && autresOpen && (
+                    <div style={{ margin: "2px 0 6px 19px", padding: "6px 10px", background: C.cream, borderRadius: 8 }}>
+                      {prods.slice(8).map((p2, j) => (
+                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 11.5, padding: "2.5px 0", color: C.soft }}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p2.name}</span>
+                          <span style={{ flexShrink: 0, fontWeight: 700, color: C.ink }}>{eur(p2.ca)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={card()}>
+        <div style={{ ...h2 }}>Marge par produit — achat converti en coût par unité vendue</div>
+        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
+          <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontVariantNumeric: "tabular-nums", minWidth: 560 }}>
+              <thead><tr style={{ textAlign: "right", color: C.soft, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase" }}>
+                <th style={{ textAlign: "left", padding: "6px 4px", fontWeight: 600 }}>Produit</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>Coût/u.</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>Vente/u.</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>Marge/u.</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>Vendus</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>CA</th><th style={{ padding: "6px 4px", fontWeight: 600 }}>Marge</th>
+              </tr></thead>
+              <tbody>
+                {prods.slice(0, 8).map((p, i) => {
+                  const cat = p.pid ? (products || []).find((x) => x.id === p.pid) : (products || []).find((x) => x.name === p.name);
+                  const pv = p.qty > 0 ? p.ca / p.qty : 0;
+                  const cu = p.coutConnu && p.qty > 0 ? pv - p.marge / p.qty : null;
+                  return (
+                    <tr key={(p.pid || p.name) + "-m" + i} style={{ borderTop: `1px solid ${C.line}`, textAlign: "right" }}>
+                      <td style={{ textAlign: "left", padding: "8px 4px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <span style={{ width: 40, height: 40, borderRadius: 11, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{cat && <Illu k={illuDe(cat)} col={couleurDe(cat)} s={30} />}</span>
+                          <span style={{ minWidth: 0 }}><div style={{ fontWeight: 600, color: C.ink }}>{p.name}</div>{cat && cat.unit ? <div style={{ fontSize: 11.5, color: C.soft }}>{cat.unit}</div> : null}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700 }}>{cu != null ? eur2(cu) : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700 }}>{eur2(pv)}</td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700, color: cu != null ? C.ok : "#C9C0AE" }}>{cu != null ? "+" + eur2(pv - cu) : "—"}</td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700 }}>{p.qty}</td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700 }}>{eur(p.ca)}</td>
+                      <td style={{ padding: "8px 4px", fontWeight: 700, color: p.coutConnu ? C.ok : "#C9C0AE" }}>{p.coutConnu ? "+" + eur(p.marge) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 10 }}>Coût / unité = prix d'achat au kilo × poids du conditionnement (ou prix d'achat unitaire tel quel). Marge = vente − coût.</div>
       </div>
 
       {((drill !== null && subs[drill]) || calDay) && (() => {
@@ -5665,40 +5740,6 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
       </BlocPliant>
 
       <BlocPliant ouvert={!!blocs["ventes"]} onToggle={() => setBlocs((b) => ({ ...b, "ventes": !b["ventes"] }))} titre="Ce qui se vend" resume={prods.length ? `${prods.length} produit${prods.length > 1 ? "s" : ""} vendu${prods.length > 1 ? "s" : ""} sur ${cur.label}` : "aucune vente sur cette période"}>
-      <div style={card()}>
-        <div style={{ ...h2 }}>Répartition des ventes par produit</div>
-        {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (
-          <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <svg viewBox="0 0 130 130" style={{ width: "clamp(130px, 30vw, 175px)", flexShrink: 0, margin: "0 auto" }}>
-              {arcs.map((a, i) => <path key={i} d={a.d} fill="none" stroke={a.col} strokeWidth={SW} />)}
-              <text x={CX} y={CY - 4} textAnchor="middle" style={{ fontSize: 15, fontWeight: 700, fill: C.ink }}>{eur(A.ca)}</text>
-              <text x={CX} y={CY + 10} textAnchor="middle" style={{ fontSize: 8, fill: C.soft }}>{prods.length} produits</text>
-            </svg>
-            <div style={{ flex: "1 1 200px", minWidth: 190 }}>
-              {arcs.map((a, i) => (
-                <div key={i}>
-                  <div onClick={() => a.p.name === "Autres" && setAutresOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3.5px 0", fontSize: 12.5, cursor: a.p.name === "Autres" ? "pointer" : "default" }}>
-                    <span style={{ width: 11, height: 11, borderRadius: 3, background: a.col, flexShrink: 0 }} />
-                    <span style={{ flex: 1, minWidth: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.p.name}{a.p.name === "Autres" ? (autresOpen ? " ▲" : " ▼") : ""}</span>
-                    <b style={{ color: C.jam, flexShrink: 0 }}>{a.pct}%</b>
-                  </div>
-                  {a.p.name === "Autres" && autresOpen && (
-                    <div style={{ margin: "2px 0 6px 19px", padding: "6px 10px", background: C.cream, borderRadius: 8 }}>
-                      {prods.slice(8).map((p2, j) => (
-                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 11.5, padding: "2.5px 0", color: C.soft }}>
-                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p2.name}</span>
-                          <span style={{ flexShrink: 0, fontWeight: 700, color: C.ink }}>{eur(p2.ca)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       <div style={card()}>
         <div style={{ ...h2 }}>Produits les plus performants — {cur.label}</div>
         {prods.length === 0 ? <div style={{ fontSize: 13, color: C.soft }}>Aucune vente sur cette période.</div> : (voirTout.prods ? prods : prods.slice(0, 6)).map((p, i) => {
