@@ -39,6 +39,13 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .cof-note { font-size: 11.5px; color: #8C8068; padding: 3px 0 8px; }
 .cof-cell { display: block; min-width: 0; }
 .cof-lab { display: none; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
+.np-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+.np-main { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.np-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.np-g2.np-nom { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.np-g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.np-box { background: #FBF6EA; border: 1px solid #E5DAC0; border-radius: 14px; padding: 10px 12px 12px; min-width: 0; }
+@media (max-width: 720px) { .np-top { grid-template-columns: 1fr; gap: 8px; } .np-main { grid-template-columns: 1fr; } .np-g2, .np-g2.np-nom { grid-template-columns: 1fr; } .np-g3 { grid-template-columns: 1fr; } }
 .cof-tot { text-align: right; font-weight: 700; font-size: 13.5px; font-variant-numeric: lining-nums tabular-nums; padding-bottom: 10px; white-space: nowrap; }
 .cof-c { display: grid; grid-template-columns: minmax(110px,1.5fr) 96px 52px 160px; gap: 8px; align-items: end; padding: 8px 0; border-top: 1px solid #241F1718; }
 .cof-c .nom { padding-bottom: 10px; font-size: 13px; }
@@ -1276,7 +1283,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
         {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts, batches }} />}
-        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
+        {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} onOuvrirCoffrets={() => setTab("coffrets")} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
         {tab === "promos" && <ProPromos {...{ promos, setPromos }} />}
@@ -6128,7 +6135,143 @@ function coutsDepuisFournees(batches, products, rendement) {
   return out;
 }
 
-function ProProducts({ products, setProducts, pass, batches, rendement, sales, onOuvrirFiche }) {
+// Parcours « Nouveau produit » en 3 questions (maquette v8-4). AU NIVEAU MODULE (piège du focus, §5.1 ter).
+// Le coût écrit en base est TOUJOURS par unité vendue (products.cost) : un achat au kilo est converti
+// par le poids du conditionnement (grammesUnite) ; un achat à l'unité n'est jamais converti (§5.4 bis).
+const NP_ORIGINES = [
+  ["fabrique", "F", "Je le fabrique", "prix d'achat repris de la fournée"],
+  ["achete", "A", "Je l'achète pour le revendre", "prix d'achat à saisir"],
+  ["coffret", "C", "C'est un coffret", "composé de produits existants"],
+];
+const npEur = (n) => (Math.round(n * 100) % 100 === 0 ? String(Math.round(n)) : n.toFixed(2).replace(".", ",")) + " €";
+const npEur2 = (n) => n.toFixed(2).replace(".", ",") + " €";
+function NouveauProduit({ pass, batches, rendement, onCree, onClose, onCoffret }) {
+  const [origine, setOrigine] = useState("fabrique");
+  const [nom, setNom] = useState("");
+  const [cat, setCat] = useState("Confitures");
+  const [unit, setUnit] = useState("pot 250 g");
+  const [fid, setFid] = useState("");
+  const [mode, setMode] = useState("kilo");
+  const [achat, setAchat] = useState("");
+  const [vente, setVente] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const fournees = useMemo(() => (batches || []).filter((b) => String(b.titre || "").trim()).map((b) => ({ id: b.id, titre: String(b.titre).trim(), date: b.date || "", c: coutUneFournee(b, rendement) })), [batches, rendement]);
+  const jc = (d) => { if (!d) return ""; const x = new Date(d); return isNaN(x) ? "" : x.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }); };
+  const fSel = fournees.find((f) => String(f.id) === String(fid));
+  const choisirFournee = (id) => {
+    setFid(id);
+    const f = fournees.find((x) => String(x.id) === String(id));
+    if (f && f.c && f.c.coutKg > 0) { setMode("kilo"); setAchat(String(Math.round(f.c.coutKg * 100) / 100).replace(".", ",")); }
+  };
+  const g = grammesUnite(unit, false);
+  const aAchat = pfNum(achat);
+  const cout = mode === "unite" ? (aAchat > 0 ? aAchat : null) : (aAchat > 0 && g > 0 ? aAchat * g / 1000 : null);
+  const prix = pfNum(vente);
+  const marge = cout != null && prix > 0 ? prix - cout : null;
+  const coef = cout != null && prix > 0 ? prix / cout : null;
+  const conseille = cout != null ? Math.ceil(cout * 3 - 1e-9) : null;
+  const illu = illuAuto(nom) || "";
+  const col = couleurDe({ name: nom, illu, col: "" });
+  const kilo = mode === "kilo";
+  const carte = (actif) => ({ textAlign: "left", background: actif ? "#fff" : C.paper, border: `1.5px solid ${actif ? C.jam : C.line}`, boxShadow: actif ? `0 0 0 3px ${C.jam}18` : "none", borderRadius: 14, padding: "14px 16px", cursor: "pointer", minWidth: 0, fontFamily: "inherit", color: C.ink });
+  const lbl = (t) => <div style={{ fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: C.soft, marginBottom: 6 }}>{t}</div>;
+  const peutCreer = nom.trim() && prix > 0 && !busy;
+  const creer = async (actif) => {
+    if (!nom.trim() || !(prix > 0) || busy) return;
+    if (!supabase || !pass) { setErreur("Non créé : connexion indisponible."); return; }
+    setBusy(true); setErreur("");
+    const slug = nom.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "prod";
+    const id = slug + "-" + Date.now().toString(36).slice(-4);
+    const c = cout != null ? Math.round(cout * 100) / 100 : 0;
+    const np = { id, name: nom.trim(), cat, unit: unit.trim(), price: prix, cost: c, coef: c > 0 ? Math.round((prix / c) * 100) / 100 : 0, stock: 0, illu, col, soon: false, active: actif };
+    try {
+      const { error } = await supabase.rpc("admin_save_product", { pass, p_id: id, p_name: np.name, p_cat: np.cat, p_unit: np.unit, p_price: np.price, p_cost: np.cost, p_coef: np.coef, p_stock: 0, p_illu: np.illu, p_col: np.col, p_soon: false, p_active: actif });
+      if (error) { setErreur("Non créé : " + (error.message || "vérifiez la connexion.")); setBusy(false); return; }
+    } catch (e) { setErreur("Non créé : vérifiez la connexion."); setBusy(false); return; }
+    setBusy(false); onCree(np);
+  };
+  const num = { fontVariantNumeric: "lining-nums tabular-nums" };
+  const champ = { ...inp(), fontSize: 16, minHeight: 44 };
+  return (
+    <div className="ca-anim" style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 700, marginBottom: 8 }}>1 · Comment l'obtenez-vous ?</div>
+      <div className="np-top">
+        {NP_ORIGINES.map(([k, l, t, s]) => (
+          <button key={k} type="button" onClick={() => { if (k === "coffret") { onCoffret && onCoffret(); return; } setOrigine(k); if (k === "achete") setFid(""); }} className="ca-tap" style={carte(origine === k && k !== "coffret")}>
+            <div style={{ width: 40, height: 40, borderRadius: 11, background: C.cream, display: "grid", placeItems: "center", color: C.jam, fontWeight: 700, fontSize: 18, marginBottom: 12 }}>{l}</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{t}</div>
+            <div style={{ fontSize: 13, color: C.soft, marginTop: 4, fontWeight: 500 }}>{s}</div>
+          </button>
+        ))}
+      </div>
+      <div className="np-main">
+        <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, minWidth: 0 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 700, marginBottom: 10 }}>2 · Fiche</div>
+          <div className="np-g2 np-nom">
+            <div className="np-box">{lbl("Nom")}<input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Confiture de coings" style={champ} /></div>
+            <div className="np-box">{lbl("Catégorie")}<select value={cat} onChange={(e) => setCat(e.target.value)} style={{ ...champ, cursor: "pointer" }}>{CAT_ORDER.map((c) => <option key={c}>{c}</option>)}</select></div>
+          </div>
+          <div className="np-g2" style={{ marginTop: 10 }}>
+            <div className="np-box">{lbl("Conditionnement")}<input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="pot 250 g" style={champ} /></div>
+            {origine === "fabrique" && (
+              <div className="np-box">{lbl("Fournée liée")}
+                <select value={fid} onChange={(e) => choisirFournee(e.target.value)} style={{ ...champ, cursor: "pointer" }}>
+                  <option value="">Aucune pour l'instant</option>
+                  {fournees.map((f) => <option key={f.id} value={f.id}>{f.titre}{f.date ? " " + jc(f.date) : ""}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          {origine === "fabrique" && fSel && !(fSel.c && fSel.c.coutKg > 0) && <div style={{ fontSize: 12.5, color: PF.warn, fontWeight: 600, marginTop: 8 }}><Warn /> Cette fournée n'a pas de coût exploitable : saisissez le prix d'achat à la main.</div>}
+
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 700, margin: "18px 0 10px" }}>3 · Prix</div>
+          <div style={{ display: "inline-flex", background: C.cream, borderRadius: 12, padding: 4, gap: 4, maxWidth: "100%" }}>
+            {[["kilo", "Achat au kilo"], ["unite", "Achat à l'unité"]].map(([k, t]) => (
+              <button key={k} type="button" onClick={() => setMode(k)} className="ca-tap" style={{ border: "none", borderRadius: 9, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer", background: mode === k ? C.jam : "transparent", color: mode === k ? "#fff" : C.soft, fontFamily: "inherit" }}>{t}</button>
+            ))}
+          </div>
+          <div className="np-g3" style={{ marginTop: 10 }}>
+            <div className="np-box">{lbl(kilo ? "Achat au kilo" : "Achat à l'unité")}
+              <input inputMode="decimal" value={achat} onChange={(e) => setAchat(e.target.value)} placeholder={kilo ? "9,36 €/kg" : "2,34 €"} style={{ ...champ, ...num }} />
+              {kilo && cout != null && <div style={{ ...num, fontSize: 12, color: C.soft, fontWeight: 600, marginTop: 8 }}>× {String(g / 1000).replace(".", ",")} kg =</div>}
+              {cout != null && <div style={{ ...num, fontSize: 20, fontWeight: 800, color: C.soft, marginTop: kilo ? 2 : 8 }}>{npEur2(cout)} / unité</div>}
+            </div>
+            <div className="np-box">{lbl("Vente")}<input inputMode="decimal" value={vente} onChange={(e) => setVente(e.target.value)} placeholder={conseille != null ? String(conseille) : "7"} style={{ ...champ, ...num }} /></div>
+            <div className="np-box">{lbl("Marge")}
+              {marge != null ? (<><div style={{ ...num, fontSize: 24, fontWeight: 800, color: marge >= 0 ? C.ok : PF.warn }}>{marge >= 0 ? "+" : "−"}{npEur2(Math.abs(marge))}</div><div style={{ ...num, fontSize: 12.5, color: C.soft }}>coef <b style={{ color: C.ink }}>{coef.toFixed(1).replace(".", ",")}</b></div></>)
+                : <div style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>{cout == null ? "Sans prix d'achat, pas de marge" : "Saisissez le prix de vente"}</div>}
+            </div>
+          </div>
+          {kilo && aAchat > 0 && g <= 0 && <div style={{ fontSize: 13, color: PF.warn, fontWeight: 600, marginTop: 10 }}><Warn /> Le poids n'est pas écrit dans le conditionnement (ex. « pot 250 g ») : conversion impossible, le coût par unité n'est pas deviné.</div>}
+          {conseille != null && <div style={{ ...num, background: "#3F7A4B1c", color: C.ok, fontWeight: 600, fontSize: 14, borderRadius: 10, padding: "10px 14px", marginTop: 10 }}>Prix conseillé : {conseille} € (coef 3), arrondi à l'euro supérieur</div>}
+          {erreur && <div role="alert" style={{ color: PF.warn, fontWeight: 700, fontSize: 13.5, marginTop: 10 }}><Warn /> {erreur}</div>}
+          <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+            <button type="button" disabled={!peutCreer} onClick={() => creer(true)} className="ca-tap" style={{ background: peutCreer ? C.jam : C.line, color: "#fff", border: "none", borderRadius: 12, padding: "14px 22px", fontWeight: 700, fontSize: 16, cursor: peutCreer ? "pointer" : "default", fontFamily: "inherit" }}>Créer et mettre en rayon</button>
+            <button type="button" disabled={!peutCreer} onClick={() => creer(false)} className="ca-tap" style={{ background: "#fff", color: peutCreer ? C.jam : C.soft, border: `1.5px solid ${peutCreer ? C.jam : C.line}`, borderRadius: 12, padding: "14px 18px", fontWeight: 700, fontSize: 15, cursor: peutCreer ? "pointer" : "default", fontFamily: "inherit" }}>Créer masqué</button>
+            <button type="button" onClick={onClose} className="ca-tap" style={{ background: "transparent", color: C.soft, border: "none", padding: "14px 8px", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+          </div>
+        </div>
+        <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, minWidth: 0 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 700, marginBottom: 10 }}>Aperçu client</div>
+          <div style={{ background: "#fff", borderRadius: 14, padding: 14, display: "flex", gap: 14, alignItems: "center" }}>
+            <div style={{ width: 62, height: 62, borderRadius: 12, background: col + "22", display: "grid", placeItems: "center", flexShrink: 0 }}>
+              {illu ? <Illu k={illu} col={col} s={46} /> : <span style={{ fontSize: 26, fontWeight: 700, color: col }}>{(nom.trim()[0] || "?").toUpperCase()}</span>}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, overflowWrap: "anywhere" }}>{nom.trim() || "Nom du produit"}</div>
+              <div style={{ fontSize: 13, color: C.soft }}>{unit.trim() || "conditionnement"}</div>
+              <div style={{ ...num, fontSize: 18, fontWeight: 800, color: C.jam }}>{prix > 0 ? npEur(prix) : "— €"}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: C.soft, marginTop: 10 }}>{illu ? "Le dessin et la couleur suivent le nom." : "Le dessin et la couleur suivent le nom dès qu'il est reconnu."}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProProducts({ products, setProducts, pass, batches, rendement, sales, onOuvrirFiche, onOuvrirCoffrets }) {
   // Toutes ces clés ont un dessin propre. Tant que le commerçant n'en choisit pas une,
   // l'icône suit le nom du produit (illuAuto) — voir CLAUDE.md 7.
   const ILLUS = ["fraise", "berry", "mure", "cerise", "figue", "peche", "apricot", "plum", "melon",
@@ -6365,6 +6508,12 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales, o
       )}
 
       {creating && (
+        <NouveauProduit pass={pass} batches={batches} rendement={rendement} onClose={() => { setNw(blank); setCreating(false); }} onCoffret={() => { setCreating(false); if (onOuvrirCoffrets) onOuvrirCoffrets(); }}
+          onCree={(np) => { setProducts((l) => [np, ...l]); setOpenCat((o) => ({ ...o, [np.cat]: true })); setCreating(false); }} />
+      )}
+      {creating && (
+        <details style={{ marginBottom: 14 }}>
+          <summary style={{ cursor: "pointer", color: C.soft, fontWeight: 600, fontSize: 13, padding: "6px 2px" }}>Saisie libre (formulaire classique)</summary>
         <div style={{ ...card(), background: C.paper, border: `1.5px solid #7A2B3333` }}>
           <Section>Nouveau produit · rangé automatiquement dans sa catégorie</Section>
           <div className="pro-cols2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -6387,6 +6536,7 @@ function ProProducts({ products, setProducts, pass, batches, rendement, sales, o
             <button onClick={() => { setNw(blank); setCreating(false); }} className="ca-tap" style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.soft, borderRadius: 11, padding: "12px 16px", fontWeight: 600, cursor: "pointer", fontSize: 13.5 }}>Annuler</button>
           </div>
         </div>
+        </details>
       )}
 
       {cats.map((cat) => {
