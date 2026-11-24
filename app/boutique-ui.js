@@ -2322,7 +2322,7 @@ function RechercheLot({ batches, products, sales, profile, onOuvrir }) {
         <span style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 600, whiteSpace: "nowrap" }}>Retrouver un lot</span>
         <label style={{ flex: "1 1 200px", minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "0 13px" }}>
           <Search size={18} color={C.soft} style={{ flexShrink: 0 }} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="N° de lot : 20261122-01" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0, ...NUM }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="20261122-01" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0, ...NUM }} />
         </label>
         <button type="submit" className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: "none", flexShrink: 0 }} title="Rechercher">Ouvrir la fiche sanitaire</button>
       </form>
@@ -2481,7 +2481,7 @@ function TuileSuivi({ libelle, valeur, pct, couleur, detail, onClick }) {
 function TuileProduit({ g, fam, onClick }) {
   const ik = illuIngKey(g.label), ia = illuAuto(g.label) || fam.illu;
   return (
-    <button type="button" onClick={onClick} className="ca-tap" style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 16, padding: "14px 10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", cursor: "pointer", minWidth: 0 }}>
+    <button type="button" onClick={onClick} className="ca-tap tuile-prod" style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 16, padding: "14px 10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", cursor: "pointer", minWidth: 0 }}>
       <span style={{ width: 112, height: 112, maxWidth: "100%", borderRadius: 16, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>
         {ik && ik !== "oignon" ? <PictoIng label={g.label} size={84} /> : <Illu k={ia} col={COUL_PAR_ILLU[ia] || fam.col} s={84} />}
       </span>
@@ -2517,11 +2517,12 @@ function resumeRecette(f) {
 // « Nouvelle fournée » : FENÊTRE centrée sur fond assombri, trois choix, rien de présélectionné
 // (départ, type de produit, intitulé). Module-level : elle garde ses saisies sans perdre le focus.
 const TYPES_NOUVELLE = ["pissaladiere", "confiture", "cake", "caramel_pot", "pain_epices", "grande_fournee", "caramel_bonbon", "biscuit", "kit_farine"];
-const NOM_TYPE = { pissaladiere: "Pissaladière", confiture: "Confiture", cake: "Cake", caramel_pot: "Caramel", pain_epices: "Pain d'épices", grande_fournee: "Grande fournée", caramel_bonbon: "Caramel (bonbon)", biscuit: "Biscuit sablé", kit_farine: "Kit Farine" };
+const NOM_TYPE = { pissaladiere: "Pissaladière", confiture: "Confiture", cake: "Cake", caramel_pot: "Caramel", pain_epices: "Pain d'épices", grande_fournee: "Pot d'oignons", caramel_bonbon: "Caramel (bonbon)", biscuit: "Biscuit sablé", kit_farine: "Kit Farine" };
 function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }) {
   const [mode, setMode] = useState(null);
   const [fam, setFam] = useState(TYPES_NOUVELLE.includes(famDefaut) ? famDefaut : null);
   const [titre, setTitre] = useState(null); // null = pas encore tapé : on propose
+  const [plusTypes, setPlusTypes] = useState(false); // « Autres types » : caramel bonbon, biscuit, kit farine…
   useEffect(() => {
     const k = (e) => { if (e.key === "Escape") onAnnuler(); };
     window.addEventListener("keydown", k);
@@ -2554,7 +2555,7 @@ function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }
   const etiq = (n, t) => <div style={{ fontSize: 11.5, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 600, margin: "18px 0 8px" }}>{n} · {t}</div>;
   return (
     <div onClick={onAnnuler} style={{ position: "fixed", inset: 0, zIndex: 130, background: "#16140f99", display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 10px", overflowY: "auto" }}>
-      <div role="dialog" aria-modal="true" aria-label="Nouvelle fournée" className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 820, background: C.paper, borderRadius: 22, padding: "20px 22px 22px", maxHeight: "min(94vh, 980px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -20px #000a" }}>
+      <div role="dialog" aria-modal="true" aria-label="Nouvelle fournée" className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 1000, background: C.paper, borderRadius: 22, padding: "20px 22px 0", maxHeight: "min(92vh, 980px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -20px #000a" }}>
         <div style={{ fontFamily: SCRIPT, fontSize: 34, color: C.jam, lineHeight: 1.2 }}>Nouvelle fournée</div>
 
         {etiq(1, "Départ")}
@@ -2569,17 +2570,20 @@ function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }
 
         {etiq(2, "Type de produit")}
         {!fam && <div style={{ fontSize: 12.5, color: C.soft, margin: "-4px 0 8px" }}>{"Choisir d'abord le type de produit"}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))", gap: 10 }}>
-          {TYPES_NOUVELLE.map((k) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 10 }}>
+          {TYPES_NOUVELLE.filter((k, i) => i < 6 || plusTypes || fam === k).map((k) => {
             const fm = famOf(k), on = fam === k;
             return (
               <button key={k} type="button" onClick={() => { setFam(k); if (mode === "copie" && !derniereFournee((batches || []).filter((b) => (b.famille || "pissaladiere") === k))) setMode(null); setTitre(null); }} aria-pressed={on} className="ca-tap" style={{ background: on ? "#fff" : C.paper, border: `${on ? 2 : 1}px solid ${on ? C.jam : C.line}`, boxShadow: on ? `0 0 0 3px ${C.jam}22` : "none", borderRadius: 14, padding: "10px 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", minWidth: 0, font: "inherit" }}>
                 <span style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", display: "grid", placeItems: "center" }}><Illu k={fm.illu} col={COUL_PAR_ILLU[fm.illu] || fm.col} s={46} /></span>
-                <span style={{ minHeight: 38, fontSize: 14, lineHeight: "19px", color: C.ink, fontWeight: 500, display: "flex", alignItems: "flex-start", textAlign: "center" }}>{NOM_TYPE[k]}</span>
+                <span style={{ minHeight: 38, fontSize: 14, lineHeight: "19px", color: C.ink, fontWeight: 500, display: "flex", alignItems: "flex-start", textAlign: "center", flexDirection: "column", alignItems: "center" }}>{NOM_TYPE[k]}{k === "grande_fournee" && <span style={{ fontSize: 11.5, color: C.soft, lineHeight: "14px" }}>(grande fournée)</span>}</span>
               </button>
             );
           })}
         </div>
+        {!plusTypes && TYPES_NOUVELLE.some((k, i) => i >= 6 && k !== fam) && (
+          <button type="button" onClick={() => setPlusTypes(true)} className="ca-tap" style={{ marginTop: 8, background: "transparent", border: "none", color: C.jam, fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 0", textDecoration: "underline" }}>Autres types</button>
+        )}
 
         {etiq(3, "Intitulé")}
         <input value={valTitre} onChange={(e) => setTitre(e.target.value)} placeholder="Nom du produit fabriqué" aria-label="Intitulé de la fournée" style={{ ...inp(), fontSize: 17, padding: "13px 14px", borderRadius: 12 }} />
@@ -2601,7 +2605,7 @@ function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+        <div style={{ position: "sticky", bottom: 0, background: C.paper, display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14, padding: "12px 0 calc(14px + env(safe-area-inset-bottom))", borderTop: `1px solid ${C.line}`, flexWrap: "wrap" }}>
           <button type="button" onClick={onAnnuler} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 12, padding: "12px 22px", fontSize: 15.5, fontWeight: 600, cursor: "pointer" }}>Annuler</button>
           <button type="button" disabled={!complet} onClick={() => onCreer(mode === "copie" ? derniere : null, fam, valTitre.trim())} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 15.5, fontWeight: 600, cursor: complet ? "pointer" : "not-allowed", opacity: complet ? 1 : .4 }}>Créer la fournée</button>
         </div>
@@ -3376,7 +3380,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
               {nbNonCl} fournée{nbNonCl > 1 ? "s" : ""} non classée{nbNonCl > 1 ? "s" : ""} (famille qui n&apos;existe plus dans l&apos;app). Elles sont conservées telles quelles et n&apos;entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
             </div>
           )}
-          {/* Entrée en pictogrammes, comme la Caisse : un toucher sur un produit ouvre ses fournées. */}
+          <style>{`.tuile-prod:hover,.tuile-prod:focus-visible,.tuile-prod:active{background:#fff !important;border-color:#7A2B33 !important;outline:none}`}</style>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 14 }}>
             {groupes.map((g) => <TuileProduit key={g.cle} g={g} fam={famOf((g.batches[0] && g.batches[0].famille) || famille)} onClick={() => setSousProduit(g.cle)} />)}
             <TuileNouvelle onClick={() => setPanneauNouvelle(true)} />
