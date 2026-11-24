@@ -4698,6 +4698,7 @@ function ProStats({ sales, orders, visits, clients, products, batches, rendement
           return kpi("Marge", eur(A.marge), `${Math.round((A.marge / A.caAvecCout) * 100)}% · sur les ${pct}% du CA dont le coût est connu`);
         })()}
         {kpi("Articles vendus", A.qty, `${A.nb} vente(s)`)}
+        {kpi("Panier moyen", A.nb ? eur2(A.ca / A.nb) : "—", A.nb ? `${A.ca > 0 ? eur(A.ca) : "0 €"} sur ${A.nb} vente(s)` : "aucune vente")}
         {(() => {
           const prodsAvecStock = (products || []).filter((p) => Number(p.stock) > 0);
           const valeurStock = prodsAvecStock.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0);
