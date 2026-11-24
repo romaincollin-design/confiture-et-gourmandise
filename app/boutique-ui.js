@@ -1052,7 +1052,8 @@ function ProAujourdhui({ sales, orders, products, onGo }) {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 10 }}>
         <button onClick={() => onGo("commandes")} className="ca-tap" style={{ ...carte, cursor: "pointer" }}>
           <div style={lbl}>À préparer</div>
-          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{nbAPreparer}</b> commande{nbAPreparer > 1 ? "s" : ""}</div>
+          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{enCours.length}</b> en cours</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: 2 }}>{nbAPreparer} à préparer · {nbPretes} prête{nbPretes > 1 ? "s" : ""} à remettre</div>
           <div style={{ fontSize: 12, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
             {enCours.length === 0 ? "Rien en attente" : enCours.slice(0, 3).map((o) => <div key={o.id} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{capNom(o.name) || "Client"} · {o.pickup || o.date}{o.status === "Prête" ? " · prête" : ""}</div>)}
             {enCours.length > 3 && <div>+ {enCours.length - 3} autre{enCours.length - 3 > 1 ? "s" : ""}{nbPretes > 0 ? ` (dont ${nbPretes} prête${nbPretes > 1 ? "s" : ""} à remettre)` : ""}</div>}
@@ -2925,6 +2926,23 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           {famille === "__autres__" && famBatches.length > 0 && (
             <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
               Ces fournées portent une famille qui n&apos;existe plus dans l&apos;app. Elles sont conservées telles quelles et n&apos;entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
+            </div>
+          )}
+          {/* Entrée en pictogrammes, comme la Caisse : un toucher sur un produit ouvre ses fournées (le tableau détaillé reste dessous). */}
+          {groupes.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10, marginBottom: 14 }}>
+              {groupes.map((g) => { const fmP = famOf(famille); const ik = illuIngKey(g.label); const ia = illuAuto(g.label) || fmP.illu; return (
+                <button key={g.cle} onClick={() => setSousProduit(g.cle)} className="ca-tap" style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 14, padding: "12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center", cursor: "pointer", minWidth: 0 }}>
+                  <span style={{ width: 76, height: 76, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center" }}>{ik && ik !== "oignon" ? <PictoIng label={g.label} size={58} /> : <Illu k={ia} col={COUL_PAR_ILLU[ia] || fmP.col} s={58} />}</span>
+                  <span style={{ minHeight: 38, display: "flex", alignItems: "flex-start", justifyContent: "center", fontWeight: 700, fontSize: 14, lineHeight: 1.25, color: C.ink, overflowWrap: "anywhere" }}>{g.sansTitre ? "sans titre" : g.label}</span>
+                  <span style={{ minHeight: 30, fontSize: 12, color: C.soft, lineHeight: 1.3 }}>{g.batches.length} fournée{g.batches.length > 1 ? "s" : ""}{g.derniere ? <><br />dernière {frDate(g.derniere)}</> : null}</span>
+                </button>
+              ); })}
+              <button onClick={() => openNew()} className="ca-tap" style={{ background: "transparent", border: `1.5px dashed ${C.jam}`, borderRadius: 14, padding: "12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, color: C.jam, cursor: "pointer", minWidth: 0 }}>
+                <span style={{ width: 76, height: 76, display: "grid", placeItems: "center" }}><Plus size={40} /></span>
+                <span style={{ minHeight: 38, display: "flex", alignItems: "flex-start", fontWeight: 700, fontSize: 14 }}>Nouvelle fournée</span>
+                <span style={{ minHeight: 30, fontSize: 12, color: C.soft }}>{famLabel}</span>
+              </button>
             </div>
           )}
           {groupes.length === 0 ? (
