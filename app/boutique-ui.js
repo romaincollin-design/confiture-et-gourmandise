@@ -57,6 +57,97 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
   .cof-h2 { display: none; }
   .cof-stk { text-align: left; }
 }
+/* Coffrets (maquette v8-17) : catalogue à gauche (>= 1000 px), composition + tuiles à droite. Le tableau et les tuiles
+   s'adaptent à LEUR largeur (container queries), pas à celle de l'écran : le même tableau tient à 390 px et à 1280 px. */
+.cof2-wrap { display: grid; grid-template-columns: minmax(0,1fr); gap: 16px; align-items: start; }
+.cof2-col, .cof2-left { min-width: 0; }
+.cof2-col { container-type: inline-size; order: -1; }
+@media (min-width: 1000px) { .cof2-wrap { grid-template-columns: clamp(290px, 28vw, 350px) minmax(0,1fr); } .cof2-col { order: 0; } }
+.cof2-card { background: #FBF6EA; border: 1px solid #241F1718; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.cof2-head { display: flex; align-items: center; gap: 14px; margin: 10px 0 16px; }
+.cof2-vign { width: 64px; height: 64px; border-radius: 16px; background: #fff; display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 1px 3px #241F1722; }
+.cof2-titre { display: block; width: 100%; box-sizing: border-box; font-family: 'Pacifico', cursive; font-size: clamp(26px, 4.2vw, 42px); line-height: 1.2; color: #7A2B33; background: transparent; border: none; border-bottom: 2px dashed transparent; border-radius: 0; padding: 0; outline: none; font-weight: 400; box-shadow: none; }
+.cof2-titre:hover, .cof2-titre:focus { border-bottom-color: #7A2B3355; }
+.cof2-sub { font-size: 14px; color: #8C8068; margin-top: 2px; }
+.cof2-tog { display: flex; width: 100%; align-items: center; justify-content: space-between; background: transparent; border: none; padding: 0; cursor: pointer; text-align: left; }
+.cof2-h2t { display: none; margin-bottom: 12px; }
+.cof2-catbody.ferme { display: none; }
+.cof2-catbody { padding-top: 12px; }
+@media (min-width: 1000px) { .cof2-tog { display: none; } .cof2-h2t { display: block; } .cof2-catbody.ferme { display: block; } .cof2-catbody { padding-top: 0; } }
+.cof2-addtop { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; margin: 0 0 12px; background: #7A2B33; color: #fff; border: none; border-radius: 12px; padding: 13px; font-weight: 700; font-size: 16px; cursor: pointer; }
+@media (min-width: 1000px) { .cof2-addtop { display: none; } }
+.cof2-seg { display: flex; background: #EFE7D5; border-radius: 12px; padding: 4px; gap: 2px; }
+.cof2-seg button { flex: 1 1 0; min-width: 0; border: none; background: transparent; color: #8C8068; font-weight: 700; font-size: 13.5px; padding: 8px 4px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.cof2-seg button.on { background: #7A2B33; color: #fff; }
+.cof2-seg .n { font-size: 11px; opacity: .75; font-variant-numeric: lining-nums tabular-nums; }
+.cof2-list { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; padding: 2px; }
+@media (min-width: 1000px) { .cof2-list { max-height: min(640px, calc(100vh - 360px)); min-height: 220px; } }
+.cof2-prod { display: flex; align-items: center; gap: 10px; background: #FBF6EA; border: 1.5px solid #241F1718; border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.cof2-prod.dans { background: #fff; border-color: #7A2B33; }
+.cof2-pic { width: 56px; height: 56px; border-radius: 14px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.cof2-pt { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.4; color: #8C8068; }
+.cof2-pt b { color: #241F17; font-weight: 700; white-space: nowrap; }
+.cof2-pn { font-weight: 700; font-size: 15px; color: #241F17; line-height: 1.25; }
+.cof2-ps { color: #8C8068; }
+.cof2-plus { width: 42px; height: 42px; border-radius: 21px; border: none; background: #7A2B33; color: #fff; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; padding: 0; }
+.cof2-nouv { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; background: transparent; color: #7A2B33; border: 1.5px dashed #241F1733; border-radius: 12px; padding: 14px; font-weight: 700; font-size: 15px; cursor: pointer; }
+.cof2 { container-type: inline-size; }
+.cof2-h, .cof2-r { display: grid; grid-template-columns: minmax(0,1fr) 80px 98px 112px 68px 30px; column-gap: 8px; align-items: center; }
+.cof2-h { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #8C8068; font-weight: 600; padding: 4px 0 10px; border-bottom: 1px solid #241F1718; }
+.cof2-h .r { text-align: right; } .cof2-h .c { text-align: center; }
+.cof2-r { padding: 10px 0; border-top: 1px solid #241F1710; }
+.cof2-art { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cof2-nums { display: contents; }
+.cof2-u { grid-column: 2; grid-row: 1; } .cof2-kg { grid-column: 3; grid-row: 1; } .cof2-qte { grid-column: 4; grid-row: 1; } .cof2-cout { grid-column: 5; grid-row: 1; } .cof2-del { grid-column: 6; grid-row: 1; }
+.cof2-ap { width: 46px; height: 46px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.cof2-an { display: block; min-width: 0; flex: 1; }
+.cof2-nm { font-weight: 600; font-size: 15px; line-height: 1.2; color: #241F17; }
+.cof2-sel { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.cof2-as { display: block; font-size: 12px; color: #8C8068; margin-top: 2px; }
+.cof2-lab { display: none; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 600; margin-bottom: 3px; }
+.cof2-v { display: block; text-align: right; font-size: 14px; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.cof2-uf { position: relative; display: block; }
+.cof2-eur { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-weight: 700; font-size: 14px; pointer-events: none; color: #241F17; }
+.cof2-uf .cof2-in:not(.vide) { padding-right: 22px; }
+.cof2-in { width: 100%; box-sizing: border-box; text-align: right; font-weight: 700; font-size: 14px; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 6px 6px; color: #241F17; font-variant-numeric: lining-nums tabular-nums; outline: none; }
+.cof2-in:hover { border-color: #241F1730; } .cof2-in:focus { border-color: #7A2B33; background: #fff; }
+.cof2-in.vide { background: #F8DCD6; color: #a6482a; border-radius: 999px; text-align: center; font-size: 12px; padding: 5px 4px; }
+.cof2-in.vide::placeholder { color: #a6482a; opacity: 1; font-weight: 600; }
+.cof2-in.lib { display: block; resize: none; overflow: hidden; min-height: 0 !important; line-height: 1.2; font-family: inherit; text-align: left; font-weight: 600; font-size: 15px; padding-left: 0; padding-right: 0; border-radius: 0; }
+.cof2-ajout { margin-top: 8px; background: #fff; color: #7A2B33; border: 1.5px solid #7A2B33; border-radius: 10px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.cof2-sep { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #B5722B; font-weight: 700; margin: 18px 0 2px; padding-top: 12px; border-top: 1px solid #241F1718; }
+.cof2-alerte { margin-top: 14px; background: #F8DCD6; color: #a6482a; border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 500; }
+@container (max-width: 600px) {
+  .cof2-h { display: none; }
+  .cof2-r { grid-template-columns: minmax(0,1fr) 112px 30px; row-gap: 8px; }
+  .cof2-art { grid-column: 1; grid-row: 1; } .cof2-qte { grid-column: 2; grid-row: 1; } .cof2-del { grid-column: 3; grid-row: 1; }
+  .cof2-nums { display: grid; grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; align-items: start; }
+  .cof2-v { padding-top: 9px; }
+  .cof2-u, .cof2-kg, .cof2-cout { grid-column: auto; grid-row: auto; display: block; min-width: 0; }
+  .cof2-lab { display: block; }
+  .cof2-in { border-color: #241F1722; background: #fff; }
+  .cof2-in.vide { background: #F8DCD6; border-color: transparent; }
+}
+.cof2-tiles { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+.cof2-tile { background: #FBF6EA; border: 1px solid #241F1718; border-radius: 16px; padding: 16px; min-height: 168px; display: flex; flex-direction: column; min-width: 0; }
+.cof2-tile.noir { background: #16140F; color: #F3ECD6; border-color: #16140F; }
+.cof2-tl { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; color: #8C8068; min-height: 30px; }
+.cof2-tile.noir .cof2-tl { color: #F3ECD6cc; }
+.cof2-tv { font-size: 28px; font-weight: 700; line-height: 1.1; margin-top: 4px; }
+.cof2-td { font-size: 12.5px; color: #8C8068; margin-top: 8px; }
+.cof2-tile.noir .cof2-td { color: #F3ECD6cc; }
+.cof2-prix { width: 100%; box-sizing: border-box; font-size: 24px; font-weight: 700; border: 1.5px solid #7A2B3322; border-radius: 10px; background: #fff; padding: 8px 12px; color: #241F17; outline: none; }
+.cof2-cons { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; background: transparent; border: none; border-radius: 8px; padding: 4px 2px; cursor: pointer; color: #8C8068; font-size: 15px; }
+.cof2-cons b { color: #241F17; } .cof2-cons .v { font-size: 26px; font-weight: 700; color: #241F17; }
+.cof2-cons:hover { background: #EFE7D5; }
+.cof2-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.cof2-b1, .cof2-b2 { border-radius: 12px; padding: 14px 22px; font-weight: 700; font-size: 16px; display: inline-flex; align-items: center; gap: 7px; }
+.cof2-b1 { border: none; }
+.cof2-b2 { background: #fff; color: #7A2B33; border: 1.5px solid #7A2B33; cursor: pointer; }
+.cof2-leg { flex: 1 1 160px; font-size: 12.5px; color: #8C8068; }
+.cof2-extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+@container (max-width: 560px) { .cof2-tiles { grid-template-columns: minmax(0,1fr); } .cof2-tile { min-height: 0; } .cof2-tl { min-height: 0; margin-bottom: 4px; } .cof2-extras { grid-template-columns: minmax(0,1fr); } .cof2-b1, .cof2-b2 { flex: 1 1 100%; justify-content: center; } }
+@media (max-width: 720px) { .cof2-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); } }
 .ca-tap { transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .15s; }
 .ca-tap:active { transform: scale(.97); }
 .pro-shell { display: flex; min-height: 706px; }
@@ -98,6 +189,42 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 .pf-duo { display: grid; grid-template-columns: minmax(0, 2fr) 128px 40px; gap: 8px; align-items: end; padding: 5px 0; border-bottom: 1px solid #241F1718; }
 .pf-head { border-bottom: none; padding: 6px 0 2px; align-items: end; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: #8C8068; }
 .pf-lbl { display: none; }
+/* --- Fiche de fournée : contenu au centre, résumé collant à droite (maquette v8-16) --- */
+.fiche-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.fiche-main { min-width: 0; width: 100%; max-width: 780px; }
+.pf-ing > div { display: flex; flex-direction: column; min-width: 0; }
+.fiche-side { order: -1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; align-content: start; }
+.fiche-bar { display: none; }
+.fiche-nav { display: flex; gap: 4px; position: sticky; top: 0; z-index: 6; background: #E6DCC3; padding: 5px; border-radius: 14px; margin-bottom: 12px; overflow-x: auto; max-width: 100%; }
+.fiche-nav-b { flex: 1 0 auto; border: none; background: transparent; color: #241F17; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; text-align: center; }
+.fiche-nav-b.on { background: #7A2B33; color: #fff; }
+.fiche-sec { scroll-margin-top: 72px; max-width: 100%; }
+.fiche-tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: stretch; }
+.fiche-tuile { display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; min-height: 104px; min-width: 0; background: #fff; border: 1px solid #241F1718; border-radius: 14px; padding: 11px 12px; }
+.fiche-tuile .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #8C8068; font-weight: 700; line-height: 1.3; min-height: 2.6em; }
+.fiche-tuile .v { font-size: 26px; font-weight: 800; color: #241F17; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
+.fiche-tuile .s { font-size: 11.5px; color: #8C8068; margin-top: auto; }
+.fiche-tuile input { max-width: 100%; }
+.fiche-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 120px; border: 1.5px dashed #7A2B3366; border-radius: 14px; background: transparent; color: #7A2B33; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.fiche-valider-bas { display: block; }
+.fiche-fmt-wrap { width: 100%; max-width: 100%; overflow-x: auto; margin-bottom: 14px; }
+.fiche-fmt { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; font-variant-numeric: lining-nums tabular-nums; }
+.fiche-fmt th { text-align: left; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8C8068; font-weight: 700; padding: 6px 8px; border-bottom: 1px solid #241F1718; white-space: nowrap; }
+.fiche-fmt td { padding: 9px 8px; border-bottom: 1px solid #241F1710; vertical-align: middle; }
+@media (min-width: 900px) {
+  .fiche-grid { grid-template-columns: minmax(0, 780px) 290px; gap: 20px; }
+  .fiche-side { order: 0; position: sticky; top: 16px; grid-template-columns: 1fr; }
+  .fiche-valider-bas { display: none !important; }
+}
+@media (max-width: 719px) {
+  .fiche-side { display: none; }
+  /* sticky ne colle à l'écran que si .pro-content ne défile pas lui-même (la page défile sur téléphone) */
+  .pro-content { overflow: visible; }
+  .fiche-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: 0; z-index: 8; background: #16140F; color: #fff; border-radius: 12px; padding: 9px 13px; margin-bottom: 8px; }
+  .fiche-nav { top: 56px; flex-wrap: wrap; overflow: visible; }
+  .fiche-nav-b { flex: 1 1 30%; padding: 9px 6px; font-size: 12.5px; }
+  .fiche-sec { scroll-margin-top: 170px; }
+}
 .pf-prix { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
 /* Largeur FIXE : « €/kg », « €/L » et « €/u » n'ont pas la même longueur, sans elle les
    champs de prix n'auraient pas tous la même largeur d'une ligne à l'autre. */
@@ -290,6 +417,11 @@ function PictoIng({ label, size = 26, fallback = null }) {
   const box = { width: size, height: size, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" };
   if (k === "oignon" || k === "lemon") return <span style={box}><Illu k={k} col={k === "lemon" ? "#E3B100" : "#C08A5A"} s={size} /></span>;
   return <span style={box} dangerouslySetInnerHTML={{ __html: ING_SVG[k].replace(/width="34" height="34"/, `width="${size}" height="${size}"`) }} />;
+}
+// emballage (boîte, fascicule, étiquette…) : pictogramme par nom, sinon le pot générique
+function PictoEmb({ label, size = 26 }) {
+  if (illuIngKey(label)) return <PictoIng label={label} size={size} />;
+  return <span style={{ width: size, height: size, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }} dangerouslySetInnerHTML={{ __html: ING_SVG.pot.replace(/width="34" height="34"/, `width="${size}" height="${size}"`) }} />;
 }
 function Illu({ k, col, s = 46 }) {
   const hl = "rgba(255,255,255,.30)";
@@ -1052,7 +1184,8 @@ function ProAujourdhui({ sales, orders, products, onGo }) {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 10 }}>
         <button onClick={() => onGo("commandes")} className="ca-tap" style={{ ...carte, cursor: "pointer" }}>
           <div style={lbl}>À préparer</div>
-          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{nbAPreparer}</b> commande{nbAPreparer > 1 ? "s" : ""}</div>
+          <div><b style={{ fontSize: 22, fontWeight: 600 }}>{enCours.length}</b> en cours</div>
+          <div style={{ fontSize: 12, color: C.soft, marginTop: 2 }}>{nbAPreparer} à préparer · {nbPretes} prête{nbPretes > 1 ? "s" : ""} à remettre</div>
           <div style={{ fontSize: 12, color: C.soft, marginTop: 4, lineHeight: 1.5 }}>
             {enCours.length === 0 ? "Rien en attente" : enCours.slice(0, 3).map((o) => <div key={o.id} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{capNom(o.name) || "Client"} · {o.pickup || o.date}{o.status === "Prête" ? " · prête" : ""}</div>)}
             {enCours.length > 3 && <div>+ {enCours.length - 3} autre{enCours.length - 3 > 1 ? "s" : ""}{nbPretes > 0 ? ` (dont ${nbPretes} prête${nbPretes > 1 ? "s" : ""} à remettre)` : ""}</div>}
@@ -1142,7 +1275,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
-        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts }} />}
+        {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts, batches }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
         {tab === "publimail" && <ProMail {...{ clients }} />}
@@ -2188,13 +2321,14 @@ function RechercheLot({ batches, products, sales, profile, onOuvrir }) {
   const enseigne = (profile && profile.name) || "Comme Avant";
   const btn = { borderRadius: 12, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" };
   return (
-    <div style={{ marginBottom: 16 }}>
-      <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", gap: 8 }}>
-        <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "0 13px" }}>
+    <div style={{ marginBottom: 16, background: "#f6efdd", borderRadius: 16, padding: "12px 14px" }}>
+      <form onSubmit={(e) => { e.preventDefault(); if (res.length) onOuvrir(res[0].f); }} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 600, whiteSpace: "nowrap" }}>Retrouver un lot</span>
+        <label style={{ flex: "1 1 200px", minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "0 13px" }}>
           <Search size={18} color={C.soft} style={{ flexShrink: 0 }} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="N° de lot : 0922-02" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0 }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="20261122-01" aria-label="N° de lot" style={{ ...inp(), border: "none", background: "transparent", padding: "13px 0", fontSize: 16, boxShadow: "none", outline: "none", minWidth: 0, ...NUM }} />
         </label>
-        <button type="submit" className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: "none", flexShrink: 0 }}>Rechercher</button>
+        <button type="submit" className="ca-tap" style={{ ...btn, background: C.jam, color: "#fff", border: "none", flexShrink: 0 }} title="Rechercher">Ouvrir la fiche sanitaire</button>
       </form>
       {normLot(q) && res.length === 0 && (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.soft, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px" }}>
@@ -2286,30 +2420,201 @@ function nouvelleDepuis(src) {
   f.pots = (f.pots || []).map((p) => ({ ...p, nb: "" }));
   return f;
 }
-function PanneauNouvelle({ derniere, onCreer, famDefaut }) {
-  // Rien n'est présélectionné : on choisit d'abord « à partir de la dernière » ou « fournée vide »,
-  // et pour une fournée vide le TYPE (pissaladière, confiture, cake, kit…) avant d'ouvrir la fiche.
-  const [mode, setMode] = useState(null);
-  const [fam, setFam] = useState(famDefaut || null);
-  const radio = (k, label, sous, off) => (
-    <button type="button" disabled={off} onClick={() => setMode(k)} className="ca-tap" style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "5px 0", cursor: off ? "default" : "pointer", opacity: off ? .5 : 1, display: "flex", gap: 10, alignItems: "flex-start" }}>
-      <span style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid ${mode === k ? C.jam : C.soft}`, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>{mode === k && <span style={{ width: 8, height: 8, borderRadius: 4, background: C.jam }} />}</span>
-      <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 14.5, color: C.ink }}>{label}</span>{sous && <span style={{ display: "block", fontSize: 12.5, color: C.soft, marginTop: 2 }}>{sous}</span>}</span>
+// Les onglets de l'entrée de Production : 6 pastilles comme la maquette, SANS perdre aucune famille.
+// Caramels = pot + bonbon ; Autres = biscuit, pain d'épices, kit farine, et les fournées « non classées ».
+const ONGLETS = [
+  { key: "pissaladiere", label: "Pissaladière", fams: ["pissaladiere"] },
+  { key: "grande_fournee", label: "Grande fournée", fams: ["grande_fournee"] },
+  { key: "confiture", label: "Confitures", fams: ["confiture"] },
+  { key: "caramel", label: "Caramels", fams: ["caramel_pot", "caramel_bonbon"] },
+  { key: "cake", label: "Cakes", fams: ["cake"] },
+  { key: "autres", label: "Autres", fams: ["biscuit", "pain_epices", "kit_farine"] },
+];
+// toute clé inconnue (« pissaladiere_volume »…) tombe dans le dernier onglet : elle reste accessible
+const ongletDe = (famKey) => ONGLETS.find((o) => o.fams.includes(famKey)) || ONGLETS[ONGLETS.length - 1];
+
+const derniereFournee = (arr) => [...arr].filter((b) => (b.titre || "").trim()).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0] || null;
+
+// Stock d'oignons cuits (CLAUDE.md §5.6) : produit par les fournées pissaladière − consommé par les ventes.
+function stockOignonsCuitsDe(batches, sales, products, rendement) {
+  const produits = (batches || []).filter((b) => isPissaFam(b.famille || "pissaladiere") && fourneeComptee(b)).reduce((s, b) => s + (pfCalc(b, rendement).poidsFini || 0), 0);
+  const consommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
+    const n = (it.name || "").toLowerCase();
+    if (!n.includes("pissalad") && !n.includes("oignon")) return si;
+    // même lecture du conditionnement que le tableau de bord (plaque = 750 g, part = 1/12 de plaque)
+    const prod = (it.pid ? (products || []).find((p) => p.id === it.pid) : null) || (products || []).find((p) => p.name === it.name);
+    const g = grammesUnite((prod && prod.unit) || it.unit || n, true);
+    return si + (it.qty || 0) * (g / 1000);
+  }, 0), 0);
+  return { produits, consommes, stock: produits - consommes };
+}
+// Taux de transformation MESURÉ : oignons cuits pesés ÷ oignons crus, sur les fournées comptées.
+function tauxTransfoDe(batches, rendement) {
+  let cru = 0, cuit = 0, n = 0;
+  (batches || []).forEach((b) => {
+    if (!fourneeComptee(b) || !(pfNum(b.oignon_kg) > 0)) return;
+    const r = pfCalc(b, rendement);
+    if (r.isEstimated || !(r.poidsFini > 0)) return;
+    cru += r.oignonTotalRondes || pfNum(b.oignon_kg); cuit += r.poidsFini; n++;
+  });
+  return { cru, cuit, n, taux: cru > 0 ? (cuit / cru) * 100 : null };
+}
+
+const fmtKg = (x, d = 1) => (Number(x) || 0).toLocaleString("fr-FR", { maximumFractionDigits: d });
+
+// Tuile de suivi : MÊME gabarit partout (libellé sur 2 lignes réservées, valeur, jauge, détail), pour
+// qu'une valeur ne tombe jamais à une hauteur différente d'une tuile à l'autre.
+function TuileSuivi({ libelle, valeur, pct, couleur, detail, onClick }) {
+  const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  const corps = (
+    <>
+      <span style={{ display: "block", minHeight: 32, fontSize: 11, lineHeight: "16px", letterSpacing: ".1em", textTransform: "uppercase", color: C.soft, fontWeight: 600 }}>{libelle}</span>
+      <span style={{ display: "block", fontSize: "clamp(20px, 6vw, 26px)", lineHeight: "34px", fontWeight: 700, color: C.ink, marginTop: 4, whiteSpace: "nowrap", ...NUM }}>{valeur}</span>
+      <span style={{ display: "block", height: 8, borderRadius: 4, background: "#e6dec9", marginTop: 8, overflow: "hidden" }}><span style={{ display: "block", width: p + "%", height: "100%", background: couleur, borderRadius: 4 }} /></span>
+      <span style={{ display: "block", minHeight: 36, fontSize: 12, lineHeight: "18px", color: C.soft, marginTop: 8, ...NUM }}>{detail}</span>
+    </>
+  );
+  const st = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px", textAlign: "left", minWidth: 0, display: "block", width: "100%", font: "inherit" };
+  return onClick
+    ? <button type="button" onClick={onClick} className="ca-tap" style={{ ...st, cursor: "pointer" }}>{corps}</button>
+    : <div style={st}>{corps}</div>;
+}
+
+// Carte-pictogramme d'un produit fabriqué (comme la Caisse) : toutes de même hauteur, nom et détail
+// sur 2 lignes réservées pour que les pictos restent alignés d'une carte à l'autre.
+function TuileProduit({ g, fam, onClick }) {
+  const ik = illuIngKey(g.label), ia = illuAuto(g.label) || fam.illu;
+  return (
+    <button type="button" onClick={onClick} className="ca-tap tuile-prod" style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 16, padding: "14px 10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", cursor: "pointer", minWidth: 0 }}>
+      <span style={{ width: 112, height: 112, maxWidth: "100%", borderRadius: 16, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>
+        {ik && ik !== "oignon" ? <PictoIng label={g.label} size={84} /> : <Illu k={ia} col={COUL_PAR_ILLU[ia] || fam.col} s={84} />}
+      </span>
+      <span style={{ minHeight: 40, display: "flex", alignItems: "flex-start", justifyContent: "center", fontWeight: 600, fontSize: 15.5, lineHeight: "20px", color: C.ink, overflowWrap: "anywhere" }}>{g.sansTitre ? "sans titre" : g.label}</span>
+      <span style={{ minHeight: 36, fontSize: 12, lineHeight: "18px", color: C.soft, ...NUM }}>{g.batches.length} fournée{g.batches.length > 1 ? "s" : ""}{g.derniere ? <> · dernière<br /><b style={{ color: C.soft }}>{frDate(g.derniere).slice(0, 5)}</b></> : null}</span>
     </button>
   );
+}
+function TuileNouvelle({ onClick }) {
   return (
-    <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
-      <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 8, display: "flex", alignItems: "center", gap: 7 }}><Plus size={17} /> Nouvelle fournée</div>
-      {derniere && radio("copie", <>Partir de la dernière « {(fiche(derniere).titre || "").trim() || famOf(fiche(derniere).famille || "pissaladiere").label} »</>, "recette, prix, formats, emballages, produit lié (ni le lot, ni le stock déjà appliqué)")}
-      {radio("vide", "Fournée vide", "Choisir d'abord le type de produit")}
-      {mode === "vide" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 8, margin: "8px 0 2px" }}>
-          {FAMILLES.map((x) => (
-            <button key={x.key} type="button" onClick={() => setFam(x.key)} className="ca-tap" style={{ textAlign: "left", background: fam === x.key ? C.jam : "#fff", color: fam === x.key ? "#fff" : C.ink, border: `1px solid ${fam === x.key ? C.jam : C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", minHeight: 44 }}>{x.label}</button>
-          ))}
+    <button type="button" onClick={onClick} className="ca-tap" style={{ background: "transparent", border: `1.5px dashed ${C.jam}66`, borderRadius: 16, padding: "14px 10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", color: C.jam, cursor: "pointer", minWidth: 0 }}>
+      <span style={{ width: 112, height: 112, maxWidth: "100%", display: "grid", placeItems: "center", flexShrink: 0 }}><Plus size={44} strokeWidth={2.6} /></span>
+      <span style={{ minHeight: 40, display: "flex", alignItems: "flex-start", justifyContent: "center", fontWeight: 600, fontSize: 15.5, lineHeight: "20px" }}>Nouvelle fournée</span>
+      <span style={{ minHeight: 36, fontSize: 12, lineHeight: "18px", color: C.soft }}>dernière ou vide</span>
+    </button>
+  );
+}
+
+// Résumé lisible de ce qu'une fournée (copiée ou vierge) prérempliera : recette, formats.
+function resumeRecette(f) {
+  const q = (lib, v, u) => (pfNum(v) > 0 ? <span key={lib}> · {lib} <b>{fmtKg(v, 2)}</b> {u}</span> : null);
+  const pot = [...(f.pots || []).map((p) => `${p.type === "kit" ? "kit" : "pot"} ${pfNum(p.format_g)} g`), ...(isPissaFam(f.famille || "pissaladiere") && pfNum(f.pissa_poids_plaque) > 0 ? ["plaque"] : [])];
+  return (
+    <>
+      {isPissaFam(f.famille || "pissaladiere")
+        ? <>Oignons{q("huile", f.huile_cl, "cl")}{q("sel", f.sel_g, "g")}{q("poivre", f.poivre_g, "g")}{q("anchois", f.anchois_g, "g")}{q("thym", f.thym_g, "g")}{q("ail", f.ail_g, "g")}</>
+        : ((f.extra || []).length ? <>{(f.extra || []).slice(0, 6).map((e, i) => <span key={i}>{i ? " · " : ""}{e.label || "ingrédient"}{pfNum(e.qty) > 0 ? <> <b>{fmtKg(e.qty, 2)}</b> {e.unit === "piece" ? "" : e.unit || ""}</> : null}</span>)}{(f.extra || []).length > 6 ? " …" : ""}</> : "Recette à saisir")}
+      {pot.length > 0 && <> · <b>{pot.length}</b> format{pot.length > 1 ? "s" : ""} ({pot.join(", ")})</>}
+    </>
+  );
+}
+
+// « Nouvelle fournée » : FENÊTRE centrée sur fond assombri, trois choix, rien de présélectionné
+// (départ, type de produit, intitulé). Module-level : elle garde ses saisies sans perdre le focus.
+const TYPES_NOUVELLE = ["pissaladiere", "confiture", "cake", "caramel_pot", "pain_epices", "grande_fournee", "caramel_bonbon", "biscuit", "kit_farine"];
+const NOM_TYPE = { pissaladiere: "Pissaladière", confiture: "Confiture", cake: "Cake", caramel_pot: "Caramel", pain_epices: "Pain d'épices", grande_fournee: "Pot d'oignons", caramel_bonbon: "Caramel (bonbon)", biscuit: "Biscuit sablé", kit_farine: "Kit Farine" };
+function PanneauNouvelle({ batches, famDefaut, titreDefaut, onCreer, onAnnuler }) {
+  const [mode, setMode] = useState(null);
+  const [fam, setFam] = useState(TYPES_NOUVELLE.includes(famDefaut) ? famDefaut : null);
+  const [titre, setTitre] = useState(null); // null = pas encore tapé : on propose
+  const [plusTypes, setPlusTypes] = useState(false); // « Autres types » : caramel bonbon, biscuit, kit farine…
+  useEffect(() => {
+    const k = (e) => { if (e.key === "Escape") onAnnuler(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, []);
+  const duType = fam ? (batches || []).filter((b) => (b.famille || "pissaladiere") === fam) : [];
+  const derniere = derniereFournee(duType);
+  const proposition = mode === "copie" && derniere ? String(derniere.titre || "").trim() : (titreDefaut || "");
+  const valTitre = titre == null ? proposition : titre;
+  // produits déjà fabriqués dans ce type (liste d'aide à l'intitulé)
+  const existants = useMemo(() => {
+    const m = new Map();
+    duType.forEach((b) => { const r = rubriqueDe(b); if (r.sansTitre) return; const e = m.get(r.cle) || { label: r.label, n: 0 }; e.n++; m.set(r.cle, e); });
+    // on ne filtre que sur une vraie frappe : l'intitulé prérempli ne doit pas masquer les autres produits du type
+    const nq = titre == null ? "" : normNom(titre);
+    return [...m.values()].filter((e) => !nq || normNom(e.label).includes(nq)).sort((a, b) => b.n - a.n).slice(0, 6);
+  }, [fam, batches, titre]);
+  const complet = !!mode && !!fam && !!valTitre.trim() && (mode !== "copie" || !!derniere);
+  const apercu = fam ? (mode === "copie" && derniere ? nouvelleDepuis(derniere) : pfBlank(fam)) : null;
+  const lot = apercu ? prochainLot(batches, apercu.date) : "";
+
+  const carteDepart = (k, titreC, sous, off) => {
+    const on = mode === k;
+    return (
+      <button type="button" disabled={off} onClick={() => setMode(k)} aria-pressed={on} className="ca-tap" style={{ textAlign: "left", background: "#fff", border: `${on ? 2 : 1}px solid ${on ? C.jam : C.line}`, boxShadow: on ? `0 0 0 3px ${C.jam}22` : "none", borderRadius: 14, padding: on ? "11px 13px" : "12px 14px", cursor: off ? "default" : "pointer", opacity: off ? .5 : 1, display: "flex", gap: 11, alignItems: "flex-start", minWidth: 0, font: "inherit" }}>
+        <span style={{ width: 20, height: 20, borderRadius: 10, border: `2px solid ${on ? C.jam : C.soft}`, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 2 }}>{on && <span style={{ width: 10, height: 10, borderRadius: 5, background: C.jam }} />}</span>
+        <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 17, color: C.ink, fontWeight: 500 }}>{titreC}</span><span style={{ display: "block", fontSize: 12.5, color: C.soft, marginTop: 3, lineHeight: 1.45, ...NUM }}>{sous}</span></span>
+      </button>
+    );
+  };
+  const etiq = (n, t) => <div style={{ fontSize: 11.5, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 600, margin: "18px 0 8px" }}>{n} · {t}</div>;
+  return (
+    <div onClick={onAnnuler} style={{ position: "fixed", inset: 0, zIndex: 130, background: "#16140f99", display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 10px", overflowY: "auto" }}>
+      <div role="dialog" aria-modal="true" aria-label="Nouvelle fournée" className="ca-anim" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 1000, background: C.paper, borderRadius: 22, padding: "20px 22px 0", maxHeight: "min(92vh, 980px)", margin: "auto", overflowY: "auto", boxShadow: "0 24px 60px -20px #000a" }}>
+        <div style={{ fontFamily: SCRIPT, fontSize: 34, color: C.jam, lineHeight: 1.2 }}>Nouvelle fournée</div>
+
+        {etiq(1, "Départ")}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          {carteDepart("copie", "À partir de la dernière",
+            mode === "copie" && fam && derniere
+              ? <>{String(derniere.titre || "").trim()}, <b>{frDate(derniere.date).slice(0, 5)}</b> : recette, prix, formats, emballages copiés. Pas le lot, ni le stock, ni les poids.</>
+              : "Recette, prix, formats, emballages copiés. Pas le lot, ni le stock, ni les poids.",
+            !!fam && !derniere)}
+          {carteDepart("vide", "Fournée vide", "Recette type de la famille choisie.")}
         </div>
-      )}
-      <button disabled={!mode || (mode === "vide" && !fam)} onClick={() => onCreer(mode === "copie" ? derniere : null, fam)} className="ca-tap" style={{ marginTop: 10, background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", opacity: (!mode || (mode === "vide" && !fam)) ? .45 : 1 }}>Créer la fournée</button>
+
+        {etiq(2, "Type de produit")}
+        {!fam && <div style={{ fontSize: 12.5, color: C.soft, margin: "-4px 0 8px" }}>{"Choisir d'abord le type de produit"}</div>}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 10 }}>
+          {TYPES_NOUVELLE.filter((k, i) => i < 6 || plusTypes || fam === k).map((k) => {
+            const fm = famOf(k), on = fam === k;
+            return (
+              <button key={k} type="button" onClick={() => { setFam(k); if (mode === "copie" && !derniereFournee((batches || []).filter((b) => (b.famille || "pissaladiere") === k))) setMode(null); setTitre(null); }} aria-pressed={on} className="ca-tap" style={{ background: on ? "#fff" : C.paper, border: `${on ? 2 : 1}px solid ${on ? C.jam : C.line}`, boxShadow: on ? `0 0 0 3px ${C.jam}22` : "none", borderRadius: 14, padding: "10px 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer", minWidth: 0, font: "inherit" }}>
+                <span style={{ width: 64, height: 64, borderRadius: 12, background: "#fff", display: "grid", placeItems: "center" }}><Illu k={fm.illu} col={COUL_PAR_ILLU[fm.illu] || fm.col} s={46} /></span>
+                <span style={{ minHeight: 38, fontSize: 14, lineHeight: "19px", color: C.ink, fontWeight: 500, display: "flex", alignItems: "flex-start", textAlign: "center", flexDirection: "column", alignItems: "center" }}>{NOM_TYPE[k]}{k === "grande_fournee" && <span style={{ fontSize: 11.5, color: C.soft, lineHeight: "14px" }}>(grande fournée)</span>}</span>
+              </button>
+            );
+          })}
+        </div>
+        {!plusTypes && TYPES_NOUVELLE.some((k, i) => i >= 6 && k !== fam) && (
+          <button type="button" onClick={() => setPlusTypes(true)} className="ca-tap" style={{ marginTop: 8, background: "transparent", border: "none", color: C.jam, fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "6px 0", textDecoration: "underline" }}>Autres types</button>
+        )}
+
+        {etiq(3, "Intitulé")}
+        <input value={valTitre} onChange={(e) => setTitre(e.target.value)} placeholder="Nom du produit fabriqué" aria-label="Intitulé de la fournée" style={{ ...inp(), fontSize: 17, padding: "13px 14px", borderRadius: 12 }} />
+        {fam && existants.length > 0 && (
+          <div style={{ marginTop: 6, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+            {existants.map((e, i) => (
+              <button key={e.label} type="button" onClick={() => setTitre(e.label)} className="ca-tap" style={{ width: "100%", textAlign: "left", background: normNom(valTitre) === normNom(e.label) ? "#f6efdd" : "transparent", border: "none", borderTop: i ? `1px solid ${C.line}` : "none", padding: "10px 14px", fontSize: 15, color: C.ink, cursor: "pointer", font: "inherit", ...NUM }}>
+                {e.label} <span style={{ fontSize: 12.5, color: C.soft }}>· <b>{e.n}</b> fournée{e.n > 1 ? "s" : ""}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {apercu && (
+          <div style={{ marginTop: 14, background: "#fff", borderRadius: 14, padding: "13px 16px", fontSize: 14, lineHeight: 1.65, color: C.ink, ...NUM }}>
+            <div style={{ fontSize: 11.5, letterSpacing: ".14em", textTransform: "uppercase", color: C.soft, fontWeight: 600, marginBottom: 4 }}>Préremplissage proposé</div>
+            {resumeRecette(apercu)}
+            <br /><b>{frDate(apercu.date)}</b> · {apercu.lieu || "Casa Mama"} · lot proposé <b>{lot}</b> · fiche sanitaire préremplie à son ouverture
+          </div>
+        )}
+
+        <div style={{ position: "sticky", bottom: 0, background: C.paper, display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14, padding: "12px 0 calc(14px + env(safe-area-inset-bottom))", borderTop: `1px solid ${C.line}`, flexWrap: "wrap" }}>
+          <button type="button" onClick={onAnnuler} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 12, padding: "12px 22px", fontSize: 15.5, fontWeight: 600, cursor: "pointer" }}>Annuler</button>
+          <button type="button" disabled={!complet} onClick={() => onCreer(mode === "copie" ? derniere : null, fam, valTitre.trim())} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 15.5, fontWeight: 600, cursor: complet ? "pointer" : "not-allowed", opacity: complet ? 1 : .4 }}>Créer la fournée</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2481,6 +2786,83 @@ function FicheHygiene({ f, change, onClose, profile, batches }) {
 /* En-tête d'étape de la fiche fournée. AU NIVEAU MODULE : défini à l'intérieur de
    ProProduction, chaque frappe au clavier en recréerait le type et React démonterait
    tout le sous-arbre — le champ en cours de saisie perdrait le focus. */
+function PastilleCtrl({ rempli, ok, texte }) {
+  if (!rempli) return <span style={{ fontSize: 11, color: C.soft, marginTop: 5, display: "inline-block" }}>à relever</span>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 5, fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: "3px 9px", background: ok ? "#3F7A4B1c" : "#a6482a22", color: ok ? C.ok : PF.warn, alignSelf: "flex-start" }}>
+      {ok ? <Ok size={12} /> : <Warn size={12} />}{texte}
+    </span>
+  );
+}
+/* Section 6 de la fiche fournée : la fiche sanitaire se saisit DANS la page (données dans
+   data.hygiene, aucune migration). La fenêtre FicheHygiene reste disponible pour le détail
+   (origine, nombre de bacs, responsable). AU NIVEAU MODULE : elle porte des champs de saisie. */
+function FicheSanitaire({ f, change, batches, profile, onOuvrir }) {
+  const h = f.hygiene || {};
+  const cree = !!h.initialise;
+  // Aucune écriture à l'ouverture : la fiche (data.hygiene) naît à la première saisie, ou au clic
+  // « proposer le n° de lot ». Sans clic, le lot reste vide plutôt que deviné.
+  const base = () => (cree ? h : { ...hygieneInitiale(f, batches), lot: "" });
+  const set = (k, v) => change({ hygiene: { ...base(), [k]: v } });
+  const proposer = () => change({ hygiene: { ...(cree ? h : hygieneInitiale(f, batches)), lot: prochainLot(batches, (cree ? h.date_fab : null) || f.date, f.id) } });
+  const enseigne = (profile && profile.name) || "Comme Avant";
+  const ctrl = controlesHygiene(h);
+  const cu = ctrl[0], re = ctrl[1], co = ctrl[2];
+  const dRef = dureeMin(h.h_fin_cuisson, h.h_refroidi);
+  const doublons = fourneesDuLot(batches, h.lot, f.id);
+  const horsSeuil = ctrl.some((c) => c.rempli && !c.ok);
+  const champT = (k, ph) => <input inputMode="decimal" value={h[k] == null ? "" : String(h[k]).replace(".", ",")} placeholder={ph} onChange={(e) => set(k, e.target.value.replace(",", "."))} style={{ ...inp(), padding: "7px 9px", fontSize: 15, fontWeight: 700, maxWidth: 110 }} />;
+  const heure = (k, lab) => (
+    <label style={{ display: "block", fontSize: 11, color: C.soft }}>{lab}
+      <input type="time" value={h[k] || ""} onChange={(e) => set(k, e.target.value)} style={{ ...inp(), padding: "6px 8px", fontSize: 14, fontWeight: 700, marginTop: 2, maxWidth: 130 }} />
+    </label>
+  );
+  return (
+    <div>
+      <div className="fiche-tuiles">
+        <div className="fiche-tuile">
+          <span className="k">Lot</span>
+          <input value={h.lot || ""} onChange={(e) => set("lot", e.target.value)} placeholder="20261124-01" style={{ ...inp(), padding: "7px 9px", fontSize: 17, fontWeight: 800 }} />
+          {!h.lot && <button onClick={proposer} className="ca-tap" style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: C.jam, fontSize: 12, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>{"Utiliser le n° de lot " + prochainLot(batches, f.date, f.id)}</button>}
+          <span className="s">{h.date_fab ? `fabriqué le ${frDate(h.date_fab)} · DLC ${frDate(dlcDe(h))}` : ""}</span>
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Cuisson ≥ {HYG.cuissonMin} °C</span>
+          {champT("temp_cuisson", "°C")}
+          <PastilleCtrl rempli={cu.rempli} ok={cu.ok} texte={cu.ok ? "conforme" : `hors seuil (${HYG.cuissonMin} °C mini)`} />
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Refroid. &lt; {HYG.refroidMaxMin / 60} h</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{heure("h_fin_cuisson", "fin cuisson")}{heure("h_refroidi", `à ${HYG.refroidCible} °C`)}</div>
+          <PastilleCtrl rempli={re.rempli} ok={re.ok} texte={re.ok ? `${fmtDuree(dRef)} · conforme` : `${fmtDuree(dRef)} · dépassement de ${fmtDuree((dRef || 0) - HYG.refroidMaxMin)}`} />
+        </div>
+        <div className="fiche-tuile">
+          <span className="k">Conservation ≤ {HYG.conservMax} °C</span>
+          {champT("temp_conservation", "°C")}
+          <PastilleCtrl rempli={co.rempli} ok={co.ok} texte={co.ok ? "conforme" : `hors seuil (${HYG.conservMax} °C maxi)`} />
+        </div>
+      </div>
+      {doublons.length > 0 && (
+        <div style={{ marginTop: 10, background: "#faece5", border: `1px solid ${PF.warn}55`, borderRadius: 11, padding: "9px 12px", fontSize: 12.5, color: C.ink, display: "flex", gap: 7, alignItems: "flex-start" }}>
+          <Warn size={15} /> <span>Ce n° de lot est déjà utilisé par {doublons.length} autre{doublons.length > 1 ? "s" : ""} fournée{doublons.length > 1 ? "s" : ""} : la traçabilité serait impossible.{" "}
+            <button onClick={() => set("lot", prochainLot(batches, h.date_fab, f.id))} className="ca-tap" style={{ background: "#fff", border: `1.5px solid ${C.jam}`, color: C.jam, borderRadius: 8, padding: "3px 9px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Prendre {prochainLot(batches, h.date_fab, f.id)}</button></span>
+        </div>
+      )}
+      {horsSeuil && (
+        <div style={{ marginTop: 10 }}>
+          <Lbl>Action corrective — obligatoire quand un point sort des seuils</Lbl>
+          <input value={h.correctif || ""} onChange={(e) => set("correctif", e.target.value)} placeholder="ex. lot écarté / remis au froid immédiatement" style={{ ...inp(), marginTop: 3 }} />
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
+        <button disabled={!cree} title={cree ? "" : "Saisissez ou proposez un lot d'abord"} onClick={() => imprimer(`Fiche ${h.lot || ""}`, ficheHTML(h, enseigne))} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", opacity: cree ? 1 : .5 }}>Imprimer la fiche A4</button>
+        <button disabled={!cree} title={cree ? "" : "Saisissez ou proposez un lot d'abord"} onClick={() => imprimer(`Etiquette ${h.lot || ""}`, ticketHTML(h, enseigne), 62)} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", opacity: cree ? 1 : .5 }}>Étiquette du bac</button>
+        <button onClick={onOuvrir} className="ca-tap" style={{ background: "transparent", border: "none", color: C.soft, fontSize: 12.5, fontWeight: 600, cursor: "pointer", textDecoration: "underline", padding: "6px 4px" }}>ouvrir la fiche complète</button>
+      </div>
+      <div style={{ fontSize: 11.5, color: C.soft, marginTop: 10, lineHeight: 1.5 }}>Seuils par défaut (arrêté du 21 décembre 2009, règlement CE 852/2004). Le guide de bonnes pratiques de l&apos;atelier et la DDPP font foi, pas cette application.</div>
+    </div>
+  );
+}
 function EtapeFournee({ n, titre, sous }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
@@ -2498,13 +2880,14 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const [famille, setFamille] = useState("pissaladiere");
   const [sousProduit, setSousProduit] = useState(null); // rubrique ouverte : null = la liste des produits
   const [blocsProd, setBlocsProd] = useState({});       // blocs dépliés de la vue liste (fermés au départ)
-  const [view, setView] = useState("familles"); // familles | list | edit | dash
+  const [view, setView] = useState("list"); // list (entrée : produits en pictogrammes) | familles (vue d'ensemble) | edit | dash
   const [cur, setCur] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmValide, setConfirmValide] = useState(null); // lignes du pop-up de validation
   const [annonce, setAnnonce] = useState(null);             // message prêt à envoyer après une fournée validée
   const [annonceCopiee, setAnnonceCopiee] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [modifie, setModifie] = useState(false); // saisie pas encore partie vers la base
   const [echecSauvegarde, setEchecSauvegarde] = useState(false);
   const [etab, setEtab] = useState("prep");
   const [hygieneOuverte, setHygieneOuverte] = useState(false);
@@ -2516,6 +2899,17 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const [cumulFormat, setCumulFormat] = useState("");
   const [selectionManuelle, setSelectionManuelle] = useState(null); // null = pas de selection manuelle (utilise les dates) ; Set d'ids sinon
   const timer = useRef(null);
+  // Menu de saut : l'onglet actif suit la section visible (défilement de .pro-content ou de la page).
+  useEffect(() => {
+    if (view !== "edit") return;
+    const onScroll = () => {
+      let cur = null;
+      ["prep", "cuis", "res", "mo", "pot", "san"].forEach((k) => { const el = document.getElementById("et-" + k); if (el && el.getBoundingClientRect().top < 170) cur = k; });
+      if (cur) setEtab(cur);
+    };
+    document.addEventListener("scroll", onScroll, true);
+    return () => document.removeEventListener("scroll", onScroll, true);
+  }, [view]);
 
   const load = async () => {
     if (!supabase || !pass) return;
@@ -2661,6 +3055,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       if (data && !f.id) { setCur((c) => c ? { ...c, id: data } : c); f.id = data; }
       setBatches((list) => { const id = f.id || data; const nf = { ...f, id }; const i = list.findIndex((x) => x.id === id); if (i >= 0) { const cp = [...list]; cp[i] = nf; return cp; } return [nf, ...list]; });
       setEchecSauvegarde(false);
+      if (aEnregistrer.current === fRaw) setModifie(false);
       setSaved(true); setTimeout(() => setSaved(false), 1200);
       return true;
     } catch (e) {
@@ -2677,16 +3072,23 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const aEnregistrer = useRef(null);
   const change = (patch) => {
     setCur((c) => { const nf = { ...c, ...patch }; aEnregistrer.current = nf; return nf; });
+    setModifie(true);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (aEnregistrer.current) persist(aEnregistrer.current); }, 600);
   };
   const ouvrirFicheHygiene = (f) => { openEdit(f); setHygieneOuverte(true); };
-  const derniereDe = (arr) => [...arr].filter((b) => (b.titre || "").trim()).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))[0] || null;
   const rechercheLot = <RechercheLot batches={batches} products={products} sales={sales} profile={profile} onOuvrir={ouvrirFicheHygiene} />;
-  const openNew = (k) => { setCur(pfBlank(k || famOf(famille).key)); setEtab("prep"); setView("edit"); };
-  const openEdit = (f) => { setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setValidErreur(null); setView("edit"); };
+  const openNew = (k) => { setModifie(false); setCur(pfBlank(k || famOf(famille).key)); setEtab("prep"); setView("edit"); };
+  const openEdit = (f) => { setModifie(false); setCur(JSON.parse(JSON.stringify(f))); setEtab("prep"); setValidErreur(null); setView("edit"); };
   // src = fournée à copier (voir nouvelleDepuis), sinon fournée vide de la famille courante
-  const creerFournee = (src, fam) => { if (src) { setCur(nouvelleDepuis(src)); setEtab("prep"); setValidErreur(null); setView("edit"); } else openNew(fam); };
+  const creerFournee = (src, fam, titre) => {
+    setPanneauNouvelle(false);
+    const t = (titre || "").trim();
+    const f = src ? nouvelleDepuis(src) : pfBlank(fam || famOf(famille).key);
+    if (t) f.titre = t;
+    setCur(f); setEtab("prep"); setValidErreur(null); setView("edit");
+  };
+  const modalNouvelle = (famDefaut, titreDefaut) => panneauNouvelle ? <PanneauNouvelle batches={batches} famDefaut={famDefaut} titreDefaut={titreDefaut} onCreer={creerFournee} onAnnuler={() => setPanneauNouvelle(false)} /> : null;
   const del = async (id) => { if (!window.confirm("Supprimer cette fournée ?")) return; try { await supabase.rpc("admin_delete_batch", { pass, p_id: id }); } catch (e) {} setBatches((l) => l.filter((x) => x.id !== id)); setView("list"); };
   const setRendement = async (v) => { setRendementEstime(v); try { await supabase.rpc("admin_set_rendement", { pass, p_val: v }); } catch (e) {} };
 
@@ -2718,8 +3120,38 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     );
   };
 
-  const heroCards = (r, fam) => (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
+  const heroCards = (r, fam) => {
+    const sgn = r.margeMoyenne != null && r.margeMoyenne < 0 ? "−" : "+";
+    const tuile = { background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 15px" };
+    const cap = { fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".12em", fontWeight: 700 };
+    const h = cur && cur.hygiene ? cur.hygiene : {};
+    return (
+      <>
+        <div style={{ ...tuile, background: C.board, color: "#fff", border: "none" }}>
+          <div style={{ ...cap, opacity: .75 }}>Coût de revient</div>
+          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 3, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2(r.coutKg)}<span style={{ fontSize: 14, opacity: .8 }}>/kg</span></div>
+          {r.coutMatieresKg != null && r.coutTempsKg != null ? (
+            <div style={{ fontSize: 11.5, opacity: .85, marginTop: 3 }}>matières <b>{(Math.round(r.coutMatieresKg * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</b> · temps et frais <b>{(Math.round(r.coutTempsKg * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</b></div>
+          ) : null}
+          <div style={{ fontSize: 11.5, opacity: .7, marginTop: 2 }}>coût total fournée {eur2(r.revientHE)}</div>
+        </div>
+        <div style={{ ...tuile, background: r.margeMoyenne >= 0 ? "#fff" : "#faece5" }}>
+          <div style={{ ...cap, color: C.soft }}>Marge / unité</div>
+          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 3, color: r.margeMoyenne >= 0 ? PF.good : PF.warn, fontVariantNumeric: "lining-nums tabular-nums" }}>{r.margeMoyenne != null ? sgn + " " + eur2(Math.abs(r.margeMoyenne)) : "—"}</div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>vendu <b style={{ color: C.ink }}>{eur2(r.prixVenteMoyen)}</b> · coef <b style={{ color: C.ink }}>{r.coefMoyen ? r.coefMoyen.toFixed(1).replace(".", ",") : "—"}</b></div>
+          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 2 }}>marge totale {eur2(r.margeTotale)}</div>
+        </div>
+        <div style={{ ...tuile }}>
+          <div style={{ ...cap, color: C.soft, marginBottom: 7 }}>Cette fournée</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.9, color: C.soft }}>
+            <div>Lot <b style={{ color: C.ink }}>{h.lot || "—"}</b></div>
+            <div>Date <b style={{ color: C.ink }}>{cur && cur.date ? frDate(cur.date) : "—"}</b></div>
+            <div>Lieu <span style={{ color: C.ink }}>{(cur && cur.lieu) || "—"}</span></div>
+          </div>
+        </div>
+        <details style={{ ...tuile, padding: "10px 14px" }}>
+          <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: C.soft, listStyle: "none" }}>Autres indicateurs</summary>
+          <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
       {fam.key === "pissaladiere" ? (
         <div style={{ ...card(), background: "#fff", margin: 0 }}>
           <div style={{ ...h2, marginBottom: 8 }}>Transformation</div>
@@ -2746,20 +3178,6 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           <div style={{ fontSize: 11.5, color: C.soft, marginTop: 7 }}>{(r.poidsFini && r.poidsBrut) ? `${r.poidsFini.toFixed(2)} kg cuit / ${r.poidsBrut.toFixed(2)} kg cru` : "poids cru (ingrédients) et cuit à renseigner"}</div>
         </div>
       )}
-      <div style={{ ...card(), background: PF.navy, color: "#fff", margin: 0, border: "none" }}>
-        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", opacity: .8 }}>Coût de revient</div>
-        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{eur2(r.coutKg)}<span style={{ fontSize: 13, opacity: .8 }}>/kg</span></div>
-        {/* Les deux lectures séparées : sans ça, « 48,60 €/kg » sur une petite fournée est
-            incompréhensible alors que les matières n'en font que 8,18. */}
-        {r.coutMatieresKg != null && r.coutTempsKg > 0 ? (
-          <div style={{ fontSize: 11.5, opacity: .85, marginTop: 5, lineHeight: 1.5 }}>
-            dont <b>{eur2(r.coutMatieresKg)}/kg</b> de matières et <b>{eur2(r.coutTempsKg)}/kg</b> de temps &amp; frais
-            <div style={{ opacity: .75, marginTop: 2 }}>coût total fournée {eur2(r.revientHE)}</div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 11.5, opacity: .75, marginTop: 3 }}>coût total fournée {eur2(r.revientHE)}</div>
-        )}
-      </div>
       <div style={{ ...card(), background: "#fff", margin: 0 }}>
         <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Coût / {fam.unitWord} moyen</div>
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.navy }}>{eur3(r.coutPotMoyen)}</div>
@@ -2771,13 +3189,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: PF.ochre }}>{r.coefMoyen ? "×" + r.coefMoyen.toFixed(2) : "—"}</div>
         <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>PV moyen {eur2(r.prixVenteMoyen)}</div>
       </div>
-      <div style={{ ...card(), background: r.margeMoyenne >= 0 ? "#e7f0e8" : "#faece5", margin: 0, borderColor: r.margeMoyenne >= 0 ? PF.good + "55" : PF.warn + "55" }}>
-        <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".1em", color: C.soft }}>Marge / {fam.unitWord}</div>
-        <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: r.margeMoyenne >= 0 ? PF.good : PF.warn }}>{eur3(r.margeMoyenne)}</div>
-        <div style={{ fontSize: 11.5, color: C.soft, marginTop: 3 }}>marge totale {eur2(r.margeTotale)}</div>
-      </div>
-    </div>
-  );
+          </div>
+        </details>
+        <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", background: C.jam, color: "#fff", border: "none", borderRadius: 13, padding: "15px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={18} /> Valider la fournée</button>
+      </>
+    );
+  };
 
   // ================= VUE CHOIX DU PRODUIT (vignettes) =================
   // On entrait dans Production directement sur la pissaladière, avec une rangée de pastilles
@@ -2804,10 +3221,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
           <h2 style={{ fontFamily: SCRIPT, fontSize: 24, margin: 0, color: C.jam }}>Production</h2>
           <div style={{ fontSize: 13, color: C.soft, marginTop: 3 }}>Retrouvez un lot, ou choisissez la rubrique puis le produit fabriqué</div>
         </div>
-        {rechercheLot}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 11, marginBottom: 16 }}>
           <FichesDuJour batches={batches} onOuvrir={openEdit} />
-          <PanneauNouvelle key={(derniereDe(batches) || {}).id || "aucune"} derniere={derniereDe(batches)} onCreer={creerFournee} />
+          <div style={{ ...card(), background: C.paper, margin: 0, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 500, color: C.ink, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}><Plus size={17} /> Nouvelle fournée</div>
+            <button onClick={() => setPanneauNouvelle(true)} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 11, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>Choisir départ, type et intitulé</button>
+          </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 8 }}>
           {FAMILLES.map((fm) => {
@@ -2836,9 +3255,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
           <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
-          <button onClick={openNew} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée « {famOf(famille).label} »</button>
+          <button onClick={() => openNew()} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée « {famOf(famille).label} »</button>
         </div>
         <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{busy ? "Chargement…" : "Touchez une rubrique pour voir ses produits fabriqués."}</div>
+        <div style={{ marginTop: 16 }}>{rechercheLot}</div>
+        {modalNouvelle(null, "")}
       </div>
     );
   }
@@ -2849,8 +3270,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     // elles restaient invisibles et impossibles à rouvrir dans l'app
     const estConnue = (b) => FAMILLES.some((fm) => fm.key === (b.famille || "pissaladiere"));
     const nbNonClassees = batches.filter((b) => !estConnue(b)).length;
-    const famBatches = famille === "__autres__" ? batches.filter((b) => !estConnue(b)) : batches.filter((b) => (b.famille || "pissaladiere") === famille);
-    const famLabel = famille === "__autres__" ? "Non classées" : famOf(famille).label;
+    // L'onglet regroupe plusieurs familles (Caramels = pot + bonbon ; Autres = biscuit, pain d'épices, kit
+    // farine, non classées) : le filtre se fait sur l'onglet, la famille choisie reste une vraie famille.
+    const onglet = ongletDe(famille);
+    const famBatches = batches.filter((b) => ongletDe(b.famille || "pissaladiere").key === onglet.key);
+    const famLabel = onglet.label;
 
     // ---- RUBRIQUES : un groupe = UN produit fabriqué, pas une famille (CLAUDE.md §5.9) ----
     const gmap = new Map();
@@ -2887,13 +3311,10 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     // En-tête commun aux deux niveaux. Les pastilles de familles tiennent sur UNE ligne qui défile :
     // enroulées, elles prenaient trois lignes sur un téléphone et repoussaient le tableau hors écran.
     const barreFamilles = (
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
-        {FAMILLES.map((fm) => (
-          <button key={fm.key} onClick={() => { setFamille(fm.key); setSousProduit(null); }} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${famille === fm.key ? C.jam : C.line}`, background: famille === fm.key ? C.jam : "#fff", color: famille === fm.key ? "#fff" : C.ink, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{fm.label}</button>
-        ))}
-        {nbNonClassees > 0 && (
-          <button onClick={() => { setFamille("__autres__"); setSousProduit(null); }} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${famille === "__autres__" ? C.jam : PF.warn}`, background: famille === "__autres__" ? C.jam : "#faece5", color: famille === "__autres__" ? "#fff" : PF.warn, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Non classées ({nbNonClassees})</button>
-        )}
+      <div role="tablist" style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", padding: 6, background: "#e9dfc8", borderRadius: 16, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+        {ONGLETS.map((o) => { const on = onglet.key === o.key; return (
+          <button key={o.key} role="tab" aria-selected={on} onClick={(e) => { setFamille(o.fams[0]); setSousProduit(null); try { e.currentTarget.scrollIntoView({ inline: "center", block: "nearest" }); } catch (x) {} }} className="ca-tap" style={{ flex: "1 0 auto", border: "none", background: on ? C.jam : "transparent", color: on ? "#fff" : C.soft, borderRadius: 12, padding: "11px 14px", fontSize: 14.5, fontWeight: on ? 600 : 500, cursor: "pointer", whiteSpace: "nowrap" }}>{o.label}{o.key === "autres" && nbNonClassees > 0 ? <span title={`${nbNonClassees} fournée(s) non classée(s)`} style={{ marginLeft: 6, background: PF.warn, color: "#fff", borderRadius: 999, padding: "1px 7px", fontSize: 11.5, fontWeight: 700 }}>{nbNonClassees}</span> : null}</button>
+        ); })}
       </div>
     );
     const enTete = (titre, soustitre, retour) => (
@@ -2907,7 +3328,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
-          <button onClick={() => (groupe ? setPanneauNouvelle((v) => !v) : openNew())} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
+          <button onClick={() => setPanneauNouvelle(true)} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Fournée</button>
         </div>
       </div>
     );
@@ -2917,51 +3338,107 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     // pissaladière arrivaient dans un seul tableau : une colonne OIGNON à côté d'un cake, et des
     // chiffres qui ne parlaient pas du même produit d'une ligne à l'autre.
     if (!groupe) {
+      // ---- 4 tuiles de suivi, visibles dès l'entrée (même gabarit) : tout est déjà calculé ailleurs ----
+      const auj = new Date().toISOString().slice(0, 10);
+      const tx = tauxTransfoDe(batches, rendementEstime);
+      const so = stockOignonsCuitsDe(batches, sales, products, rendementEstime);
+      const duJour = batches.filter((b) => b.date === auj);
+      let jCru = 0, jCuit = 0;
+      duJour.forEach((b) => { if (!(pfNum(b.oignon_kg) > 0)) return; const r = pfCalc(b, rendementEstime); jCru += r.oignonTotalRondes || pfNum(b.oignon_kg); jCuit += r.poidsFini || 0; });
+      const fichesCtl = batches.map((b) => ({ b, st: statutFiche(b) }));
+      const aCompleter = fichesCtl.filter((x) => x.st.cle === "todo" || x.st.cle === "ko")
+        .sort((a, b) => String((b.b.hygiene || {}).date_fab || b.b.date || "").localeCompare(String((a.b.hygiene || {}).date_fab || a.b.date || "")));
+      const concernee = aCompleter[0] || null;
+      const nbKo = fichesCtl.filter((x) => x.st.cle === "ko").length;
+      const ouvertes = fichesCtl.filter((x) => x.st.cle !== "absente").length;
+      const remplis = concernee ? controlesHygiene(concernee.b.hygiene || {}).filter((c) => c.rempli).length : 0;
+      const nbNonCl = famBatches.filter((b) => !estConnue(b)).length;
       return (
         <div className="ca-anim">
-          {rechercheLot}
-          {enTete(famLabel, `${groupes.length} produit${groupes.length > 1 ? "s" : ""} · ${famBatches.length} fournée${famBatches.length > 1 ? "s" : ""}`, { on: () => setView("familles"), titre: "Changer de rubrique" })}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontFamily: SCRIPT, fontSize: 30, margin: 0, color: C.jam, lineHeight: 1.2 }}>Production</h2>
+              <div style={{ fontSize: 14, color: C.soft, marginTop: 3 }}>Touchez un produit pour sa fiche recette, ou créez une nouvelle fournée.</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => setView("familles")} title="Changer de rubrique" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Package size={15} /> Vue d&apos;ensemble</button>
+              <button onClick={() => setView("dash")} className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, color: C.jam, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><BarChart3 size={15} /> Analyse</button>
+            </div>
+          </div>
           {barreFamilles}
-          {famille === "__autres__" && famBatches.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14 }}>
+            <TuileSuivi libelle="Taux de transformation" couleur={PF.good}
+              valeur={tx.taux != null ? `${fmtKg(tx.taux, 0)} %` : `${fmtKg(rendementEstime, 0)} %`} pct={tx.taux != null ? tx.taux : rendementEstime}
+              detail={tx.taux != null ? <><b>{fmtKg(tx.cru)}</b> kg crus → <b>{fmtKg(tx.cuit)}</b> kg cuits</> : "estimé : aucun poids cuit pesé"} />
+            <TuileSuivi libelle="Stock d'oignons cuits" couleur={PF.navy}
+              valeur={`${fmtKg(so.stock)} kg`} pct={so.produits > 0 ? (so.stock / so.produits) * 100 : 0}
+              detail={<>produit <b>{fmtKg(so.produits)}</b> · conso. <b>{fmtKg(so.consommes)}</b> kg</>} />
+            <TuileSuivi libelle="Cumul des fournées du jour" couleur={PF.good}
+              valeur={`${duJour.length} fournée${duJour.length > 1 ? "s" : ""}`} pct={jCru > 0 ? (jCuit / jCru) * 100 : 0}
+              detail={duJour.length === 0 ? "aucune fournée aujourd'hui" : (jCru > 0 ? <><b>{fmtKg(jCru)}</b> kg crus · <b>{fmtKg(jCuit)}</b> kg cuits</> : "sans oignons")} />
+            <TuileSuivi libelle="Fiches de contrôle" couleur={C.caramel}
+              onClick={concernee ? () => ouvrirFicheHygiene(concernee.b) : undefined}
+              valeur={aCompleter.length > 0 ? `${aCompleter.length} à compléter` : (ouvertes > 0 ? "à jour" : "aucune")} pct={concernee ? (remplis / 3) * 100 : (ouvertes > 0 ? 100 : 0)}
+              detail={concernee ? <><b>{remplis}</b> sur <b>3</b> · lot <b>{concernee.st.lot || "—"}</b>{nbKo > 0 ? ` · ${nbKo} non conforme${nbKo > 1 ? "s" : ""}` : ""}</> : (ouvertes > 0 ? "toutes les fiches ouvertes sont complètes" : "aucune fiche sanitaire ouverte")} />
+          </div>
+          {nbNonCl > 0 && (
             <div style={{ ...card(), background: "#faece5", borderColor: PF.warn + "55", fontSize: 12.5, color: C.ink, lineHeight: 1.5 }}>
-              Ces fournées portent une famille qui n&apos;existe plus dans l&apos;app. Elles sont conservées telles quelles et n&apos;entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
+              {nbNonCl} fournée{nbNonCl > 1 ? "s" : ""} non classée{nbNonCl > 1 ? "s" : ""} (famille qui n&apos;existe plus dans l&apos;app). Elles sont conservées telles quelles et n&apos;entrent dans aucune statistique. Ouvrez-en une et choisissez sa famille pour la reclasser.
             </div>
           )}
-          {groupes.length === 0 ? (
-            <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : (famille === "__autres__" ? "Aucune fournée non classée." : `Aucune fournée « ${famLabel} ». Créez la première avec le bouton « Fournée ».`)}</div>
-          ) : (
-            <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper }}>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
-                  <thead><tr>
-                    {["Produit fabriqué", "Fournées", "Dernière", "Poids fini", "Coût/kg", "Produits finis"].map((t, i) => (
-                      <th key={i} style={{ padding: "9px 8px", textAlign: i > 0 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {groupes.map((g, i) => (
-                      <tr key={g.cle} onClick={() => setSousProduit(g.cle)} className="ca-tap" style={{ cursor: "pointer", background: i % 2 ? "#ffffff66" : "transparent", borderBottom: `1px solid ${C.line}` }}>
-                        <td style={{ padding: "11px 8px", maxWidth: 240 }}>
-                          <div style={{ fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label}</div>
-                          {g.cond && <div style={{ fontSize: 11, color: C.soft, marginTop: 2 }}>unité : {g.cond}</div>}
-                        </td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.batches.length}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
-                        <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", fontVariantNumeric: "lining-nums tabular-nums" }}>{g.finis > 0 ? g.finis : "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <style>{`.tuile-prod:hover,.tuile-prod:focus-visible,.tuile-prod:active{background:#fff !important;border-color:#7A2B33 !important;outline:none}`}</style>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 14 }}>
+            {groupes.map((g) => <TuileProduit key={g.cle} g={g} fam={famOf((g.batches[0] && g.batches[0].famille) || famille)} onClick={() => setSousProduit(g.cle)} />)}
+            <TuileNouvelle onClick={() => setPanneauNouvelle(true)} />
+          </div>
+          {groupes.length === 0 && (
+            <div style={{ ...card(), fontSize: 13, color: C.soft }}>{busy ? "Chargement…" : `Aucune fournée « ${famLabel} ». Créez la première avec la tuile « Nouvelle fournée ».`}</div>
+          )}
+
+          <BlocPliant ouvert={!!blocsProd.rdt} onToggle={() => setBlocsProd((b) => ({ ...b, rdt: !b.rdt }))} titre="Taux de transformation estimé" resume={`${rendementEstime} % — utilisé tant que le poids cuit n'est pas pesé`}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input inputMode="decimal" value={rendementEstime} onChange={(e) => setRendement(pfNum(e.target.value))} style={{ ...inp(), width: 90, textAlign: "center" }} />
+              <span style={{ fontWeight: 700, color: PF.navy }}>%</span>
+            </div>
+          </BlocPliant>
+          {groupes.length > 0 && (
+            <BlocPliant ouvert={!!blocsProd.tableau} onToggle={() => setBlocsProd((b) => ({ ...b, tableau: !b.tableau }))} titre="Détail des produits fabriqués" resume={`${groupes.length} produit${groupes.length > 1 ? "s" : ""} · ${famBatches.length} fournée${famBatches.length > 1 ? "s" : ""} — coûts, poids, produits finis`}>
+              <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", background: C.paper, width: "100%", maxWidth: "100%" }}>
+                <div style={{ overflowX: "auto", width: "100%", maxWidth: "100%" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
+                    <thead><tr>
+                      {["Produit fabriqué", "Fournées", "Dernière", "Poids fini", "Coût/kg", "Produits finis"].map((t, i) => (
+                        <th key={i} style={{ padding: "9px 8px", textAlign: i > 0 ? "right" : "left", fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", color: C.soft, fontWeight: 700, borderBottom: `2px solid ${C.line}`, whiteSpace: "nowrap" }}>{t}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {groupes.map((g, i) => (
+                        <tr key={g.cle} onClick={() => setSousProduit(g.cle)} className="ca-tap" style={{ cursor: "pointer", background: i % 2 ? "#ffffff66" : "transparent", borderBottom: `1px solid ${C.line}` }}>
+                          <td style={{ padding: "11px 8px", maxWidth: 240 }}>
+                            <div style={{ fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.sansTitre ? `${g.label} · sans titre` : g.label}</div>
+                            {g.cond && <div style={{ fontSize: 11, color: C.soft, marginTop: 2 }}>unité : {g.cond}</div>}
+                          </td>
+                          <td style={{ padding: "11px 8px", textAlign: "right", ...NUM }}>{g.batches.length}</td>
+                          <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", ...NUM }}>{g.derniere ? new Date(g.derniere).toLocaleDateString("fr-FR") : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                          <td style={{ padding: "11px 8px", textAlign: "right", whiteSpace: "nowrap", ...NUM }}>{g.fini > 0 ? g.fini.toFixed(2) + " kg" : <span style={{ color: "#C9C0AE" }}>—</span>}</td>
+                          <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: PF.navy, whiteSpace: "nowrap", ...NUM }}>{g.coutKg != null ? eur2(g.coutKg) : <span style={{ color: "#C9C0AE", fontWeight: 400 }}>—</span>}</td>
+                          <td style={{ padding: "11px 8px", textAlign: "right", fontWeight: 700, color: g.finis > 0 ? PF.good : "#C9C0AE", ...NUM }}>{g.finis > 0 ? g.finis : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez un produit pour voir ses fournées. Les fournées sans titre sont regroupées sous le nom de la rubrique.</div>
+            </BlocPliant>
           )}
-          <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Touchez un produit pour voir ses fournées. Les fournées sans titre sont regroupées sous le nom de la rubrique.</div>
+
+          {/* Retrouver un lot : en bas de page, avec « Ouvrir la fiche sanitaire » */}
+          <div style={{ marginTop: 16 }}>{rechercheLot}</div>
+          {modalNouvelle(null, "")}
         </div>
       );
     }
-
     // ============ NIVEAU 2 : les fournées d'UN produit ============
     // Les colonnes suivent ce que le produit utilise réellement : la colonne OIGNON et le rendement
     // de cuisson ne s'affichent que si la recette porte des oignons (un cake n'en a pas).
@@ -2992,23 +3469,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
     const cumulNbFormat = (cumulCuit > 0 && pfNum(cumulFormat) > 0) ? Math.floor((cumulCuit * 1000) / pfNum(cumulFormat)) : null;
     const toggleSelection = (id) => setSelectionManuelle((s) => { const n = new Set(s || []); n.has(id) ? n.delete(id) : n.add(id); return n; });
     // stock oignons cuits = produit par toutes les fournées pissaladière - consommé par les ventes de pissaladière
-    const oignonsCuitsProduits = batches.filter((b) => isPissaFam(b.famille || "pissaladiere") && fourneeComptee(b)).reduce((s, b) => s + (pfCalc(b, rendementEstime).poidsFini || 0), 0);
+    const { produits: oignonsCuitsProduits, consommes: oignonsCuitsConsommes, stock: stockOignonsCuits } = stockOignonsCuitsDe(batches, sales, products, rendementEstime);
     const fourneesExclues = grpBatches.filter((b) => !fourneeComptee(b)).length;
-    const oignonsCuitsConsommes = (sales || []).reduce((s, v) => s + (v.items || []).reduce((si, it) => {
-      const n = (it.name || "").toLowerCase();
-      if (!n.includes("pissalad") && !n.includes("oignon")) return si;
-      // même lecture du conditionnement que le tableau de bord (plaque = 750 g, part = 1/12 de plaque)
-      const prod = (it.pid ? (products || []).find((p) => p.id === it.pid) : null) || (products || []).find((p) => p.name === it.name);
-      const g = grammesUnite((prod && prod.unit) || it.unit || n, true);
-      return si + (it.qty || 0) * (g / 1000);
-    }, 0), 0);
-    const stockOignonsCuits = oignonsCuitsProduits - oignonsCuitsConsommes;
     const sousTitre = `${grpBatches.length} fournée${grpBatches.length > 1 ? "s" : ""} · ${famLabel}${groupe.cond ? ` · unité : ${groupe.cond}` : ""}`;
     return (
       <div className="ca-anim">
-        {rechercheLot}
         {enTete(groupe.sansTitre ? `${groupe.label} · sans titre` : groupe.label, sousTitre, { on: () => setSousProduit(null), titre: "Retour aux produits" })}
-        {panneauNouvelle && <div style={{ marginBottom: 12 }}><PanneauNouvelle key={groupe.cle} derniere={derniereDe(grpBatches)} famDefaut={(grpBatches[0] && grpBatches[0].famille) || null} onCreer={(src, fam) => { setPanneauNouvelle(false); creerFournee(src, fam); }} /></div>}
         {groupes.length > 1 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
             <button onClick={() => setSousProduit(null)} className="ca-tap" style={{ flex: "0 0 auto", border: `1px solid ${C.line}`, background: "#fff", color: C.soft, borderRadius: 999, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Tous ({groupes.length})</button>
@@ -3133,6 +3599,8 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         )}
 
         <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>{avecOignon ? "* rendement estimé (poids non pesé). " : ""}Touchez une ligne pour ouvrir la fournée.{fourneesExclues > 0 ? ` ${fourneesExclues} fournée(s) marquée(s) « hors stats » ou « estimation » ne sont pas comptées dans la consommation matières ni dans le stock d'oignons cuits.` : ""}</div>
+        <div style={{ marginTop: 16 }}>{rechercheLot}</div>
+        {modalNouvelle((grpBatches[0] && grpBatches[0].famille) || null, groupe.sansTitre ? "" : groupe.label)}
       </div>
     );
   }
@@ -3330,11 +3798,12 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   // d'étape Cuisson (ni feux ni cycles) : on renumérote plutôt que d'afficher une étape
   // vide (CLAUDE.md §5.1 ter).
   const ETAPES = [
-    { k: "prep", label: "Préparation" },
+    { k: "prep", label: "Recette" },
     ...(isPissa ? [{ k: "cuis", label: "Cuisson" }] : []),
     { k: "res", label: "Résultat" },
     { k: "mo", label: "Temps & frais" },
-    { k: "pot", label: "Contenants & vente" },
+    { k: "pot", label: "Formats & vente" },
+    { k: "san", label: "Fiche sanitaire" },
   ];
   // Changer la famille depuis l'étape Cuisson (pissaladière → confiture) faisait disparaître
   // l'étape affichée : plus aucun panneau ne correspondait et l'écran restait vide.
@@ -3369,35 +3838,66 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
   const relierFormat = (sg) => change({ pots: (cur.pots || []).map((p, i) => i === sg.i ? { ...p, pid: sg.pid } : p) });
   return (
     <div className="ca-anim">
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <button onClick={() => setView("list")} title="Retour à la liste" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 36, height: 36, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0 }}><ChevronLeft size={18} /></button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <h2 style={{ fontFamily: SCRIPT, fontSize: 23, margin: 0, color: C.jam, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
-            {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: echecSauvegarde ? 700 : 400, color: echecSauvegarde ? PF.warn : (saved ? PF.good : C.soft) }}>{f.titre ? FAM.label + " · " : ""}{echecSauvegarde ? "non enregistré — vérifiez la connexion" : (saved ? "enregistré" : "enregistrement automatique")}</div>
-        </div>
-        {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
+      {(() => {
+        const prodLie = (products || []).find((x) => x.id === ((f.pots || []).find((q) => q.pid) || {}).pid) || (products || []).find((x) => x.id === f.pissa_plaque_pid);
+        const pIllu = prodLie || { name: f.titre || FAM.label, illu: "", col: "" };
+        const kIllu = illuDe(pIllu) || (isPissa ? "pissa" : "");
+        const etat = echecSauvegarde ? { t: "non enregistré — vérifiez la connexion", bg: "#a6482a22", fg: PF.warn } : modifie ? { t: "enregistrement automatique…", bg: "#8C806822", fg: C.soft } : f.id ? { t: "enregistré", bg: "#d7ebdb", fg: "#2f6b3c" } : { t: "enregistrement automatique", bg: "#8C806822", fg: C.soft };
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 13, color: C.soft, marginBottom: 8 }}>
+              <button onClick={() => setView("list")} title="Retour à la liste" className="ca-tap" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, width: 32, height: 32, cursor: "pointer", display: "grid", placeItems: "center", color: C.jam, flexShrink: 0, marginRight: 4 }}><ChevronLeft size={17} /></button>
+              <button onClick={() => setView("list")} style={{ background: "none", border: "none", padding: 0, color: C.soft, fontSize: 13, cursor: "pointer" }}>Production</button>
+              <span>›</span>
+              <span>{f.titre || FAM.label}</span>
+              <span>›</span>
+              <b style={{ color: C.jam }}>Fournée du {frDate(f.date)}</b>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                {kIllu ? <Illu k={kIllu} col={couleurDe(pIllu)} s={46} /> : <PictoIng label={f.titre || ""} size={40} />}
+              </div>
+              <div style={{ flex: "1 1 190px", minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <h2 style={{ fontFamily: SCRIPT, fontSize: "clamp(25px, 6.5vw, 32px)", lineHeight: 1.15, margin: 0, color: C.jam, overflowWrap: "anywhere" }}>{f.titre ? f.titre : `Fournée · ${FAM.label}`}</h2>
+                  {f.estimation && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: PF.ochre, borderRadius: 6, padding: "3px 8px", flexShrink: 0, letterSpacing: ".03em" }}>ESTIMATION</span>}
+                </div>
+                <div style={{ fontSize: 12, color: C.soft, marginTop: 2 }}>{f.titre ? FAM.label : ""}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "4px 12px", background: etat.bg, color: etat.fg, flexShrink: 0, textAlign: "center", maxWidth: 200 }}>{etat.t}</span>
+              {f.id && <button onClick={() => del(f.id)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, color: C.soft, borderRadius: 9, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}><Trash2 size={15} /></button>}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Mobile : le résumé se replie en barre collante (coût + marge). */}
+      <div className="fiche-bar">
+        <span style={{ fontSize: 12.5 }}>Coût <b style={{ fontSize: 16 }}>{eur2(R.coutKg)}</b>/kg</span>
+        <span style={{ fontSize: 12.5 }}>Marge / {FAM.unitWord} <b style={{ fontSize: 16, color: R.margeMoyenne >= 0 ? "#9BD3A6" : "#F4B3A0" }}>{R.margeMoyenne != null ? (R.margeMoyenne < 0 ? "−" : "+") + eur2(Math.abs(R.margeMoyenne)) : "—"}</b></span>
       </div>
 
-      {heroCards(R, FAM)}
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", position: "sticky", top: 0, zIndex: 5, background: C.cream, padding: "8px 0" }}>
-        {ETAPES.map((e, i) => (
-          <button key={e.k} onClick={() => { setEtab(e.k); const el = document.getElementById("et-" + e.k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="ca-tap" style={{ flex: "1 1 auto", border: `1px solid ${etabOk === e.k ? C.jam : C.line}`, background: etabOk === e.k ? C.jam : "#fff", color: etabOk === e.k ? "#fff" : C.ink, borderRadius: 999, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
-            <span style={{ width: 18, height: 18, borderRadius: 9, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800, background: etabOk === e.k ? "#ffffff2e" : C.cream, color: etabOk === e.k ? "#fff" : C.soft }}>{i + 1}</span>
-            {e.label}
-          </button>
+      <div className="fiche-grid">
+      <div className="fiche-main">
+      <nav className="fiche-nav" aria-label="Aller à une section">
+        {ETAPES.map((e) => (
+          <button key={e.k} onClick={() => { setEtab(e.k); const el = document.getElementById("et-" + e.k); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"fiche-nav-b" + (etabOk === e.k ? " on" : "")}>{e.label}</button>
         ))}
-      </div>
+      </nav>
 
       {(
         /* Le parcours suit le travail réel : on prépare, on cuit, on pèse. Le mode de
            préparation (feux, durée de cycle) arrivait APRÈS le poids cuit — on décrivait
            la cuisson une fois le résultat déjà saisi. */
-        <div id="et-prep" style={{ ...card(), scrollMarginTop: 64 }}>
-          <EtapeFournee n={numEtape("prep")} titre="Préparation" sous="Ce qui entre dans la fournée" />
+        <div id="et-prep" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("prep")} titre="Recette" sous={isPissa ? `Préremplie avec la recette type de la famille ${FAM.label} : tout se modifie` : "Préparation : ce qui entre dans la fournée"} />
+          {isPissa && (
+            <div style={{ background: "#e3efe5", color: "#2f5f3b", borderRadius: 10, padding: "10px 13px", fontSize: 13, fontWeight: 600, lineHeight: 1.45, marginBottom: 12 }}>
+              Recette type chargée : {PF_ING.length} matières premières. Changez une quantité ou un prix, le coût se met à jour.
+            </div>
+          )}
           <div style={{ marginBottom: 10 }}>
             <Lbl>Titre de la fournée</Lbl>
             <input value={f.titre || ""} placeholder={`ex. ${FAM.label === "Confiture" ? "Confiture fraise, Confiture citron…" : FAM.label + " — variante…"}`} onChange={(e) => change({ titre: e.target.value })} list="titres-fournees" autoComplete="off" style={{ ...inp(), marginTop: 4, fontSize: 15, fontWeight: 600 }} />
@@ -3435,7 +3935,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
                   const displayVal = sameUnit ? f[ing.qf] : (isEmpty ? "" : Math.round(pfDisplayVal(f, ing) * 1000) / 1000);
                   return (
                     <div key={ing.key}>
-                      <Lbl><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><PictoIng label={ing.label} size={26} fallback={<span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />} />{ing.label}</span></Lbl>
+                      <Lbl><span style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, whiteSpace: "nowrap" }}><PictoIng label={ing.label} size={26} fallback={<span style={{ width: 8, height: 8, borderRadius: 3, background: ing.color, display: "inline-block", flexShrink: 0 }} />} /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ing.label}</span></span></Lbl>
                       <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
                         <input inputMode="decimal" value={displayVal == null || displayVal === "" ? "" : String(displayVal).replace(".", ",")} placeholder="0" onChange={(e) => {
                           const raw = e.target.value.replace(",", ".");
@@ -3460,9 +3960,11 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
                           <input inputMode="decimal" value={f[ing.pf] == null ? "" : String(f[ing.pf]).replace(".", ",")} placeholder="0" onChange={(e) => change({ [ing.pf]: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "8px 7px", fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }} />
                         </div>
                       </div>
+                      <div style={{ textAlign: "right", marginTop: "auto", paddingTop: 6, fontSize: 14.5, fontWeight: 800, color: PF.navy, fontVariantNumeric: "lining-nums tabular-nums" }}>{eur2((pfNum(f[ing.qf]) / ing.div) * pfNum(f[ing.pf]))}</div>
                     </div>
                   );
                 })}
+                <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap fiche-add"><span>+ Ajouter</span><span style={{ fontSize: 12, fontWeight: 500, color: C.soft }}>un ingrédient</span></button>
               </div>
             </div>
           )}
@@ -3524,7 +4026,9 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
               </div>
             ))}
           </div>
-          <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+          {isPissa
+            ? <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap" style={{ marginTop: 10, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "9px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un ingrédient</button>
+            : <button onClick={() => change({ extra: [...(f.extra || []), { label: "", qty: "", price: "", unit: "g" }] })} className="ca-tap fiche-add" style={{ marginTop: 10, width: "100%", maxWidth: 240 }}><span>+ Ajouter un ingrédient</span></button>}
           <div style={{ marginTop: 14, background: PF.navy, color: "#fff", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", opacity: .8 }}>Total matières</span>
             <b style={{ fontSize: 30, fontWeight: 800 }}>{eur2(R.totalMatieres)}</b>
@@ -3550,7 +4054,7 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       )}
 
       {isPissa && (
-          <div id="et-cuis" style={{ ...card(), scrollMarginTop: 64 }}>
+          <div id="et-cuis" className="fiche-sec" style={{ ...card() }}>
             <EtapeFournee n={numEtape("cuis")} titre="Cuisson" sous="Feux, cycles et durée" />
             <div>
               <div style={{ ...h2 }}>Mode de préparation</div>
@@ -3729,12 +4233,41 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
         )}
 
       {(
-        <div id="et-res" style={{ ...card(), scrollMarginTop: 64 }}>
+        <div id="et-res" className="fiche-sec" style={{ ...card() }}>
           <EtapeFournee n={numEtape("res")} titre="Résultat" sous="Ce qui sort de la cuisson — à peser" />
           <div style={{ marginTop: 14, ...h2 }}>{isPissa ? "Poids (cru → cuit)" : "Poids obtenu"}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {NF(isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)", "poids_fini_kg", "kg", "0", f, (k, v) => change({ [k]: v }))}
-          </div>
+          {(() => {
+            const pct = isPissa ? (R.rendement ? R.rendement * 100 : null) : (R.rendementGeneric != null ? R.rendementGeneric * 100 : null);
+            const cru = isPissa ? (R.oignonTotalRondes || pfNum(f.oignon_kg)) : R.poidsBrut;
+            const nf = (v) => (Math.round(v * 100) / 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+            return (
+              <div className="fiche-tuiles">
+                <div className="fiche-tuile">
+                  <span className="k">{isPissa ? "Oignons crus" : "Poids cru"}</span>
+                  <span className="v">{cru ? nf(cru) : "—"}{cru ? <span style={{ fontSize: 17, fontWeight: 700 }}> kg</span> : null}</span>
+                  <span className="s">{isPissa ? "saisi dans la recette" : "ingrédients pesés"}</span>
+                </div>
+                <div className="fiche-tuile">
+                  <span className="k">{isPissa ? "Poids cuit — à peser" : "Poids fini (après cuisson/repos)"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input inputMode="decimal" value={f.poids_fini_kg == null ? "" : String(f.poids_fini_kg).replace(".", ",")} placeholder="0" onChange={(e) => change({ poids_fini_kg: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 9px", fontSize: 20, fontWeight: 800, maxWidth: 120 }} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: C.soft }}>kg</span>
+                  </div>
+                </div>
+                <div className="fiche-tuile">
+                  <span className="k">Rendement</span>
+                  <span className="v" style={{ color: pct != null ? PF.good : C.soft }}>{pct != null ? Math.round(pct) : "—"}{pct != null ? <span style={{ fontSize: 17, fontWeight: 700 }}> %</span> : null}</span>
+                  <span className="s">moyenne <b style={{ color: C.ink }}>{rendementEstime.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></span>
+                </div>
+                {isPissa && (
+                  <div className="fiche-tuile">
+                    <span className="k">Plaques</span>
+                    <input inputMode="numeric" value={f.pissa_nb_plaques == null ? "" : String(f.pissa_nb_plaques).replace(".", ",")} placeholder="0" onChange={(e) => change({ pissa_nb_plaques: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 9px", fontSize: 20, fontWeight: 800, maxWidth: 100 }} />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Le chiffre qu'on cherche en fin de fournée : combien de produits finis en sont
               sortis. Proposé d'après le poids obtenu ÷ le format du contenant, corrigeable à
@@ -3800,7 +4333,35 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
       )}
 
       {(
-        <div id="et-mo" style={{ ...card(), scrollMarginTop: 64 }}>
+        <div id="et-mo" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("mo")} titre="Temps & frais" sous={`Lieu : ${f.lieu || "—"}${pfNum(f.taux_local) === 0 ? ", aucun loyer réel" : ""}`} />
+          <div className="fiche-tuiles" style={{ marginBottom: 12 }}>
+            <div className="fiche-tuile" style={{ minHeight: 84 }}>
+              <span className="k">Lieu</span>
+              <input value={f.lieu || ""} placeholder="ex. Casa Mama" onChange={(e) => change({ lieu: e.target.value })} style={{ ...inp(), padding: "7px 9px", fontSize: 14.5, fontWeight: 700 }} />
+            </div>
+            <div className="fiche-tuile" style={{ minHeight: 84 }}>
+              <span className="k">Temps</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <input inputMode="decimal" value={f.temps_h == null ? "" : String(f.temps_h).replace(".", ",")} placeholder="0" onChange={(e) => change({ temps_h: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 8px", fontSize: 14.5, fontWeight: 700, width: 52 }} /><span style={{ fontSize: 12, color: C.soft }}>h</span>
+                <input inputMode="decimal" value={f.temps_min == null ? "" : String(f.temps_min).replace(".", ",")} placeholder="0" onChange={(e) => change({ temps_min: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 8px", fontSize: 14.5, fontWeight: 700, width: 52 }} /><span style={{ fontSize: 12, color: C.soft }}>min</span>
+              </div>
+            </div>
+            <div className="fiche-tuile" style={{ minHeight: 84 }}>
+              <span className="k">Personnel</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                <input value={((f.personnel || [])[0] || {}).nom || ""} placeholder="Nom" onChange={(e) => { const pers = [...(f.personnel || [])]; if (!pers.length) pers.push({ nom: "", taux: "" }); pers[0] = { ...pers[0], nom: e.target.value }; change({ personnel: pers }); }} style={{ ...inp(), padding: "7px 8px", fontSize: 14.5, fontWeight: 700, minWidth: 0, flex: "1 1 100%" }} />
+                <input inputMode="decimal" value={((f.personnel || [])[0] || {}).taux == null ? "" : String(((f.personnel || [])[0] || {}).taux).replace(".", ",")} placeholder="0" onChange={(e) => { const pers = [...(f.personnel || [])]; if (!pers.length) pers.push({ nom: "", taux: "" }); pers[0] = { ...pers[0], taux: e.target.value.replace(",", ".") }; change({ personnel: pers }); }} style={{ ...inp(), padding: "7px 8px", fontSize: 14.5, fontWeight: 700, width: 56 }} /><span style={{ fontSize: 12, color: C.soft }}>€/h</span>
+              </div>
+            </div>
+            <div className="fiche-tuile" style={{ minHeight: 84 }}>
+              <span className="k">Loyer fictif</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <input inputMode="decimal" value={f.taux_local == null ? "" : String(f.taux_local).replace(".", ",")} placeholder="0" onChange={(e) => change({ taux_local: e.target.value.replace(",", ".") })} style={{ ...inp(), padding: "7px 8px", fontSize: 14.5, fontWeight: 700, width: 72 }} /><span style={{ fontSize: 12, color: C.soft }}>€/h</span>
+              </div>
+            </div>
+          </div>
+          <BlocPliant ouvert={!!blocsProd.cout} onToggle={() => setBlocsProd((b) => ({ ...b, cout: !b.cout }))} titre="Détail du coût" resume="Part du temps, personnel, frais, transport, décomposition du coût de revient">
           <div style={{ ...h2 }}>Temps de production</div>
           <div className="pf-row" style={{ marginBottom: 10 }}>
             {NF("Temps", "temps_h", "h", "0", f, (k, v) => change({ [k]: v }))}
@@ -3850,26 +4411,95 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
             const tempsAffiche = R.tempsTotal.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
             const tempsManquant = R.tempsTotal === 0 && (tauxSum > 0 || pfNum(f.taux_local) > 0);
             return (
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}`, fontSize: 13 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Matières</span><span style={{ color: C.ink }}>{eur2(R.totalMatieres)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Main d'œuvre <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutMO)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft, gap: 8 }}><span>Local <span style={{ fontSize: 11, opacity: .7 }}>({tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""})</span></span><span style={{ color: C.ink, whiteSpace: "nowrap" }}>{eur2(R.coutLocal)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Transport</span><span style={{ color: C.ink }}>{eur2(R.coutTransport)}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: C.soft }}><span>Autres frais</span><span style={{ color: C.ink }}>{eur2(R.coutFraisExtra)}</span></div>
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+                <div className="fiche-tuiles">
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Matières</span><b style={{ fontSize: 18 }}>{eur2(R.totalMatieres)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Main d'œuvre</span><b style={{ fontSize: 18 }}>{eur2(R.coutMO)}</b><span className="s">{tempsAffiche} h × {tauxSum.toLocaleString("fr-FR")} €/h{R.partTemps < 100 ? ` × ${R.partTemps} %` : ""}</span></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Local</span><b style={{ fontSize: 18 }}>{eur2(R.coutLocal)}</b><span className="s">{tempsAffiche} h × {pfNum(f.taux_local).toLocaleString("fr-FR")} €/h</span></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Transport</span><b style={{ fontSize: 18 }}>{eur2(R.coutTransport)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76 }}><span className="k">Autres frais</span><b style={{ fontSize: 18 }}>{eur2(R.coutFraisExtra)}</b></div>
+                  <div className="fiche-tuile" style={{ minHeight: 76, background: PF.navy, border: "none" }}><span className="k" style={{ color: "#fff", opacity: .8 }}>Coût de revient total</span><b style={{ fontSize: 22, color: "#fff" }}>{eur2(R.revientHE)}</b></div>
+                </div>
                 {tempsManquant && (
                   <div style={{ fontSize: 11.5, color: PF.warn, marginTop: 8, background: "#faece5", borderRadius: 8, padding: "7px 10px", lineHeight: 1.4 }}><Warn /> Temps de production à 0 h → la main d'œuvre et le local ne sont pas comptés. Renseigne « Temps » et « dont (min) » ci-dessus si la fournée a pris du temps.</div>
                 )}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0 0", fontWeight: 800, color: PF.navy, fontSize: 15 }}><span>Coût de revient total</span><span>{eur2(R.revientHE)}</span></div>
               </div>
             );
           })()}
+          </BlocPliant>
         </div>
       )}
 
       {(
-        <div id="et-pot" style={{ ...card(), scrollMarginTop: 64 }}>
-          <div style={{ ...h2 }}>Contenants & vente</div>
+        <div id="et-pot" className="fiche-sec" style={{ ...card() }}>
+          <EtapeFournee n={numEtape("pot")} titre="Formats & vente" sous="Contenants & vente : chaque format est relié à un produit du catalogue" />
+          {((f.pots || []).length > 0 || (isPissa && (pfNum(f.pissa_nb_plaques) > 0 || f.pissa_plaque_pid))) && (
+            <div className="fiche-fmt-wrap">
+              <table className="fiche-fmt">
+                <thead><tr><th>Format</th><th>Poids</th><th>Nombre</th><th>Produit lié</th><th style={{ textAlign: "right" }}>Coût/u.</th><th style={{ textAlign: "right" }}>Vente</th></tr></thead>
+                <tbody>
+                  {isPissa && (pfNum(f.pissa_nb_plaques) > 0 || f.pissa_plaque_pid) && (() => {
+                    const pr = (products || []).find((x) => x.id === f.pissa_plaque_pid);
+                    const pq = pr || { name: "plaque", illu: "pissa", col: "" };
+                    return (
+                      <tr key="plq">
+                        <td style={{ fontWeight: 700 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 34, height: 34, borderRadius: 10, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center" }}><Illu k={illuDe(pq) || "pissa"} col={couleurDe(pq)} s={26} /></span>Plaque</span></td>
+                        <td>{pfNum(f.pissa_poids_plaque) > 0 ? `${pfNum(f.pissa_poids_plaque).toLocaleString("fr-FR")} kg` : "—"}</td>
+                        <td style={{ fontWeight: 700 }}>{pfNum(f.pissa_nb_plaques) || 0}</td>
+                        <td><select value={f.pissa_plaque_pid || ""} onChange={(ev) => change({ pissa_plaque_pid: ev.target.value || null })} style={{ ...inp(), padding: "6px 8px", fontSize: 13, maxWidth: 200 }}><option value="">— non lié —</option>{(products || []).map((q) => <option key={q.id} value={q.id}>{q.name}{q.unit ? " · " + q.unit : ""}</option>)}</select></td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(R.coutPlaque)}</td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(R.pxVentePlaque)}</td>
+                      </tr>
+                    );
+                  })()}
+                  {(f.pots || []).map((p, i) => {
+                    const pl = R.potLines[i] || {};
+                    const pr = (products || []).find((x) => x.id === p.pid);
+                    const pp = pr || { name: f.titre || FAM.label, illu: "", col: "" };
+                    const kk = illuDe(pp) || (isPissa ? "pissa" : "");
+                    return (
+                      <tr key={"fm" + i}>
+                        <td style={{ fontWeight: 700 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 34, height: 34, borderRadius: 10, background: "#fff", border: `1px solid ${C.line}`, display: "grid", placeItems: "center" }}>{kk ? <Illu k={kk} col={couleurDe(pp)} s={26} /> : null}</span>{isPissa && p.type === "kit" ? "Kit" : FAM.unitWord.charAt(0).toUpperCase() + FAM.unitWord.slice(1)} {pfNum(p.format_g) || "—"} g</span></td>
+                        <td>{pfNum(p.format_g) ? `${pfNum(p.format_g)} g` : "—"}</td>
+                        <td style={{ fontWeight: 700 }}>{pl.nb != null ? pl.nb : (pfNum(p.nb) || 0)}</td>
+                        <td><select value={p.pid || ""} onChange={(ev) => { const pots = [...f.pots]; pots[i] = { ...pots[i], pid: ev.target.value || null }; change({ pots }); }} style={{ ...inp(), padding: "6px 8px", fontSize: 13, maxWidth: 200 }}><option value="">— non lié —</option>{(products || []).map((q) => <option key={q.id} value={q.id}>{q.name}{q.unit ? " · " + q.unit : ""}</option>)}</select></td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(pl.coutUnitaireTotal)}</td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>{eur2(pl.pxVenteEffectif)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
+          <button onClick={() => change({ pots: [...(f.pots || []), { format_g: "", px_bocal: "", px_capuchon: "", px_etiquette: "", nb: "", px_vente: "" }] })} className="ca-tap" style={{ marginBottom: 12, background: "#fff", border: `1px dashed ${C.jam}`, color: C.jam, borderRadius: 10, padding: "8px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter un format</button>
+          {(() => {
+            const nonRelies = (f.pots || []).filter((p) => !p.pid).length;
+            if (!nonRelies) return null;
+            const sugg = suggestionsLiaison(f);
+            return (
+              <div style={{ ...card(), background: sugg.length ? "#eef3f6" : "#faece5", borderColor: (sugg.length ? PF.navy : PF.warn) + "44" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+                  {nonRelies} format{nonRelies > 1 ? "s" : ""} ne {nonRelies > 1 ? "sont" : "est"} relié{nonRelies > 1 ? "s" : ""} à aucun produit
+                </div>
+                <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginBottom: sugg.length ? 10 : 0 }}>
+                  Tant qu'un format n'est pas relié, valider la fournée ne remplit ni le stock ni le prix d'achat du produit correspondant.
+                  {!sugg.length && " Aucun produit du catalogue ne correspond au titre de cette fournée : choisissez-le à la main dans chaque format."}
+                </div>
+                {sugg.length > 0 && (
+                  <>
+                    {sugg.map((s) => (
+                      <div key={s.i} style={{ fontSize: 12.5, color: C.ink, padding: "3px 0" }}>Format {s.i + 1} ({pfNum(s.format_g)} g) → <b style={{ color: PF.navy }}>{s.nom}</b> <span style={{ color: C.soft }}>· {s.unit}</span></div>
+                    ))}
+                    <button onClick={() => { const pots = [...f.pots]; sugg.forEach((s) => { pots[s.i] = { ...pots[s.i], pid: s.pid }; }); change({ pots }); }} className="ca-tap" style={{ marginTop: 10, background: PF.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><Check size={14} /> Relier {sugg.length > 1 ? `ces ${sugg.length} formats` : "ce format"}</button>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          <BlocPliant ouvert={!!blocsProd.fmt} onToggle={() => setBlocsProd((b) => ({ ...b, fmt: !b.fmt }))} titre="Détail des formats et conditionnements" resume="Poids disponible, plaques, bocal, capuchon, étiquette, prix au kg, écarts de poids">
           {(() => {
             const nbCandidats = batches.filter((b) => b.id !== f.id && (b.famille || "pissaladiere") === (f.famille || "pissaladiere")).length;
             const cruAutres = autresFourneesSelectionnees.reduce((s, b) => s + (pfCalc(b, rendementEstime).oignonTotalRondes || 0), 0);
@@ -3980,31 +4610,6 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
               </div>
             </div>
           )}
-
-          {(() => {
-            const nonRelies = (f.pots || []).filter((p) => !p.pid).length;
-            if (!nonRelies) return null;
-            const sugg = suggestionsLiaison(f);
-            return (
-              <div style={{ ...card(), background: sugg.length ? "#eef3f6" : "#faece5", borderColor: (sugg.length ? PF.navy : PF.warn) + "44" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
-                  {nonRelies} format{nonRelies > 1 ? "s" : ""} ne {nonRelies > 1 ? "sont" : "est"} relié{nonRelies > 1 ? "s" : ""} à aucun produit
-                </div>
-                <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginBottom: sugg.length ? 10 : 0 }}>
-                  Tant qu'un format n'est pas relié, valider la fournée ne remplit ni le stock ni le prix d'achat du produit correspondant.
-                  {!sugg.length && " Aucun produit du catalogue ne correspond au titre de cette fournée : choisissez-le à la main dans chaque format."}
-                </div>
-                {sugg.length > 0 && (
-                  <>
-                    {sugg.map((s) => (
-                      <div key={s.i} style={{ fontSize: 12.5, color: C.ink, padding: "3px 0" }}>Format {s.i + 1} ({pfNum(s.format_g)} g) → <b style={{ color: PF.navy }}>{s.nom}</b> <span style={{ color: C.soft }}>· {s.unit}</span></div>
-                    ))}
-                    <button onClick={() => { const pots = [...f.pots]; sugg.forEach((s) => { pots[s.i] = { ...pots[s.i], pid: s.pid }; }); change({ pots }); }} className="ca-tap" style={{ marginTop: 10, background: PF.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}><Check size={14} /> Relier {sugg.length > 1 ? `ces ${sugg.length} formats` : "ce format"}</button>
-                  </>
-                )}
-              </div>
-            );
-          })()}
 
           {(f.pots || []).map((p, i) => { const pl = R.potLines[i] || {}; const cTot = pl.coutUnitaireTotal; const labels = isPissa ? POT_TYPE_LABELS[p.type || "pot"] : FAM.packLabels; const unitWord = isPissa && p.type === "kit" ? "kit" : FAM.unitWord; return (
             <div key={i} style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10, background: "#fff" }}>
@@ -4184,19 +4789,24 @@ function ProProduction({ pass, products, setProducts, sales, clients, profile, o
               <span>Écart poids : {R.ecartPoids > 0 ? "+" : ""}{R.ecartPoids.toFixed(2)} kg entre le poids disponible pots ({R.poidsDispoPots ? R.poidsDispoPots.toFixed(2) : "—"} kg) et les pots remplis ({R.poidsAlloue.toFixed(2)} kg).</span>
             </div>
           )}
+          </BlocPliant>
         </div>
       )}
 
-      {/* La fiche hygiène est volontairement HORS des onglets : c'est un document à part, rempli en
-          cuisine par quelqu'un qui ne connaît pas le reste de l'app. Elle vient EN FIN de parcours,
-          juste avant la validation : on la remplit quand la fournée est faite, pas avant. */}
-      <button onClick={() => setHygieneOuverte(true)} className="ca-tap" style={{ width: "100%", marginBottom: 12, background: "#fff", border: `1.5px solid ${PF.navy}`, color: PF.navy, borderRadius: 13, padding: "13px 15px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span>Contrôle hygiène{f.hygiene && f.hygiene.lot ? <span style={{ color: C.soft, fontWeight: 500 }}> · lot {f.hygiene.lot}</span> : ""}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.soft }}>{f.hygiene && f.hygiene.responsable ? "voir / imprimer" : "remplir"} →</span>
-      </button>
+      {/* Fiche sanitaire = section 6 de la page (data.hygiene, aucune migration). La fenêtre
+          FicheHygiene reste ouvrable pour le détail (origine, bacs, responsable) et la recherche de lot. */}
+      <div id="et-san" className="fiche-sec" style={{ ...card() }}>
+        <EtapeFournee n={numEtape("san")} titre="Fiche sanitaire" sous="Contrôle hygiène : liée au lot, à la date et au lieu de cette fournée" />
+        <FicheSanitaire f={f} change={change} batches={batches} profile={profile} onOuvrir={() => setHygieneOuverte(true)} />
+      </div>
+      </div>
+      <aside className="fiche-side" aria-label="Résumé de la fournée">
+        {heroCards(R, FAM)}
+      </aside>
+      </div>
       {hygieneOuverte && <FicheHygiene f={f} change={change} profile={profile} batches={batches} onClose={() => setHygieneOuverte(false)} />}
 
-      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
+      <button onClick={() => { setValidErreur(null); setConfirmValide({}); }} className="ca-tap fiche-valider-bas" style={{ width: "100%", marginTop: 6, marginBottom: 24, background: C.jam, color: "#fff", border: "none", borderRadius: 14, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}><Check size={19} /> Valider la fournée (met à jour le stock)</button>
 
       {confirmValide && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#16140Fdd", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -6379,15 +6989,18 @@ function Qte({ value, onChange }) {
     </div>
   );
 }
-function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAjoute }) {
+function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAjoute, batches }) {
   const byId = useMemo(() => Object.fromEntries(all.map((p) => [p.id, p])), [all]);
   const [nom, setNom] = useState(coffret.name);
   const [items, setItems] = useState((coffret.composition.items || []).map((i) => ({ pid: i.pid, qty: String(i.qty).replace(".", ",") })));
-  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: String(e.cost).replace(".", ",") })));
+  const [emb, setEmb] = useState((coffret.composition.emballage || []).map((e) => ({ label: e.label, qty: String(e.qty).replace(".", ","), cost: coffretNum(e.cost) > 0 ? (Math.round(coffretNum(e.cost) * 100) / 100).toFixed(2).replace(".", ",") : "" })));
   const [prix, setPrix] = useState(coffret.price > 0 ? String(coffret.price).replace(".", ",") : "");
   const [actif, setActif] = useState(coffret.active);
   const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [asm, setAsm] = useState(false); const [costDraft, setCostDraft] = useState({});
   const [rech, setRech] = useState(""); const [filtreCat, setFiltreCat] = useState("Tous"); const [nvP, setNvP] = useState(null); // nvP : { nom, unit, achat, vente, busy, erreur }
+  const [typeF, setTypeF] = useState("Tous"); const [catOuvert, setCatOuvert] = useState(true);
+  useEffect(() => { if (typeof window !== "undefined" && window.innerWidth < 1000) setCatOuvert(false); }, []);
+  const origines = useMemo(() => origineCouts(batches, all), [batches, all]);
   // Prix d'achat au kilo d'un produit fini : coût unitaire ÷ poids du conditionnement (jamais deviné si le poids n'est pas écrit).
   const prixKg = (p) => { const g = grammesUnite(p && p.unit, false); return p && g > 0 && p.cost > 0 ? p.cost / (g / 1000) : null; };
   const compo = { items: items.map((i) => ({ pid: i.pid, qty: coffretNum(i.qty) })), emballage: emb.map((e) => ({ label: e.label, qty: coffretNum(e.qty), cost: coffretNum(e.cost) })), visuel: (coffret.composition || {}).visuel };
@@ -6400,7 +7013,7 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
   const [snapOk, setSnapOk] = useState(null);
   const dirty = snap !== (snapOk != null ? snapOk : snapInit.current);
   const parts = [...lignes.filter((l) => l.ligne > 0).map((l) => ({ label: l.name, v: l.ligne })), ...compo.emballage.filter((e) => e.cost * e.qty > 0).map((e) => ({ label: e.label || "Emballage", v: e.cost * e.qty }))];
-  const conseils = complet && total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
+  const conseils = total > 0 ? [2, 2.5, 3].map((m) => ({ m, v: Math.ceil(total * m) })) : [];
   const catalogue = all.filter((p) => !p.composition).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   const setItem = (k, patch) => setItems((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
   const setEmbl = (k, patch) => setEmb((l) => l.map((x, i) => i === k ? { ...x, ...patch } : x));
@@ -6440,106 +7053,180 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
     setItems((l) => [...l, { pid: id, qty: "1" }]); setNvP(null);
   };
   const supprimerLigne = (k) => { if (window.confirm("Retirer cet article du coffret ?")) setItems((l) => l.filter((_, i) => i !== k)); };
+  const typeDe = (c) => (origines[c.id] && origines[c.id].src === "fournee") ? "Fabriqués" : "Achetés";
+  const nbType = (t) => catalogue.filter((c) => t === "Tous" || typeDe(c) === t).length;
+  const catFiltre = catalogue.filter((c) => (typeF === "Tous" || typeDe(c) === typeF) && (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase())));
+  const nomVal = { fontVariantNumeric: "lining-nums tabular-nums" };
+  const catRef = useRef(null);
+  const ouvrirCatalogue = () => { setCatOuvert(true); setTimeout(() => { if (catRef.current) catRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); };
+  const fmt2 = (x) => (Number(x) > 0 ? (Math.round(Number(x) * 100) / 100).toFixed(2).replace(".", ",") : "");
+  const h2k = { fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", color: C.soft, fontWeight: 700 };
+  const subtitre = actif ? "Visible en Caisse et en boutique" : pv > 0 ? "Masqué pour l'instant — cochez « Visible » puis validez le coffret" : "Masqué tant que le prix de vente n'est pas saisi";
+  const manquantsTxt = manquants.map((m) => "+ " + (byId[m] ? byId[m].name : m)).join(" ");
   return (
-    <div className="ca-anim">
+    <div className="ca-anim cof2-page">
       <button onClick={onBack} style={backBtn()}><ChevronLeft size={15} /> Coffrets</button>
-      <div style={{ margin: "8px 0 14px" }}><input value={nom} onChange={(e) => setNom(e.target.value)} style={{ ...inp(), fontFamily: SCRIPT, fontSize: 22, color: C.jam, fontWeight: 400, maxWidth: 460 }} /></div>
-      <div className="pro-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 270px", gap: 16, alignItems: "start" }}>
-        <div>
-          <div style={card()}>
-            <div style={h2}>Produits finis du catalogue</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-              <input value={rech} onChange={(e) => setRech(e.target.value)} placeholder="Rechercher un produit…" style={{ ...inp(), flex: "1 1 200px", minWidth: 0 }} />
-              <button onClick={() => setNvP({ nom: "", unit: "", achat: "", vente: "", busy: false, erreur: "" })} className="ca-tap" style={{ background: "#fff", color: C.jam, border: `1.5px dashed ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Nouveau produit</button>
-            </div>
-            {nvP && (
-              <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <div style={{ flex: "2 1 180px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
-                <div style={{ flex: "1 1 120px", minWidth: 0 }}><Lbl>Conditionnement</Lbl><input value={nvP.unit} onChange={(e) => setNvP({ ...nvP, unit: e.target.value })} placeholder="pot 100 g" style={inp()} /></div>
-                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Achat / unité</Lbl><input value={nvP.achat} onChange={(e) => setNvP({ ...nvP, achat: e.target.value })} inputMode="decimal" placeholder="3,49" style={inp()} /></div>
-                <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Vente</Lbl><input value={nvP.vente} onChange={(e) => setNvP({ ...nvP, vente: e.target.value })} inputMode="decimal" placeholder="facultatif" style={inp()} /></div>
-                <button type="submit" disabled={!nvP.nom.trim() || nvP.busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, cursor: "pointer", opacity: !nvP.nom.trim() || nvP.busy ? .5 : 1 }}>{nvP.busy ? "Création…" : "Créer et ajouter"}</button>
-                <button type="button" onClick={() => setNvP(null)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontWeight: 600, color: C.soft, cursor: "pointer" }}>Annuler</button>
-                {nvP.erreur && <div style={{ width: "100%", color: "#a6482a", fontWeight: 600, fontSize: 13 }}><Warn size={13} /> {nvP.erreur}</div>}
-              </form>
-            )}
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", width: "100%", maxWidth: "100%", paddingBottom: 6 }}>
-              {["Tous", ...Array.from(new Set(catalogue.map((c) => c.cat).filter(Boolean)))].map((c) => (
-                <button key={c} onClick={() => setFiltreCat(c)} className="ca-tap" style={{ flex: "none", border: `1px solid ${filtreCat === c ? C.jam : C.line}`, background: filtreCat === c ? C.jam : "#fff", color: filtreCat === c ? "#fff" : C.ink, borderRadius: 999, padding: "7px 13px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{c}</button>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 8, maxHeight: 360, overflowY: "auto", marginTop: 6 }}>
-              {catalogue.filter((c) => (filtreCat === "Tous" || c.cat === filtreCat) && (!rech.trim() || (c.name + " " + c.unit).toLowerCase().includes(rech.trim().toLowerCase()))).map((c) => { const kg = prixKg(c); const dans = items.some((x) => x.pid === c.id); return (
-                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "center", background: dans ? "#fff" : C.paper, border: `1.5px solid ${dans ? C.jam : C.line}`, borderRadius: 12, padding: "8px 10px", minWidth: 0 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 11, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(c.name) ? <PictoIng label={c.name} size={34} /> : <Illu k={illuDe(c)} col={couleurDe(c)} s={34} />}</div>
-                  <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, lineHeight: 1.35 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-                    <div style={{ color: C.soft }}>{c.unit}{c.active ? "" : " · masqué"}</div>
-                    <div style={{ fontVariantNumeric: "lining-nums tabular-nums" }}>{c.cost > 0 ? <>achat <b>{eur2(c.cost)}</b>{kg != null && <> · <b>{eur2(kg)}/kg</b></>}</> : <span style={{ color: "#a6482a", fontWeight: 700 }}>achat à saisir</span>}{c.price > 0 && <> · vente <b>{eur2(c.price)}</b></>}</div>
+      <div className="cof2-head">
+        <div className="cof2-vign"><PictoIng label="coffret" size={48} /></div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <input className="cof2-titre" aria-label="Nom du coffret" value={nom} onChange={(e) => setNom(e.target.value)} />
+          <div className="cof2-sub">{subtitre}</div>
+        </div>
+      </div>
+      <button type="button" onClick={ouvrirCatalogue} className="cof2-addtop ca-tap"><Plus size={18} /> Ajouter un produit</button>
+      <div className="cof2-wrap">
+        <div className="cof2-left">
+          <div className="cof2-card" ref={catRef}>
+            <button type="button" className="cof2-tog ca-tap" onClick={() => setCatOuvert((o) => !o)} aria-expanded={catOuvert}>
+              <span style={h2k}>Produits finis <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>du catalogue ({catalogue.length})</span></span>
+              <ChevronDown size={18} color={C.soft} style={{ transform: catOuvert ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            <div className="cof2-h2t" aria-label="Produits finis du catalogue" style={h2k}>Produits finis <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 600 }}>du catalogue</span></div>
+            <div className={"cof2-catbody" + (catOuvert ? "" : " ferme")}>
+              <input value={rech} onChange={(e) => setRech(e.target.value)} placeholder="Rechercher un produit…" aria-label="Rechercher un produit" style={{ ...inp(), background: "#fff", fontWeight: 500, marginBottom: 10 }} />
+              <div className="cof2-seg" role="tablist">
+                {["Tous", "Fabriqués", "Achetés"].map((t) => (
+                  <button key={t} role="tab" aria-selected={typeF === t} onClick={() => setTypeF(t)} className={"ca-tap" + (typeF === t ? " on" : "")}>{t} <span className="n">{nbType(t)}</span></button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", width: "100%", maxWidth: "100%", padding: "10px 0 6px" }}>
+                {["Tous", ...Array.from(new Set(catalogue.map((c) => c.cat).filter(Boolean)))].map((c) => (
+                  <button key={c} onClick={() => setFiltreCat(c)} className="ca-tap" style={{ flex: "none", border: `1px solid ${filtreCat === c ? C.jam : C.line}`, background: filtreCat === c ? C.jam : "#fff", color: filtreCat === c ? "#fff" : C.ink, borderRadius: 999, padding: "5px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>{c}</button>
+                ))}
+              </div>
+              <div className="cof2-list">
+                {catFiltre.length === 0 && <div style={{ color: C.soft, fontSize: 13, padding: "12px 4px" }}>Aucun produit ne correspond{typeF === "Fabriqués" ? " (aucun coût n'est encore descendu d'une fournée validée)" : ""}.</div>}
+                {catFiltre.map((c) => { const kg = prixKg(c); const dans = items.some((x) => x.pid === c.id); return (
+                  <div key={c.id} className={"cof2-prod" + (dans ? " dans" : "")}>
+                    <div className="cof2-pic">{illuIngKey(c.name) ? <PictoIng label={c.name} size={52} /> : <Illu k={illuDe(c)} col={couleurDe(c)} s={52} />}</div>
+                    <div className="cof2-pt">
+                      <div className="cof2-pn">{c.name}</div>
+                      <div className="cof2-ps">{c.unit}{c.active ? "" : " · masqué"}</div>
+                      <div style={nomVal}>achat {c.cost > 0 ? <><b>{eur2(c.cost)}</b>{kg != null && <> · <b>{eur2(kg)}/kg</b></>}</> : <><b>manquant</b> · <b>—</b></>}</div>
+                      <div style={nomVal}>vente <b>{c.price > 0 ? eur2(c.price) : "—"}</b></div>
+                    </div>
+                    <button onClick={() => ajouter(c.id)} aria-label={"Ajouter " + c.name} className="cof2-plus ca-tap"><Plus size={20} /></button>
                   </div>
-                  <button onClick={() => ajouter(c.id)} aria-label={"Ajouter " + c.name} className="ca-tap" style={{ width: 34, height: 34, borderRadius: 17, border: "none", background: C.jam, color: "#fff", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Plus size={17} /></button>
-                </div>
-              ); })}
+                ); })}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>masqué = pas visible en Caisse ni en boutique</div>
+              {nvP ? (
+                <form onSubmit={(e) => { e.preventDefault(); creerProduit(); }} style={{ background: C.cream, borderRadius: 12, padding: 12, marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div style={{ flex: "2 1 140px", minWidth: 0 }}><Lbl>Nom</Lbl><input autoFocus value={nvP.nom} onChange={(e) => setNvP({ ...nvP, nom: e.target.value })} placeholder="ex. Tapenade" style={inp()} /></div>
+                  <div style={{ flex: "1 1 120px", minWidth: 0 }}><Lbl>Conditionnement</Lbl><input value={nvP.unit} onChange={(e) => setNvP({ ...nvP, unit: e.target.value })} placeholder="pot 100 g" style={inp()} /></div>
+                  <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Achat / unité</Lbl><input value={nvP.achat} onChange={(e) => setNvP({ ...nvP, achat: e.target.value })} inputMode="decimal" placeholder="3,49" style={inp()} /></div>
+                  <div style={{ flex: "1 1 90px", minWidth: 0 }}><Lbl>Vente</Lbl><input value={nvP.vente} onChange={(e) => setNvP({ ...nvP, vente: e.target.value })} inputMode="decimal" placeholder="facultatif" style={inp()} /></div>
+                  <button type="submit" disabled={!nvP.nom.trim() || nvP.busy} className="ca-tap" style={{ background: C.jam, color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, cursor: "pointer", opacity: !nvP.nom.trim() || nvP.busy ? .5 : 1 }}>{nvP.busy ? "Création…" : "Créer et ajouter"}</button>
+                  <button type="button" onClick={() => setNvP(null)} className="ca-tap" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontWeight: 600, color: C.soft, cursor: "pointer" }}>Annuler</button>
+                  {nvP.erreur && <div style={{ width: "100%", color: "#a6482a", fontWeight: 600, fontSize: 13 }}><Warn size={13} /> {nvP.erreur}</div>}
+                </form>
+              ) : (
+                <button onClick={() => setNvP({ nom: "", unit: "", achat: "", vente: "", busy: false, erreur: "" })} className="cof2-nouv ca-tap"><Plus size={16} /> Nouveau produit</button>
+              )}
             </div>
           </div>
-          <div style={card()}>
-            <div style={h2}>Composition</div>
-            <div className="cof-h"><div>Article</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
-            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; return (
-              <div key={k}>
-                <div className="cof-l">
-                  <label className="cof-cell cof-art"><span className="cof-lab">Article</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{p && <span style={{ width: 34, height: 34, borderRadius: 9, background: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}>{illuIngKey(p.name) ? <PictoIng label={p.name} size={26} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={26} />}</span>}
-                    <select value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} style={{ ...inp(), padding: "8px 10px", fontSize: 13 }}>
-                      {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
-                      {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
-                    </select></span></label>
-                  <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
-                  <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={costDraft[it.pid] != null ? costDraft[it.pid] : (p && p.cost > 0 ? String(p.cost).replace(".", ",") : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                  <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: l && l.cost > 0 ? C.ink : C.soft }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</div></div>
-                  <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
+        </div>
+        <div className="cof2-col">
+          <div className="cof2-card cof2" style={{ padding: "16px 18px" }}>
+            <div className="cof2-h"><div title="Composition">Dans le coffret</div><div className="r u">Achat/u.</div><div className="r kg">Achat/kg</div><div className="c">Qté</div><div className="r">Coût</div><div /></div>
+            {items.length === 0 && <div style={{ color: C.soft, fontSize: 13, padding: "14px 0" }}>Aucun article : touchez le bouton + d'un produit fini du catalogue.</div>}
+            {items.map((it, k) => { const p = byId[it.pid]; const l = lignes[k]; const kg = prixKg(p); const brouillon = costDraft[it.pid]; const vide = brouillon != null ? !String(brouillon).trim() : !(p && p.cost > 0); return (
+              <div className="cof2-r" key={k}>
+                <div className="cof2-art">
+                  <span className="cof2-ap">{p ? (illuIngKey(p.name) ? <PictoIng label={p.name} size={34} /> : <Illu k={illuDe(p)} col={couleurDe(p)} s={34} />) : null}</span>
+                  <span className="cof2-an">
+                    <span style={{ position: "relative", display: "block" }}>
+                      <span className="cof2-nm">{p ? p.name : it.pid}</span>
+                      <select aria-label="Changer d'article" title="Changer d'article" value={it.pid} onChange={(e) => setItem(k, { pid: e.target.value })} className="cof2-sel">
+                        {!catalogue.some((c) => c.id === it.pid) && <option value={it.pid}>{it.pid}</option>}
+                        {catalogue.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.unit}{c.active ? "" : " (masqué)"}</option>)}
+                      </select>
+                    </span>
+                    <span className="cof2-as" style={nomVal}>{p ? p.unit : ""} · Stock {p ? p.stock : "?"}</span>
+                  </span>
                 </div>
-                <div className="cof-note">Stock {p ? p.stock : "?"}{p && prixKg(p) != null && <span style={{ fontVariantNumeric: "lining-nums tabular-nums" }}> · achat au kilo <b>{eur2(prixKg(p))}/kg</b></span>}{p && !(p.cost > 0) && <span style={{ color: "#a6482a", fontWeight: 700 }}> · <Warn size={11} /> prix d'achat à renseigner</span>}</div>
+                <div className="cof2-nums">
+                  <label className="cof2-u"><span className="cof2-lab">Achat/u.</span><span className="cof2-uf">
+                    <input className={"cof2-in" + (vide ? " vide" : "")} value={brouillon != null ? brouillon : (p && p.cost > 0 ? fmt2(p.cost) : "")} onChange={(e) => setCostDraft((d) => ({ ...d, [it.pid]: e.target.value }))} onBlur={() => saveCostPid(it.pid)} placeholder="à saisir" inputMode="decimal" title={vide ? "achat à saisir : prix d'achat à renseigner" : "Prix d'achat à l'unité"} aria-label={"Achat à l'unité de " + (p ? p.name : it.pid)} />{!vide && <span className="cof2-eur">€</span>}</span>
+                  </label>
+                  <div className="cof2-kg"><span className="cof2-lab">Achat/kg</span><span className="cof2-v" style={{ color: kg != null ? C.ink : "#C9C0AE" }}>{kg != null ? eur2(kg) + "/kg" : "—"}</span></div>
+                  <div className="cof2-cout"><span className="cof2-lab">Coût</span><span className="cof2-v" style={{ fontWeight: 700, color: l && l.cost > 0 ? C.ink : "#C9C0AE" }}>{l && l.cost > 0 ? eur2(l.ligne) : "—"}</span></div>
+                </div>
+                <div className="cof2-qte"><Qte value={it.qty} onChange={(v) => setItem(k, { qty: v })} /></div>
+                <div className="cof2-del"><Sq onClick={() => supprimerLigne(k)}><Trash2 size={15} color={C.soft} /></Sq></div>
               </div>
             ); })}
-            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap" style={{ marginTop: 4, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter un article du catalogue</button>
-          </div>
-          <div style={card()}>
-            <div style={h2}>Emballage et impressions</div>
-            <div className="cof-h"><div>Libellé</div><div>Qté</div><div>Achat HT</div><div className="r">Total</div><div /></div>
+            <button onClick={() => setItems((l) => [...l, { pid: catalogue[0] ? catalogue[0].id : "", qty: "1" }])} className="ca-tap cof2-ajout">+ Ajouter un article du catalogue</button>
+            <div className="cof2-sep">Emballage et impressions</div>
             {emb.map((e, k) => (
-              <div className="cof-l" key={k}>
-                <label className="cof-cell cof-art"><span className="cof-lab">Libellé</span><input value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value })} placeholder="Boîte, fascicule…" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                <div className="cof-cell"><span className="cof-lab">Qté</span><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
-                <label className="cof-cell"><span className="cof-lab">Achat HT</span><input value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} inputMode="decimal" placeholder="à saisir" style={{ ...inp(), padding: "8px 10px", fontSize: 13 }} /></label>
-                <div className="cof-cell"><span className="cof-lab">Total</span><div className="cof-tot" style={{ color: coffretNum(e.cost) > 0 ? C.ink : C.soft }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</div></div>
-                <div className="cof-del" style={{ paddingBottom: 3 }}><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
+              <div className="cof2-r" key={"e" + k}>
+                <div className="cof2-art">
+                  <span className="cof2-ap"><PictoEmb label={e.label} size={34} /></span>
+                  <span className="cof2-an">
+                    <textarea rows={1} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} value={e.label} onChange={(ev) => setEmbl(k, { label: ev.target.value.replace(/\n/g, " ") })} onKeyDown={(ev) => { if (ev.key === "Enter") ev.preventDefault(); }} placeholder="Boîte, fascicule…" aria-label="Libellé" title={e.label || "Libellé de l'emballage"} className="cof2-in lib" />
+                    <span className="cof2-as">emballage</span>
+                  </span>
+                </div>
+                <div className="cof2-nums">
+                  <label className="cof2-u"><span className="cof2-lab">Achat/u.</span><span className="cof2-uf"><input className={"cof2-in" + (coffretNum(e.cost) > 0 ? "" : " vide")} value={e.cost} onChange={(ev) => setEmbl(k, { cost: ev.target.value })} onBlur={(ev) => { const n = coffretNum(ev.target.value); if (n > 0) setEmbl(k, { cost: fmt2(n) }); }} inputMode="decimal" placeholder="à saisir" aria-label="Achat à l'unité de l'emballage" />{coffretNum(e.cost) > 0 && <span className="cof2-eur">€</span>}</span></label>
+                  <div className="cof2-kg"><span className="cof2-lab">Achat/kg</span><span className="cof2-v" style={{ color: "#C9C0AE" }}>—</span></div>
+                  <div className="cof2-cout"><span className="cof2-lab">Coût</span><span className="cof2-v" style={{ fontWeight: 700, color: coffretNum(e.cost) > 0 ? C.ink : "#C9C0AE" }}>{coffretNum(e.cost) > 0 ? eur2(coffretNum(e.cost) * coffretNum(e.qty)) : "—"}</span></div>
+                </div>
+                <div className="cof2-qte"><Qte value={e.qty} onChange={(v) => setEmbl(k, { qty: v })} /></div>
+                <div className="cof2-del"><Sq onClick={() => { if (window.confirm("Retirer cette ligne ?")) setEmb((l) => l.filter((_, i) => i !== k)); }}><Trash2 size={15} color={C.soft} /></Sq></div>
               </div>
             ))}
-            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap" style={{ marginTop: 10, background: "#fff", color: C.jam, border: `1.5px solid ${C.jam}`, borderRadius: 10, padding: "9px 14px", fontWeight: 600, cursor: "pointer", fontSize: 13 }}>+ Ajouter une ligne</button>
+            <button onClick={() => setEmb((l) => [...l, { label: "", qty: "1", cost: "" }])} className="ca-tap cof2-ajout">+ Ajouter une ligne</button>
+            {!complet && <div className="cof2-alerte">{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {[[complet ? "Coût de revient" : "Coût connu", total > 0 ? eur2(total) : "—", false], ["Prix de vente", null, true], ["Marge", marge != null ? eur2(marge) : "—", false], ["Coef", coef != null ? coef.toFixed(2).replace(".", ",") : "—", false]].map(([lbl, val, isPrix]) => (
-              <div key={lbl} style={{ flex: "1 1 130px", background: isPrix ? C.jam : lbl.startsWith("Coût") ? C.paper : C.board, color: lbl.startsWith("Coût") ? C.ink : "#fff", border: lbl.startsWith("Coût") ? `1px solid ${C.line}` : "none", borderRadius: 12, padding: "10px 14px" }}>
-                <div style={{ fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, opacity: .8 }}>{lbl}</div>
-                {isPrix ? <input value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" style={{ background: "transparent", border: "none", borderBottom: "1.5px solid #ffffff88", color: "#fff", fontSize: 20, fontWeight: 700, width: "100%", outline: "none" }} /> : <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "lining-nums tabular-nums" }}>{val}</div>}
-              </div>
-            ))}
+          <div className="cof2-tiles">
+            <div className="cof2-tile noir">
+              <div className="cof2-tl">{complet ? "Coût de revient" : "Coût connu"}</div>
+              <div className="cof2-tv" style={nomVal}>{total > 0 ? eur2(total) : "—"}</div>
+              {!complet && manquants.length > 0 && <div className="cof2-td">{manquantsTxt}</div>}
+              {complet && <div className="cof2-td">tous les prix d'achat sont connus</div>}
+            </div>
+            <div className="cof2-tile">
+              <div className="cof2-tl">Prix de vente</div>
+              <input className="cof2-prix" value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="à saisir" inputMode="decimal" aria-label="Prix de vente" style={nomVal} />
+              {marge != null ? (
+                <div style={{ marginTop: 12 }}>
+                  <div className="cof2-td" style={{ color: C.ink, display: "flex", justifyContent: "space-between", gap: 8, marginTop: 0, ...nomVal }}><span title="Marge sur le prix de vente">Marge <b>{eur2(marge)}</b> · coef <b>{coef != null ? coef.toFixed(2).replace(".", ",") : "—"}</b></span><span style={{ color: marge > 0 ? C.ok : "#a6482a", fontWeight: 700 }}>{Math.round(marge / pv * 100)} %</span></div>
+                  <div style={{ height: 7, borderRadius: 5, background: C.cream, overflow: "hidden", marginTop: 5 }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
+                </div>
+              ) : <div className="cof2-td" style={{ marginTop: 10 }}>{pv > 0 ? "Marge et coef : affichés quand tous les prix d'achat sont connus." : "Saisi par vous, jamais recalculé."}</div>}
+            </div>
+            <div className="cof2-tile">
+              <div className="cof2-tl" title="Repères de prix (un geste)">Conseils (coef)</div>
+              {conseils.length > 0 ? (
+                <div style={{ display: "grid", gap: 2 }}>
+                  {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="cof2-cons ca-tap" aria-label={"Fixer le prix à " + eur2(c.v)}><span>coef <b>{String(c.m).replace(".", ",")}</b></span><span className="v" style={nomVal}>{c.v} €</span></button>)}
+                  {!complet && <div className="cof2-td" style={{ marginTop: 2 }}>sur le coût connu seulement</div>}
+                </div>
+              ) : <div className="cof2-td">Disponibles dès qu'un prix d'achat est connu.</div>}
+            </div>
           </div>
-          {conseils.length > 0 && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-              <span style={{ fontSize: 12, color: C.soft, fontWeight: 600 }}>Repères de prix (un geste)</span>
-              {conseils.map((c) => <button key={c.m} onClick={() => setPrix(String(c.v))} className="ca-tap" style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 20, padding: "6px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", color: C.ink }}>coef {String(c.m).replace(".", ",")} · {eur2(c.v)}</button>)}
+          <div className="cof2-actions">
+            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap cof2-b1" style={{ background: C.jam, color: "#fff", cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : dirty ? 1 : .45 }}>{busy ? "Enregistrement…" : "Valider le coffret"}</button>
+            <button onClick={() => setAsm(true)} className="ca-tap cof2-b2">J'ai fabriqué des coffrets</button>
+            {!dirty && !busy && <span style={{ fontSize: 12.5, color: C.ok, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}><Ok size={14} /> enregistré</span>}
+            <div className="cof2-leg">Fabriquer retire les composants du stock et ajoute les coffrets.</div>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
+            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
+          </div>
+          <div className="cof2-extras">
+            <div className="cof2-card" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
+            <div className="cof2-card" style={{ marginBottom: 0 }}>
+              <div style={h2}>Stock</div>
+              <div style={{ fontSize: 28, fontWeight: 700, ...nomVal }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
+              <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
+              <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
             </div>
-          )}
-          {marge != null && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.soft, fontWeight: 600, marginBottom: 4 }}><span>Marge sur le prix de vente</span><span style={{ color: marge > 0 ? C.ok : "#a6482a" }}>{Math.round(marge / pv * 100)} %</span></div>
-              <div style={{ height: 8, borderRadius: 5, background: C.cream, overflow: "hidden" }}><div style={{ height: "100%", width: Math.max(0, Math.min(100, marge / pv * 100)) + "%", background: marge > 0 ? C.ok : "#a6482a" }} /></div>
-            </div>
-          )}
+          </div>
           {total > 0 && (
-            <div style={{ ...card(), marginTop: 12 }}>
+            <div className="cof2-card" style={{ marginTop: 12 }}>
               <div style={h2}>Répartition du coût</div>
               <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", background: C.cream }}>
                 {parts.map((p, i) => <div key={i} title={p.label} style={{ width: (p.v / total * 100) + "%", background: [C.jam, C.caramel, PF.navy, PF.good, PF.ochre, C.soft][i % 6] }} />)}
@@ -6549,29 +7236,13 @@ function CoffretEditeur({ coffret, all, pass, onBack, onSaved, onAssembled, onAj
               </div>
             </div>
           )}
-          {!complet && <div style={{ background: "#fff", borderLeft: `4px solid ${C.caramel}`, padding: "8px 12px", fontSize: 12.5, borderRadius: 6, marginTop: 10 }}>{compo.items.length === 0 ? "Ajoute au moins un article." : `Coût incomplet : il manque le prix d'achat de ${manquants.join(", ")}. Tant qu'il manque, la marge n'est pas affichée et le coût n'est pas enregistré sur le produit.`}</div>}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
-            <button onClick={enregistrer} disabled={busy || !dirty} className="ca-tap" style={{ background: dirty ? C.jam : C.line, color: dirty ? "#fff" : C.soft, border: "none", borderRadius: 10, padding: "11px 20px", fontWeight: 700, cursor: dirty ? "pointer" : "default", opacity: busy ? .6 : 1, display: "inline-flex", alignItems: "center", gap: 7 }}>{busy ? "Enregistrement…" : dirty ? "Valider le coffret" : <><Ok size={15} /> Coffret à jour</>}</button>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} /> Visible en Caisse et en boutique</label>
-            {msg && <span style={{ fontSize: 13, fontWeight: 600, color: msg.bad ? "#a6482a" : C.ok }}>{msg.bad ? <Warn /> : <Ok />} {msg.t}</span>}
-          </div>
-        </div>
-        <div>
-          <div style={{ ...card(), padding: 0, overflow: "hidden" }}><CoffretVisuel nom={nom} visuel={(coffret.composition || {}).visuel} compact /></div>
-          <div style={card()}>
-            <div style={h2}>Stock</div>
-            <div style={{ fontSize: 28, fontWeight: 700 }}>{coffret.stock} <span style={{ fontSize: 13, color: C.soft, fontWeight: 600 }}>coffret(s)</span></div>
-            <div style={{ fontSize: 12.5, color: C.soft, marginTop: 4 }}>Fabricables maintenant : <b style={{ color: C.ink }}>{asb.n}</b>{asb.limite && asb.n === 0 && <> · limité par <b>{asb.limite}</b></>}</div>
-            <button onClick={() => setAsm(true)} className="ca-tap" style={{ marginTop: 12, width: "100%", background: C.board, color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 700, cursor: "pointer" }}>J'ai fabriqué des coffrets</button>
-            <div style={{ fontSize: 11.5, color: C.soft, marginTop: 8 }}>Même geste à la main ou dans le logiciel : le stock des composants baisse, celui du coffret monte. Une vente ne baisse ensuite que le stock du coffret.</div>
-          </div>
         </div>
       </div>
       {asm && <CoffretAssembler coffret={coffret} lignes={lignes} pass={pass} onClose={() => setAsm(false)} onDone={(res) => { setAsm(false); onAssembled(res); }} />}
     </div>
   );
 }
-function ProCoffrets({ pass, products, setProducts }) {
+function ProCoffrets({ pass, products, setProducts, batches }) {
   const [all, setAll] = useState(null); const [err, setErr] = useState(""); const [sel, setSel] = useState(null); const [asmFor, setAsmFor] = useState(null);
   const [nouveau, setNouveau] = useState(null); // null = fermé, sinon { nom, busy, erreur }
   // Création : un coffret est un produit masqué (catégorie « Coffrets », prix 0) + une composition vide.
@@ -6605,7 +7276,7 @@ function ProCoffrets({ pass, products, setProducts }) {
     if (setProducts) setProducts((l) => l.map((x) => res[x.id] != null ? { ...x, stock: res[x.id] } : x));
   };
   const cible = sel && coffrets.find((c) => c.id === sel);
-  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} onAjoute={(p) => setAll((l) => [...l, p])} />;
+  if (cible) return <CoffretEditeur key={cible.id} coffret={cible} all={all} pass={pass} onBack={() => setSel(null)} onSaved={maj} onAssembled={appliquerStocks} onAjoute={(p) => setAll((l) => [...l, p])} batches={batches} />;
   return (
     <div className="ca-anim">
       <ProHead title="Coffrets" sub="Prix d'achat, prix de vente et stock calculés depuis le catalogue" />
