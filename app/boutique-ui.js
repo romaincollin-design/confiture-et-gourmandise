@@ -5,7 +5,7 @@ import {
   Users, Settings, ChevronRight, ChevronLeft, ChevronDown, QrCode, Send, CreditCard,
   Smartphone, Power, Store, Sparkles, Trash2, X, MessageCircle, Copy, Lock, Globe,
   Calendar, BarChart3, TrendingUp, Percent, Wallet, Phone, Download, Database,
-  Search, Printer, AlertTriangle, Info, ArrowRight, MoreHorizontal
+  Search, Printer, AlertTriangle, Info, ArrowRight, MoreHorizontal, Boxes
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -278,6 +278,45 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #7A2B3333; outlin
 /* Sous 360 px (petits iPhone) deux colonnes deviennent illisibles : on passe à une. */
 @media (max-width: 359px) {
   .pf-ing, .pf-row, .pro-cols2 { grid-template-columns: 1fr !important; }
+}
+/* --- Stock --- */
+.stk-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+.stk-tuile { border-radius: 16px; padding: 16px 18px; min-height: 142px; box-sizing: border-box; display: flex; flex-direction: column; min-width: 0; }
+.stk-tl { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; line-height: 1.25; min-height: 2.5em; }
+.stk-tv { font-size: 34px; font-weight: 700; line-height: 1.1; margin-top: 4px; font-variant-numeric: lining-nums tabular-nums; }
+.stk-td { font-size: 13.5px; margin-top: 6px; line-height: 1.3; }
+.stk-filtres { display: inline-flex; max-width: 100%; overflow-x: auto; gap: 4px; padding: 6px; border-radius: 16px; background: #E9E0CB; margin-bottom: 16px; box-sizing: border-box; }
+.stk-f { border: none; background: transparent; color: #8C8068; font-weight: 600; font-size: 15px; padding: 11px 22px; border-radius: 12px; cursor: pointer; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.stk-f.on { background: #7A2B33; color: #fff; }
+.stk-liste { background: #FBF6EA; border-radius: 18px; padding: 8px 18px 14px; width: 100%; max-width: 100%; box-sizing: border-box; font-variant-numeric: lining-nums tabular-nums; }
+.stk-head, .stk-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 210px 124px 110px 88px; gap: 14px; align-items: center; }
+.stk-head { padding: 14px 0 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8C8068; font-weight: 600; border-bottom: 1px solid #241F1718; }
+.stk-cat { margin: 0 -18px; padding: 12px 18px; background: #F3EBD8; font-size: 16px; letter-spacing: .1em; text-transform: uppercase; color: #8C8068; font-weight: 500; border-bottom: 1px solid #241F1718; }
+.stk-row { padding: 14px 0 12px; }
+.stk-pic { width: 56px; height: 56px; border-radius: 12px; background: #fff; display: grid; place-items: center; flex-shrink: 0; }
+.stk-nom { min-width: 0; }
+.stk-stepper { display: inline-flex; align-items: center; background: #fff; border: 1.5px solid #E3D9C0; border-radius: 13px; padding: 2px; }
+.stk-sb { width: 38px; height: 38px; border: none; background: transparent; color: #7A2B33; display: grid; place-items: center; cursor: pointer; border-radius: 10px; }
+.stk-sb:disabled { opacity: .35; cursor: default; }
+.stk-q { min-width: 40px; text-align: center; font-size: 18px; font-weight: 700; color: #241F17; }
+.stk-step { justify-self: center; }
+.stk-val { text-align: right; }
+.stk-pas { justify-self: end; }
+@media (max-width: 720px) {
+  .stk-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stk-tuile { min-height: 132px; padding: 14px; }
+  .stk-tv { font-size: 28px; }
+  .stk-f { padding: 10px 14px; font-size: 14px; }
+  .stk-head { display: none; }
+  .stk-liste { padding: 4px 14px 12px; }
+  .stk-cat { margin: 0 -14px; padding: 10px 14px; font-size: 14px; }
+  .stk-row { grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "pic nom pas" "couv couv couv" "step step val"; gap: 8px 12px; padding: 14px 0 12px; }
+  .stk-pic { grid-area: pic; width: 52px; height: 52px; }
+  .stk-nom { grid-area: nom; }
+  .stk-pas { grid-area: pas; align-self: start; }
+  .stk-couv { grid-area: couv; }
+  .stk-step { grid-area: step; justify-self: start; }
+  .stk-val { grid-area: val; }
 }
 /* --- Tableau de bord / Aujourd'hui : chiffres alignés, puces de période --- */
 .pro-content { font-variant-numeric: lining-nums; }
@@ -1232,6 +1271,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
     ["caisse", "Caisse", "Caisse", CreditCard, true],
     ["commandes", "Commandes", "Commandes", ShoppingBag, false],
     ["produits", "Produits", "Produits", Package, true],
+    ["stock", "Stock", "Stock", Boxes, false],
     ...(aCoffrets ? [["coffrets", "Coffrets", "Coffrets", Sparkles, false]] : []),
     ["stats", "Tableau de bord", "Chiffres", TrendingUp, true],
     ["gestion", "Production", "Production", Percent, false],
@@ -1275,6 +1315,7 @@ function ProView({ sales, setSales, orders, setOrders, products, setProducts, cl
         {tab === "fournisseurs" && <ProFournisseurs {...{ pass }} />}
         {tab === "gestion" && <ProProduction {...{ pass, products, setProducts, sales, clients, profile }} ouvrirId={ouvrirFournee} onOuvert={() => setOuvrirFournee(null)} />}
         {tab === "commandes" && <ProOrders {...{ orders, setOrders, onRefresh, loading, pass, products, setProducts }} />}
+        {tab === "stock" && <ProStock {...{ pass, products, setProducts, batches, sales, orders }} />}
         {tab === "coffrets" && <ProCoffrets {...{ pass, products, setProducts, batches }} />}
         {tab === "produits" && <ProProducts {...{ products, setProducts, pass, batches, rendement, sales }} onOuvrirFiche={(id) => { setOuvrirFournee(id); setTab("gestion"); }} />}
         {tab === "clients" && <ProClients {...{ clients, orders, pass }} />}
@@ -6126,6 +6167,212 @@ function coutsDepuisFournees(batches, products, rendement) {
     out.push({ p, etat: "ok", cost, coutKg, emb, g, manquants, part, nb: a.nb, matieresKg: a.matieres / a.finiKg, fraisKg: a.frais / a.finiKg });
   });
   return out;
+}
+
+/* ---------------- Stock ----------------
+   Écran dédié : valeur du stock, produits à refaire, couverture (stock / rythme des 8 dernières
+   semaines, comme le Tableau de bord), ajustement RELATIF par admin_adjust_stock et registre des lots
+   (lotsDeStock, §5.11). Le stock reste aussi éditable dans Produits : rien n'est retiré ailleurs.
+   Les produits masqués viennent de admin_products (l'accès anonyme ne voit que les actifs, §5.12). */
+const SEUIL_REFAIRE = 5;
+const fmtJM = (iso) => { const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}` : "—"; };
+// unités vendues par semaine, sur les 8 dernières semaines (même fenêtre que ProStats : §5.5 bis)
+function rythmeHebdo(sales, orders, products) {
+  const depuis = Date.now() - 56 * 86400000;
+  const parNom = {};
+  (products || []).forEach((p) => { const n = String(p.name || "").trim().toLowerCase(); if (n) (parNom[n] = parNom[n] || []).push(p); });
+  const acc = {};
+  fluxCA(sales, orders).forEach((f) => {
+    if (f.ts < depuis) return;
+    (f.items || []).forEach((i) => {
+      let pid = i.pid && (products || []).some((p) => p.id === i.pid) ? i.pid : null;
+      if (!pid) { const c = parNom[String(i.name || "").trim().toLowerCase()]; if (c && c.length === 1) pid = c[0].id; }
+      if (pid) acc[pid] = (acc[pid] || 0) + (Number(i.qty) || 0);
+    });
+  });
+  Object.keys(acc).forEach((k) => { acc[k] = acc[k] / 8; });
+  return acc;
+}
+function couvertureStock(stock, rythme) {
+  if (!(stock > 0)) return { txt: "épuisé", frac: 0, col: "#a6482a" };
+  if (!(rythme > 0)) return { txt: "pas de vente récente", frac: 0, col: C.soft };
+  const sem = stock / rythme, jours = sem * 7;
+  const txt = jours < 7 ? `${Math.max(1, Math.round(jours))} jour${Math.round(jours) > 1 ? "s" : ""}`
+    : sem < 12 ? `${Math.round(sem)} semaine${Math.round(sem) > 1 ? "s" : ""}` : `${Math.round(sem / 4.33)} mois`;
+  return { txt, frac: Math.min(1, sem / 4), col: sem < 1 ? "#a6482a" : sem < 3 ? C.caramel : C.ok };
+}
+function StockTuile({ label, value, detail, dark, col }) {
+  return (
+    <div className="stk-tuile" style={{ background: dark ? C.board : C.paper, color: dark ? C.chalk : C.ink, border: dark ? "none" : `1px solid ${C.line}` }}>
+      <div className="stk-tl" style={{ color: dark ? C.chalk : C.soft }}>{label}</div>
+      <div className="stk-tv" style={{ color: col || (dark ? "#fff" : C.ink) }}>{value}</div>
+      <div className="stk-td" style={{ color: dark ? "#d9d0b8" : C.soft }}>{detail}</div>
+    </div>
+  );
+}
+function StockLigne({ p, couv, lot, dlc, perime, busy, msg, onDelta }) {
+  const cost = Number(p.cost) || 0, stock = Number(p.stock) || 0;
+  const refaire = p.active !== false && !p.soon && stock <= SEUIL_REFAIRE;
+  return (
+    <>
+      <div className="stk-row">
+        <div className="stk-pic"><Illu k={illuDe(p)} col={couleurDe(p)} s={36} /></div>
+        <div className="stk-nom">
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, lineHeight: 1.25 }}>{p.name}</div>
+          <div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>
+            {p.unit || "—"}
+            {lot && <> · lot <b>{lot}</b></>}
+            {dlc && <> · <span style={{ color: perime ? "#a6482a" : C.soft, fontWeight: perime ? 700 : 400 }}>DLC <b>{fmtJM(dlc)}</b>{perime ? " dépassée" : ""}</span></>}
+            {p.active === false && <> · <span style={{ fontStyle: "italic" }}>masqué</span></>}
+          </div>
+        </div>
+        <div className="stk-couv">
+          <div style={{ height: 8, borderRadius: 4, background: "#E9E0CB", overflow: "hidden" }}><div style={{ width: `${Math.round(couv.frac * 100)}%`, height: "100%", background: couv.col, borderRadius: 4 }} /></div>
+          <div style={{ fontSize: 12.5, color: couv.col, marginTop: 5 }}>{couv.txt}</div>
+        </div>
+        <div className="stk-step">
+          <div className="stk-stepper">
+            <button type="button" onClick={() => onDelta(p, -1)} disabled={busy || stock <= 0} aria-label={`Retirer une unité de ${p.name}`} className="ca-tap stk-sb"><Minus size={16} /></button>
+            <span className="stk-q">{stock}</span>
+            <button type="button" onClick={() => onDelta(p, 1)} disabled={busy} aria-label={`Ajouter une unité de ${p.name}`} className="ca-tap stk-sb"><Plus size={16} /></button>
+          </div>
+        </div>
+        <div className="stk-val">
+          {stock <= 0 ? <b style={{ color: "#C9C0AE", fontSize: 16 }}>0 €</b>
+            : cost > 0 ? <><b style={{ fontSize: 16 }}>{eur2(stock * cost)}</b><div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>{stock} × {eur2(cost)}</div></>
+            : <><b style={{ fontSize: 16, color: "#C9C0AE" }}>—</b><div style={{ fontSize: 12.5, color: C.soft, marginTop: 2 }}>coût inconnu</div></>}
+        </div>
+        <div className="stk-pas">{refaire && <span style={{ background: "#F6DAD3", color: "#a6482a", borderRadius: 999, padding: "4px 11px", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>À refaire</span>}</div>
+      </div>
+      {msg && <div style={{ padding: "0 4px 10px", fontSize: 12.5, fontWeight: 600, color: "#a6482a" }}><Warn size={12} /> {msg}</div>}
+    </>
+  );
+}
+function StockLots({ rows, lots }) {
+  const auj = new Date().toISOString().slice(0, 10);
+  const liste = rows.filter((p) => lots[p.id] && lots[p.id].lots.length > 0)
+    .sort((a, b) => (lots[b.id].perimes.length - lots[a.id].perimes.length) || String(a.name).localeCompare(String(b.name), "fr"));
+  const th = { textAlign: "right", padding: "6px 8px", fontSize: 10.5, letterSpacing: ".08em", textTransform: "uppercase", color: C.soft, fontWeight: 600 };
+  if (!liste.length) return (
+    <div style={{ ...card(), color: C.soft, fontSize: 14, lineHeight: 1.5 }}>
+      Aucun lot suivi pour l&apos;instant. Un lot apparaît quand une fournée est <b>validée</b> avec un format relié à un produit du catalogue : ses unités entrent alors en stock sous son n° de lot, avec sa date de fabrication et sa DLC.
+    </div>
+  );
+  return (
+    <div>
+      {liste.map((p) => {
+        const r = lots[p.id];
+        return (
+          <div key={p.id} style={{ ...card(), padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div className="stk-pic"><Illu k={illuDe(p)} col={couleurDe(p)} s={36} /></div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{p.name}</div>
+                <div style={{ fontSize: 12.5, color: C.soft }}>{p.unit || "—"} · stock en fiche <b>{Number(p.stock) || 0}</b>{r.ecart !== 0 && <> · lots <b>{r.restant}</b> (écart {r.ecart > 0 ? "+" : ""}{r.ecart} : stock antérieur au suivi par lot ou fournée non validée)</>}</div>
+              </div>
+              {r.perimes.length > 0 && <span style={{ color: "#a6482a", fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap" }}><Warn size={12} /> DLC dépassée</span>}
+            </div>
+            <div style={{ overflowX: "auto", width: "100%", maxWidth: "100%" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontVariantNumeric: "lining-nums tabular-nums" }}>
+                <thead><tr><th style={{ ...th, textAlign: "left" }}>N° de lot</th><th style={th}>Fabriqué</th><th style={th}>DLC</th><th style={th}>Entré</th><th style={th}>Vendu</th><th style={th}>Reste</th></tr></thead>
+                <tbody>
+                  {r.lots.map((l, i) => {
+                    const dep = l.restant > 0 && l.dlc && l.dlc < auj;
+                    const enVente = r.enCours === l;
+                    return (
+                      <tr key={i} style={{ borderTop: `1px solid ${C.line}`, color: l.restant > 0 ? C.ink : "#C9C0AE" }}>
+                        <td style={{ padding: "8px", fontWeight: 600, whiteSpace: "nowrap" }}>{l.lot || <i style={{ fontWeight: 400, color: C.soft }}>sans n° de lot</i>}{enVente && <span style={{ marginLeft: 8, background: C.board, color: "#fff", borderRadius: 6, padding: "2px 7px", fontSize: 10.5, letterSpacing: ".06em", fontWeight: 700 }}>EN VENTE</span>}</td>
+                        <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap" }}>{fmtJM(l.dateFab)}</td>
+                        <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap", color: dep ? "#a6482a" : undefined, fontWeight: dep ? 700 : 400 }}>{l.dlc ? fmtJM(l.dlc) : "—"}{dep && " · dépassée"}</td>
+                        <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap" }}>{l.entre}</td>
+                        <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap" }}>{l.sorti}</td>
+                        <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 700 }}>{l.restant}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ fontSize: 11.5, color: C.soft, lineHeight: 1.5 }}>Les ventes sortent les lots du plus ancien au plus récent (convention de valorisation, pas une traçabilité physique). Le stock de la fiche n&apos;est jamais corrigé par ce registre. Les DLC sont des propositions : le guide de bonnes pratiques de l&apos;atelier fait foi.</div>
+    </div>
+  );
+}
+function ProStock({ pass, products, setProducts, batches, sales, orders }) {
+  const [all, setAll] = useState(null);
+  const [err, setErr] = useState("");
+  const [filtre, setFiltre] = useState("refaire");
+  const [busy, setBusy] = useState({});
+  const [msgs, setMsgs] = useState({});
+  const charger = async () => {
+    if (!supabase || !pass) return;
+    const { data, error } = await supabase.rpc("admin_products", { pass });
+    if (error || !Array.isArray(data)) { setErr("Produits masqués indisponibles — vérifiez la connexion."); return; }
+    setErr(""); setAll(data);
+  };
+  useEffect(() => { charger(); }, [pass]);
+  const rows = useMemo(() => (all || products || []).map((p) => ({ ...p, stock: Number(p.stock) || 0, cost: Number(p.cost) || 0, active: p.active !== false, soon: !!p.soon })), [all, products]);
+  const visibles = rows.filter((p) => p.active);
+  const masques = rows.filter((p) => !p.active);
+  const refaire = visibles.filter((p) => !p.soon && p.stock <= SEUIL_REFAIRE);
+  const epuises = refaire.filter((p) => p.stock <= 0);
+  const lots = useMemo(() => lotsDeStock(batches, rows, sales), [batches, rows, sales]);
+  const rythme = useMemo(() => rythmeHebdo(sales, orders, rows), [sales, orders, rows]);
+  const nbPerimes = rows.filter((p) => lots[p.id] && lots[p.id].perimes.length > 0).length;
+  const nbSuivis = rows.filter((p) => lots[p.id] && lots[p.id].lots.length > 0).length;
+  const valeur = visibles.reduce((s, p) => s + (p.cost > 0 ? p.stock * p.cost : 0), 0);
+  const coutConnu = visibles.filter((p) => p.cost > 0).length;
+  const delta = async (p, d) => {
+    if (busy[p.id] || !supabase || !pass) return;
+    setBusy((b) => ({ ...b, [p.id]: true })); setMsgs((m) => ({ ...m, [p.id]: "" }));
+    let res = null, e = null;
+    try { res = await supabase.rpc("admin_adjust_stock", { pass, p_id: p.id, p_delta: d }); e = res && res.error; } catch (x) { e = x || new Error("réseau"); }
+    setBusy((b) => ({ ...b, [p.id]: false }));
+    if (e || !res) { setMsgs((m) => ({ ...m, [p.id]: `Stock non modifié : ${(e && (e.message || e.details)) || "vérifiez la connexion"}` })); return; }
+    const ns = typeof res.data === "number" ? res.data : p.stock + d;
+    const maj = (l) => (l || []).map((x) => x.id === p.id ? { ...x, stock: ns } : x);
+    setAll((l) => l && maj(l));
+    if (setProducts) setProducts(maj);
+  };
+  const liste = filtre === "refaire" ? refaire : filtre === "masques" ? masques : visibles;
+  const groupes = {};
+  liste.forEach((p) => { const c = p.cat || "Sans catégorie"; (groupes[c] = groupes[c] || []).push(p); });
+  const cats = Object.keys(groupes).sort((a, b) => String(a).localeCompare(String(b), "fr"));
+  cats.forEach((c) => groupes[c].sort((a, b) => filtre === "refaire" ? (a.stock - b.stock) || String(a.name).localeCompare(String(b.name), "fr") : String(a.name).localeCompare(String(b.name), "fr")));
+  const onglets = [["refaire", `À refaire · ${refaire.length}`], ["tout", `Tout · ${visibles.length}`], ["masques", `Masqués · ${masques.length}`], ["lots", "Lots · DLC"]];
+  return (
+    <div className="ca-anim">
+      <h2 style={{ fontFamily: SCRIPT, fontSize: 40, margin: "0 0 14px", color: C.jam, fontWeight: 400, lineHeight: 1.1 }}>Stock</h2>
+      {err && <div style={{ ...card(), color: "#a6482a", fontWeight: 600 }}><Warn /> {err} <button onClick={charger} className="ca-tap" style={{ marginLeft: 8, cursor: "pointer" }}>Réessayer</button></div>}
+      <div className="stk-tiles">
+        <StockTuile dark label="Valeur du stock (au prix d'achat)" value={valeur > 0 ? eur(Math.round(valeur * 100) / 100) : "—"}
+          detail={<><b>{coutConnu}</b> produit{coutConnu > 1 ? "s" : ""} sur <b>{visibles.length}</b> avec coût connu{coutConnu < visibles.length ? " — les autres sont ignorés" : ""}</>} />
+        <StockTuile label="À refaire" value={refaire.length} col={refaire.length ? "#a6482a" : C.ok} detail={<>stock ≤ <b>{SEUIL_REFAIRE}</b></>} />
+        <StockTuile label="Épuisés" value={epuises.length} col={epuises.length ? C.ink : C.ok} detail={<>stock à <b>0</b></>} />
+        <StockTuile label="DLC dépassée" value={nbPerimes} col={nbPerimes ? "#a6482a" : C.ok} detail={nbSuivis ? <><b>{nbSuivis}</b> produit{nbSuivis > 1 ? "s" : ""} suivi{nbSuivis > 1 ? "s" : ""} par lot</> : "aucun lot suivi"} />
+      </div>
+      <div className="stk-filtres" role="tablist">
+        {onglets.map(([k, l]) => <button key={k} role="tab" aria-selected={filtre === k} onClick={() => setFiltre(k)} className={`ca-tap stk-f${filtre === k ? " on" : ""}`}>{l}</button>)}
+      </div>
+      {filtre === "lots" ? <StockLots rows={rows} lots={lots} /> : (
+        <div className="stk-liste">
+          <div className="stk-head"><span /><span>Produit</span><span>Couverture</span><span style={{ textAlign: "center" }}>Stock</span><span style={{ textAlign: "right" }}>Valeur</span><span /></div>
+          {cats.length === 0 && <div style={{ padding: "22px 8px", color: C.soft, fontSize: 14 }}>{filtre === "refaire" ? `Rien à refaire : tous les stocks dépassent ${SEUIL_REFAIRE}.` : filtre === "masques" ? "Aucun produit masqué." : "Aucun produit."}</div>}
+          {cats.map((c) => (
+            <div key={c}>
+              <div className="stk-cat">{c}</div>
+              {groupes[c].map((p) => {
+                const r = lots[p.id]; const ec = r && r.enCours;
+                return <StockLigne key={p.id} p={p} couv={couvertureStock(p.stock, rythme[p.id] || 0)} lot={ec && ec.lot} dlc={ec && ec.dlc} perime={!!(r && r.perimes.length)} busy={!!busy[p.id]} msg={msgs[p.id]} onDelta={delta} />;
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ProProducts({ products, setProducts, pass, batches, rendement, sales, onOuvrirFiche }) {
