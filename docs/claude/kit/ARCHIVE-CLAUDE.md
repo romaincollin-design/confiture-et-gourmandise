@@ -1,0 +1,737 @@
+> **ARCHIVE FIGÉE (25/11/2026).** Ne plus modifier ce fichier : les règles à jour sont dans `docs/ESSENTIEL.md` et `docs/claude/univers/`, qui font foi. On y cherche un détail par `grep -n` sur le numéro de section (§5.10…).
+
+# CLAUDE.md — Comme Avant (confiture-et-gourmandise)
+
+> Fichier de reprise pour toute session Claude Code ou humain qui reprend ce projet.
+> **Règle d'or : aucune régression. Auditer avant de modifier. Ne jamais pousser sans build vert.**
+
+---
+
+## 1. Le produit
+
+**Comme Avant** — association artisanale (Vence, 06) qui vend confitures, gourmandises,
+miel, pissaladière et produits locaux sur les marchés. Propriétaire : Romain.
+
+L'app est un **POS + gestion de production + boutique client** en une seule application Next.js.
+Un client scanne un QR code sur le stand → arrive sur la boutique. Le commerçant gère tout
+depuis un espace admin protégé par PIN.
+
+- **Boutique client** : `/` (racine) — après le flash QR.
+- **Espace commerçant (admin)** : `/admin` — protégé par un PIN (RPC `admin_check`).
+
+Déployé sur **Vercel**, auto-déploiement à chaque push sur `main`.
+URL prod : https://confiture-et-gourmandise.vercel.app
+
+---
+
+## 2. Stack & accès
+
+- **Framework** : Next.js 14 (App Router), React 18. Un seul gros fichier UI : `app/boutique-ui.js` (~4700 lignes).
+- **Icônes** : lucide-react 0.383.0 (version figée).
+- **Export** : xlsx.
+- **Base de données** : Supabase (Postgres + RPC + RLS).
+  - Project ref : `dntohsnhtqeomllfjood`
+  - URL : `https://dntohsnhtqeomllfjood.supabase.co`
+  - Clé publishable (anon) en dur dans `lib/supabase.js` (fallback si pas de var d'env).
+  - **Toutes les écritures admin passent par des RPC `admin_*`** (jamais d'insert/update direct
+    sur les tables sensibles). La RLS bloque l'accès direct ; les RPC prennent un `pass` (le PIN).
+- **Hébergement** : Vercel (compte du propriétaire du repo).
+- **Repo** : GitHub `romaincollin-design/confiture-et-gourmandise`, branche `main`.
+
+### Séquence de push (IMPORTANT)
+Ne jamais committer le token GitHub en clair (repo public, GitHub bloque le push).
+Build **obligatoire** avant tout push :
+```bash
+npm run lint           # no-undef : attrape les variables hors de portée
+npm run build          # doit finir sans erreur (lance aussi ESLint)
+git add -A
+git commit -m "..."
+git push origin main   # Vercel déploie automatiquement
+```
+Après push, vérifier le déploiement Vercel (statut "success") avant d'annoncer que c'est en ligne.
+
+⚠️ **Le build vert ne prouve pas que l'app tourne.** Le 17/09/2026, `/admin` affichait
+« Application error: a client-side exception has occurred » en production alors que le build
+passait : `ProStats` lisait une variable d'un autre composant. C'est pourquoi `no-undef` est
+désormais une **erreur** bloquante (`.eslintrc.json`), et pourquoi `next build` lance ESLint.
+Pour un changement d'interface, charger réellement `/` et `/admin` (`npx next start` + navigateur)
+et vérifier qu'aucune exception n'apparaît : une erreur de render remplace **toute la page**.
+
+---
+
+## 3. Fichiers
+
+- `app/boutique-ui.js` — TOUT : boutique client + admin (Caisse, Tableau de bord, Commandes,
+  Produits, Clients CRM, Fournisseurs, Production, Publimail, Promos, Enseigne, Réglages).
+- `app/page.js` — monte la boutique client.
+- `app/admin/page.js` — monte l'espace commerçant.
+- `app/api/contact/route.js` — génère la vCard (coordonnées de l'enseigne).
+- `lib/supabase.js` — client Supabase.
+- `PASSATION-comme-avant.md` — historique de passation (garder à jour).
+
+---
+
+## 4. Schéma Supabase (tables `public`)
+
+- `profile` — enseigne (nom, tagline, tél, email, WhatsApp, PIN, bandeau d'annonce).
+- `products` — catalogue. Colonnes clés : `id`, `name`, `cat`, `unit` (= conditionnement, ex "pot 170g"),
+  `price` (prix de vente), `cost` (prix d'achat), `coef`, `stock`, `illu`, `col`, `soon`, `active`, `sort`.
+- `sales` — ventes en caisse. `items` = jsonb `[{name, qty, price, cost, pid?}]`.
+- `orders` + `order_items` — commandes en ligne (retrait à préparer, système séparé des ventes caisse).
+- `customers` — clients CRM.
+- `promos`, `reviews`, `visits` (compteur QR anonyme), `suppliers`, `supplier_invoices`.
+- `materials` — référentiel des matières premières : `nom`, `unite` (kg/L/piece), `categorie`,
+  `seuil` (alerte), `actif`, `alias[]` (libellés de fournée rattachés à cette matière).
+- `material_purchases` — achats de matières : `material_id`, `date_achat`, `qte`, `prix_total`,
+  `supplier_id` (facultatif). **C'est la seule donnée que l'app ne pouvait pas déduire.**
+- Vues : `v_material_usage` (consommation dépliée depuis les fournées, tout ramené en kg/L/pièce)
+  et `v_material_stock` (= achats − consommation). Fonction `norm_matiere()` pour le rattachement
+  par nom (minuscules, sans accents, ligatures œ/æ développées, pluriel ignoré).
+- `production_batches` — fournées. Colonnes : `id` (uuid), `data` (jsonb = toute la fournée),
+  `batch_date`, `created_at`, `updated_at`.
+
+### RPC publiques (boutique client, sans PIN)
+`track_visit`, `save_lead` (enregistre un contact **avec ou sans email** : sans email, la fiche est
+identifiée par les **9 derniers chiffres du téléphone**, ce qui unifie `06 99…`, `0699…` et `+336 99…`),
+`save_customer` (ancienne version, exige un email — conservée, plus appelée par l'app), `mark_wa_sent`.
+
+### RPC utilisés (tous préfixés `admin_`, prennent `pass`)
+`admin_check`, `admin_orders`, `admin_customers`, `admin_sales`, `admin_visits`, `admin_batches`,
+`admin_suppliers`, `admin_save_product`, `admin_delete_product`, `admin_import_product`,
+`admin_save_batch`, `admin_delete_batch`, `admin_set_rendement`, `admin_save_customer`,
+`admin_save_supplier`, `admin_save_invoice`, `admin_set_announce`, `admin_set_order_status`,
+`admin_update_order`, `admin_validate_order`, `admin_update_sale`, `admin_delete_sale`,
+`admin_delete_order`, `admin_delete_supplier`, et les `admin_restore_*`.
+
+---
+
+## 5. LOGIQUE MÉTIER (le cœur — à ne jamais casser)
+
+### 5.1 Production (onglet "Production", ancien "Contrôle de gestion")
+Une **fournée** (`production_batches.data`) contient une recette et produit un poids fini.
+Deux familles : `pissaladiere` et `grande_fournee` (= `isPissaFam`), plus les confitures.
+
+- **Pissaladière** : ingrédients portés par champs dédiés dans `data` :
+  `oignon_kg`, `sel_g`, `huile_cl`, `anchois_g`, `thym_g`, `ail_g`, + prix `px_*` associés.
+  Vendue en **plaques** et/ou en **pots** (formats multiples). **Ratio : ~750 g d'oignons cuits par plaque.**
+- **Confitures** : recette dans `data.extra` = `[{label, qty, unit, price}]` (ex. fraises + sucre + citron).
+  Chaque fournée a `data.poids_fini_kg` (poids fini produit) et des formats de pots.
+- `pfCalc(f, rendementEstime, poidsExtraDispo)` calcule coût de revient, poids fini, marges, nb de pots.
+  Rendement de cuisson par défaut : ~64,3 % (oignons crus → cuits ; réglable via `admin_set_rendement`).
+
+### 5.2 Chaîne Production → Produit → Caisse (fonctionnalité centrale)
+Quand on **valide une fournée** (bouton "Valider la fournée" → pop-up récapitulatif plein écran) :
+pour chaque format **relié à un produit du catalogue** (menu "Produit lié"), on pousse vers ce produit :
+- **prix d'achat** (`cost`) = coût de revient réel calculé (matières + main d'œuvre + frais ÷ poids fini),
+- **prix de vente** (`price`) = **on n'y touche jamais** s'il existe déjà ; sinon = prix/kg × poids arrondi à l'euro supérieur,
+- **conditionnement** (`unit`, ex "pot 170g"),
+- **coef** = prix de vente ÷ prix d'achat (recalculé),
+- **stock** += nombre de pots/plaques produits.
+La validation est **idempotente** : `data.stock_applique` mémorise ce qui a déjà été poussé,
+donc re-valider n'ajoute que le delta (jamais de double comptage).
+
+### 5.3 Caisse → Stock (dans les deux sens)
+Fermer une vente en caisse (`closeOrder`) **décrémente le stock** des produits vendus
+(hors offerts, hors articles libres sans fiche catalogue). `Math.max(0, ...)`.
+Symétriquement : **annuler** une vente rend le stock, **modifier** une vente applique la différence,
+et **« Valider le retrait »** d'une commande en ligne décrémente le stock (la commande n'est donc
+pas à repasser en caisse — elle compte dans le chiffre d'affaires au retrait).
+
+### 5.3 bis — Définition UNIQUE du chiffre d'affaires
+`caPeriode(sales, orders, t0, t1)` (module, avec `fluxCA`) renvoie `{ total, caisse, enLigne, nbVentes, articles, panier… }`
+et sert **le Tableau de bord, le bandeau « CA du jour » de la Caisse et l'écran « Aujourd'hui »** (`ProAujourdhui`, onglet
+par défaut). Règle : une vente en caisse compte à sa clôture ; une commande en ligne compte quand elle est **VALIDÉE**
+(statut `Remise`, bouton « Valider le retrait »), plus à sa création — un client qui ne vient jamais ne gonfle plus le CA.
+Partout on affiche « Caisse X € + commandes retirées Y € ». Les commandes pas encore retirées sont annoncées à part.
+⚠ `admin_orders` ne renvoie que `created_at` : la commande est rattachée au jour où elle a été PASSÉE, pas retirée.
+Statuts : `À préparer` → `Prête` → `Remise`. Ne jamais recompter le CA à la main dans un écran : appeler `caPeriode`.
+
+### 5.4 Règle de prix / marge
+- Le **prix de vente est figé** (fixé par le commerçant). On ne le recalcule jamais depuis la marge.
+- Coef et marge se déduisent tout seuls : `marge = prix_vente − prix_achat`, `coef = prix_vente / prix_achat`.
+- Arrondi des prix de vente suggérés en Production : **euro supérieur** (`Math.ceil`) — ex. 170 g × 42 €/kg = 7,14 € → **8 €**.
+
+### 5.1 bis — Répartition du temps et loyer fictif (coût de revient)
+Une heure en cuisine ne fabrique pas qu'un seul produit. Le champ **`part_temps`** (0-100, **100 par
+défaut**) dit quelle part du temps saisi revient à CETTE fournée ; `coutMO` et `coutLocal` sont
+multipliés par ce facteur. Sans lui, une heure entière tombait sur 866 g de caramel : **48,60 €/kg**
+alors que les matières n'en font que **8,18**. À 25 %, le même pot passe de 5,55 € à 2,34 € et le
+coefficient de 1,1 à 2,6.
+- **Une fournée neuve part à 0 € de main d'œuvre et 0 € de local** : la fabrication se fait chez Mama,
+  il n'y a ni salaire ni loyer réels. On remet des valeurs à la main pour **simuler** un atelier.
+- La production se fait **chez Mama, pas dans un atelier loué** : `taux_local` est un **loyer fictif**
+  qui sert à savoir si le produit tiendrait dans un vrai atelier. À 0, on ne compte que les dépenses
+  réelles. Lieu par défaut d'une nouvelle fournée : **« Casa Mama »**.
+- La tuile « Coût de revient » affiche les **deux lectures** : `coutMatieresKg` (ce qui sort de la
+  caisse) et `coutTempsKg` (temps + frais). Un seul chiffre global était illisible.
+
+### 5.1 ter — La fiche fournée suit le process, pas l'ordre du formulaire
+Le parcours de l'onglet « Matières » est découpé en **trois étapes numérotées** qui suivent le
+travail réel : **1 Préparation → 2 Cuisson → 3 Résultat**. Avant, le « Process de fabrication »
+(nombre de feux, kg par feu, temps de cuisson) arrivait **après** le poids cuit : on décrivait la
+cuisson une fois le résultat déjà saisi. Il est remonté en étape 2 sous le titre
+**« Mode de préparation »**, avec les fournées supplémentaires du même jour.
+- Le **bouton Contrôle hygiène est en FIN de fiche**, juste au-dessus de « Valider la fournée » :
+  on le remplit quand la fournée est faite. Il reste hors des onglets (§5.8), c'est un document à part.
+- Les confitures n'ont pas d'étape Cuisson (ni feux ni cycles) : la numérotation passe à
+  **1 Préparation → 2 Résultat**. Ne pas afficher une étape vide.
+- Composant `EtapeFournee` — **au niveau module, obligatoirement**. Défini dans `ProProduction`,
+  chaque frappe au clavier recréerait le type React, démonterait le sous-arbre et le champ en cours
+  de saisie perdrait le focus. Même piège que `BlocPliant`.
+
+### 5.1 quater — Enregistrement d'une fournée : la course à l'insertion
+`change()` enregistre avec un **anti-rebond de 600 ms**. Une fournée neuve n'a pas d'`id` : chaque
+enregistrement est donc un INSERT tant que le premier n'a pas renvoyé le sien. Si une deuxième
+sauvegarde partait avant cette réponse, on créait **deux fournées** au lieu d'en modifier une — et
+la suite de la saisie atterrissait dans une fiche que l'écran n'affichait pas. D'où « mes infos ne
+sont pas enregistrées ».
+Prouvé sur les données réelles :
+- deux « Pain d'épices » sans titre, identiques, `created_at` à **171 µs d'écart** (17/09/2026 17:32:45) ;
+- la fournée fantôme titrée **`C`** (§8) créée à 13:08:40,48 et « CARAMEL POT » à 13:08:41,08 —
+  **0,6 s**, soit exactement la durée de l'anti-rebond. `C` n'est pas une saisie bâclée,
+  c'est la première frappe du titre partie dans une ligne orpheline.
+Correctif : `insertEnVol` (un `useRef` portant la promesse de l'INSERT en cours). Toute sauvegarde
+sans `id` **attend** cet insert et récupère l'id avant d'envoyer — les suivantes deviennent des UPDATE.
+- ⚠️ **Ne jamais remettre `clearTimeout`/`setTimeout` dans l'updater de `setCur`.** React peut
+  réinvoquer une fonction de mise à jour ; l'anti-rebond se rejouerait avec une valeur périmée.
+  Il est posé hors de l'updater, qui ne fait plus qu'écrire dans un ref (idempotent).
+- ⚠️ **Ne jamais ravaler l'échec d'un enregistrement** (`catch (e) {}`). Sous un bandeau
+  « enregistrement automatique », une sauvegarde qui échoue fait perdre la saisie sans que personne
+  ne le voie. Le bandeau affiche désormais **« ⚠ non enregistré — vérifiez la connexion »**.
+- Les doublons déjà en base ne sont PAS supprimés (§9) : à traiter avec le propriétaire.
+
+### 5.1 quinquies — La famille d'une fournée décide de tout l'écran
+`famille` pilote `isPissa`, donc les champs affichés. La fournée **« cake aux fruits confits »
+du 17/09/2026 porte `famille = "pissaladiere"`** : le formulaire lui propose OIGNON / HUILE
+D'OLIVE / ANCHOIS / THYM / AIL, et elle apparaît dans l'onglet Pissaladière. C'est une **erreur de
+saisie, pas un bug** — elle se corrige avec le sélecteur « Famille ».
+⚠️ Risque latent : dans `recettes()` (§5.5) la clé est `estPissa ? "pissaladiere" : normNom(titre)`.
+Tant que son `poids_fini_kg` est vide, la fournée est écartée. **Dès qu'on saisira son poids, la
+farine, le cognac et les cerises confites entreront dans la recette de la pissaladière.**
+Reclasser la fournée avant de renseigner son poids.
+
+### 5.9 Production : une RUBRIQUE = un produit fabriqué, pas une famille
+L'onglet Production se parcourt désormais en **trois niveaux** : vignettes de rubriques →
+**liste des produits fabriqués** → fournées d'UN produit.
+- Niveau 2 (`rubriqueDe`, au niveau module) regroupe les fournées par **titre réduit à son noyau**
+  (`normNom`) : « CONFITURE DE MELON », « confiture de melon » et « CONFITURE MELONS » sont le
+  **même** produit (5 fournées). Sans titre, la clé retombe sur la famille (`fam:<key>`), sinon les
+  5 fournées de pissaladière sans titre se disperseraient en 5 rubriques vides.
+- Avant, la famille « Confiture » affichait **10 produits différents dans un seul tableau** et le
+  cake aux fruits confits — rangé par erreur en famille pissaladière (§5.1 quinquies) — arrivait au
+  milieu des fournées d'oignons **avec une colonne OIGNON à côté de lui**. D'une ligne à l'autre les
+  chiffres ne parlaient plus du même produit.
+- **Les colonnes suivent ce que le produit utilise réellement** : OIGNON, Cuit et Rdt (et le cumul
+  de fournées, et les tuiles de stock d'oignons cuits) n'apparaissent que si **une fournée du groupe
+  porte `oignon_kg > 0`** — plus jamais d'après la clé de famille. Un cake n'a donc plus de colonne
+  oignon même tant que sa famille est fausse.
+- ⚠️ Rattachement **exact** uniquement, jamais par préfixe (même piège que §5.5) : la fournée au
+  titre `C` reste sa propre rubrique, visible et corrigeable, au lieu de happer Caramel et Citron.
+- ⚠️ **« pot » ne vaut que pour les confitures et les pots d'oignons** : on ne vend pas un cake au
+  pot. Les colonnes disent **Coût/unité · PV/unité · Marge/unité**, et le **conditionnement réel**
+  est rappelé sous le titre et dans la colonne « Produit fabriqué » (`unité : 170 g · 250 g`, ou le
+  `unit` du produit du catalogue dès qu'un format lui est relié). Même règle pour le cumul :
+  « N unité(s) de 250 g », plus « pot(s)/kit(s) ».
+- **Le lieu n'est pas un nom de produit.** Le tableau affichait `{f.titre || f.lieu}` : « casa mama »
+  et « 3AD Kitchen, Carros » passaient pour des recettes. Une fournée sans titre affiche désormais
+  « sans titre » puis, en dessous, « chez &lt;lieu&gt; » en gris italique.
+- Scroll : la barre de familles est sur **une seule ligne qui défile** (`nowrap` + `overflowX`) —
+  enroulée elle prenait trois lignes sur un téléphone — et « Taux de transformation » et « Cumul de
+  plusieurs fournées » sont des `BlocPliant` fermés au départ.
+- Vérifié au navigateur sur les **39 fournées réelles** en 320 / 390 / 768 / 1280 px : 0 px de
+  débordement partout, chaque écran de liste tient dans la hauteur d'écran, aucune erreur JS.
+  ⚠️ Le compte d'éléments rendus est obligatoire dans le script de mesure : un onglet servi par un
+  **ancien `next start` resté en vie** renvoyait `ChunkLoadError` et mesurait « 0 px de débordement »
+  parce qu'il n'avait rien rendu du tout.
+
+### 5.10 Prix d'achat : historique daté, premier entré premier sorti
+**Chaque fournée est un achat daté.** Elle produit N unités à un coût de revient qui lui est propre,
+et deux fournées du même produit ne coûtent pas pareil : sur les données réelles, le melon passe de
+**0,81 à 5 €/kg** d'une fournée à l'autre, soit **1,10 € d'écart** sur un pot. Une moyenne sur toutes
+les fournées écrase cet écart — on ne voit plus « la différence entre une production et une autre ».
+- `coutUneFournee(f, rendement)` — **au niveau module** — isole l'économie d'UNE fournée. C'est la
+  brique commune : `lotsDepuisFournees` (le FIFO) et `coutsDepuisFournees` (la moyenne, conservée
+  comme repère) s'appuient dessus. Avant, le calcul agrégeait tout de suite toutes les fournées
+  d'une recette : impossible d'en sortir un historique daté.
+- `lotsDepuisFournees(batches, products, rendement, sales)` → par produit : les **lots datés** du
+  plus ancien au plus récent, les **ventes** qui les écoulent du plus ancien au plus récent (FIFO),
+  ce qui **reste** de chaque lot, et le prix d'achat retenu = **le plus ancien lot encore en stock**.
+  Tous les lots écoulés → c'est la **dernière** fournée qui donne la valeur de remplacement.
+  **Rien n'est stocké en base** : tout se déduit des fournées et des ventes déjà enregistrées.
+- Affichage : pastille « ⌛ N achats » à côté du champ Achat, qui déplie un tableau
+  **Fournée · Produit · Vendu · Reste · Coût/kg · Prix d'achat**, le lot retenu marqué `RETENU`.
+- Les **sorties** se rattachent par `pid`, et à défaut par nom normalisé **seulement s'il est
+  unique** (§8 : 15 noms sont partagés ; « pot d'oignons » désigne 6 produits → non rattaché).
+- ⚠️ **Deux garde-fous, sans lesquels on écrirait des prix faux dans le catalogue :**
+  1. **Recette physiquement impossible** (`suspect`) : si les ingrédients pesés font moins de la
+     **moitié** du poids fini, le lot est écarté. Trois fournées de melon portent **« 4 g »** et
+     **« 1,818 g »** de melon pour **4,979 kg** et **2,298 kg** de confiture — des kilos saisis en
+     grammes. Le coût tombait à **0,41 € pour un pot de 383 g vendu 9 €** (coefficient 22). Même
+     principe que `fourneeComptee` (§5.5) : on écarte et on dit pourquoi (« recette à revoir »),
+     on ne publie pas un chiffre faux-ami.
+  2. **Emballage non compté** (`embInconnu`) : aucun format de fournée ne correspond au
+     conditionnement vendu (produit en « pot 383 g », fournées en 250 g et 350 g), donc bocal,
+     capuchon et étiquette sont absents du prix. C'est dit à l'écran, avec le geste qui corrige
+     (relier le format, §5.2 bis) — un coût silencieusement amputé gonflerait la marge.
+- Un lot écarté par l'un de ces deux motifs est **sauté** par le FIFO : sinon une seule fournée mal
+  saisie imposerait son chiffre faux à tout le produit. Le lot reste consommé par les ventes (la
+  confiture a bien été fabriquée) ; c'est seulement son **coût** qui est inutilisable.
+- Le bouton « Calculer N prix d'achat depuis les fournées » applique désormais le **prix FIFO**, plus
+  la moyenne. La moyenne reste affichée à côté (« moyenne X € ») comme repère.
+- ⚠️ Ce FIFO est une **convention de valorisation**, pas un inventaire physique par lot : les ventes
+  ne portent pas de numéro de lot. Les unités d'un lot sont « ce que cette fournée aurait produit
+  dans ce conditionnement ». Ne jamais le présenter comme une traçabilité de lot (≠ §5.8).
+
+### 5.11 Stock segmenté par fournée et traçabilité du lot
+`products.stock` est **un seul nombre** : il dit combien il reste, jamais de quelle fournée. Or deux
+fournées du même produit n'ont ni le même coût (§5.10), ni la même date de fabrication, ni la même
+DLC — et en cas de contrôle il faut pouvoir dire **quel lot est en rayon**.
+- `lotsDeStock(batches, products, sales)` — **aucune migration, aucun champ ajouté**. Les ENTRÉES
+  sont déjà en base : `data.stock_applique[pid]` mémorise, fournée par fournée, combien d'unités
+  « Valider la fournée » a réellement poussées vers ce produit (c'est ce qui rend la validation
+  idempotente, §5.2). Les SORTIES sont les ventes, écoulées **du plus ancien lot au plus récent**.
+- Le lot le plus ancien encore en stock est marqué **`EN VENTE`** : c'est celui qu'on sert, donc
+  celui dont le numéro va sur l'étiquette du jour.
+- Chaque lot porte le **n° de lot**, la **date de fabrication** et la **DLC** pris sur
+  `data.hygiene` (§5.8). Un lot dont la DLC est dépassée et qui reste en stock est signalé en rouge,
+  produit par produit et dans le compteur d'en-tête.
+- Affichage : pastille **« 🏷 N lots »** à côté du champ Achat, qui déplie
+  **N° de lot · Fabriqué · DLC · Entré · Vendu · Reste**.
+- ⚠️ **Le registre ne corrige jamais `products.stock`** : il affiche l'**écart** et l'explique
+  (stock antérieur au suivi par lot, ou fournée non validée). Le stock affiché en boutique reste
+  celui de la fiche — deux sources d'autorité qui se contredisent en silence seraient pires que
+  l'écart lui-même.
+- ⚠️ **Un lot n'existe que si la fournée a été VALIDÉE avec un format relié au produit** (§5.2 bis).
+  Au 31/10/2026, **0 fournée validée** : le registre est donc vide partout, et la pastille
+  n'apparaît pas. Ce n'est pas une panne, c'est le geste qui manque.
+- Le **pop-up de validation** annonce désormais sous quel lot les unités entrent, ou prévient
+  (sans bloquer) qu'il n'y a pas de n° de lot et que la traçabilité sera donc impossible.
+- Pré-remplissage de la fiche hygiène rendu réellement automatique : le **nom du produit** vient du
+  titre de la fournée, sinon de la rubrique (plus de « Oignons confits » par défaut) ; la
+  **quantité** vient des oignons pour une pissaladière et du **poids fini** sinon ; le
+  **responsable** du premier nom saisi en personnel ; la **DLC** de la famille (`FAMILLES[].dlc`,
+  `dlcDefaut()`) — 3 jours pour une pissaladière fraîche, 365 pour un pot de confiture. Proposer
+  3 jours partout faisait saisir une date fausse, ou renoncer à la saisir.
+- ⚠️ Toutes ces durées sont des **propositions** modifiables. C'est le guide de bonnes pratiques de
+  l'atelier et la DDPP qui font foi, pas l'application (§5.8) — l'écran et la fiche imprimée le disent.
+- ⚠️ Un bloc en `overflow-x: auto` doit porter **`width: 100%` et `maxWidth: 100%`** : sans eux il
+  s'étire à la largeur de son contenu et pousse la page entière (mesuré : **+144 px** en 320 px).
+  Et la rangée « Achat » a besoin de `flexWrap` — une troisième pastille la sortait de l'écran.
+
+### 5.12 Coffrets : un produit composé de produits du catalogue
+Un coffret est un **produit** (`products`, catégorie « Coffrets ») qui porte `products.composition` (jsonb) :
+`{ items: [{ pid, qty }], emballage: [{ label, qty, cost }], visuel }`. Écran : onglet « Coffrets »
+(`ProCoffrets`, `CoffretEditeur`, `CoffretAssembler`, au niveau module — piège du focus §5.1 ter).
+- **Coût de revient** = Σ (prix d'achat des composants × qté) + emballages. Il n'est écrit dans `products.cost`
+  que si **tous** les prix d'achat sont connus ; sinon l'écran dit « incomplet » et ne montre pas de marge (§5.4 ter).
+- **Prix de vente saisi, jamais recalculé** ; marge et coef se déduisent.
+- **Stock** : le coffret a son propre stock. « J'ai fabriqué N coffrets » = `admin_assemble_coffret` : stock coffret + N,
+  composants − qté × N, en mouvements **relatifs et atomiques** (plus d'écrasement par une valeur périmée). Une vente en
+  Caisse ne baisse ensuite que le stock du coffret. Un composant peut passer en négatif (avertissement, pas de blocage).
+- **Nouvelles RPC** (migrations `add_coffret_composition`, `coffrets_admin_products_patch_stock`) :
+  `admin_save_composition`, `admin_assemble_coffret`, `admin_products` (TOUS les produits, y compris masqués),
+  `admin_patch_product` (champs en liste blanche, **ne touche jamais au stock**), `admin_adjust_stock` (± relatif).
+- ⚠ **L'admin ne voit que les produits actifs** : `supabase.from("products")` passe par le rôle anonyme, dont la règle
+  RLS est `active = true`. Un produit masqué disparaît donc de l'admin (hors écran Coffrets, qui lit `admin_products`).
+  Les composants créés pour les coffrets sont masqués ; ils se gèrent dans l'écran Coffrets (prix d'achat, réception).
+- Créés le 23/11/2026, **masqués** (`active=false`, prix de vente 0) : coffrets Pissaladière DIY, Apéro Provence,
+  Gourmandise, Gourmandise n°2 ; composants anchois, olives, thym, tapenade, anchoïade, crackers 100 g, orangettes 100 g.
+  Rendre un coffret visible en Caisse/boutique : lui saisir un prix de vente puis cocher « Visible ».
+- Le pot d'oignons « 300 g » du coffret DIY est `pissa-pot-500` (« Pissaladière de ma mère · pot 300g »).
+
+### 5.8 Contrôle hygiène (fiche séparée, imprimable)
+Composant `FicheHygiene`, ouvert par un bouton **hors des onglets** de la fiche fournée : c'est un
+document à part, rempli en cuisine par quelqu'un qui ne connaît pas le reste de l'app.
+**Parcours en 5 écrans courts** (lot → cuisson → refroidissement → conservation → vérification),
+2 à 4 champs par écran, bouton « maintenant » sur chaque heure.
+- Stocké dans **`production_batches.data.hygiene`** — aucune migration, `admin_save_batch` enregistre
+  déjà tout `data`. L'enregistrement automatique de la fournée s'en occupe.
+- Pré-remplissage depuis la fournée : date, titre, oignons en kg. Le n° de lot est proposé
+  (`AAAAMMJJ-01`). On ne redemande jamais ce que la fournée sait déjà.
+- **Trois contrôles** (constante `HYG`, seuils modifiables) : cuisson à cœur ≥ **63 °C**,
+  refroidissement **63 → 10 °C en moins de 2 h**, conservation ≤ **+4 °C**. Si un point sort des
+  clous, un champ « action corrective » apparaît — obligatoire en HACCP.
+- `dureeMin()` gère le **passage de minuit** (fin de cuisson 23:40 → refroidi 01:10 = 1 h 30).
+- Deux impressions via `imprimer()`, qui ouvre une fenêtre autonome (le poste du marché imprime une
+  étiquette, pas la page) : **étiquette bac gastro** (62 mm : lot, fabrication, DLC, température) et
+  **fiche de fabrication A4** (traçabilité complète + case signature).
+- ⚠️ Les seuils sont des **valeurs par défaut** (arrêté du 21/12/2009, règlement CE 852/2004). C'est
+  le guide de bonnes pratiques de l'atelier et la DDPP qui font foi, pas l'application — le texte
+  le dit à l'écran et sur la fiche imprimée. Ne jamais présenter l'app comme une conformité acquise.
+
+### 5.4 bis — Ce qui peut / ne peut pas bouger un prix de vente
+- Validation de fournée : pousse `cost`, `unit`, `stock`, `coef`. **N'écrase jamais un `price` > 0.**
+- Onglet Produits, champ **Prix d'achat** : recalcule le **coef** seulement.
+- Onglet Produits, champ **Coef** : c'est le **seul** geste qui fixe volontairement `price = cost × coef`.
+- Onglet Produits, champ **Prix de vente** : recalcule le coef.
+- Toutes les saisies numériques acceptent la **virgule** (brouillon conservé pendant la frappe,
+  normalisation à la sortie du champ).
+
+### 5.4 quater — D'où vient ce prix d'achat ? (origine affichée, aucun champ en base)
+Un chiffre qu'on ne sait pas expliquer est un chiffre en qui on n'a pas confiance. L'onglet Produits
+affiche donc **l'origine de chaque prix d'achat**, à côté du champ « Achat ». Rien n'est stocké :
+l'origine se **déduit** de la chaîne §5.2 (`origineCouts`).
+- **`↓ fournée JJ/MM`** (navy) — un format de cette fournée porte le `pid` du produit **et**
+  `data.stock_applique[pid] > 0`, donc la validation a réellement poussé le coût. C'est le seul cas
+  où on peut affirmer que le chiffre descend d'une recette.
+- **`fournée JJ/MM · non validée`** (caramel) — le format est relié mais la fournée n'a jamais été
+  validée : elle n'a rien poussé. Le produit n'a pas encore de coût. C'est une invitation à valider.
+- **`saisi à la main`** (gris) — aucune fournée validée ne l'a poussé, le coût vient de la fiche.
+  C'est le cas **normal** d'un produit d'**achat-revente** (crème de marron, miel, Reine Claude) que
+  l'association ne fabrique pas : prix d'achat manuel, prix de vente manuel, coefficient déduit.
+  Le suffixe **`· fournée non validée`** s'ajoute si un format lui est relié sans avoir été validé.
+- Rien du tout quand le coût est absent : le ⚠ rouge du champ le dit déjà.
+⚠ **Ne jamais étiqueter « fournée » un coût tapé à la main.** Une fournée reliée mais non validée
+n'a rien poussé ; mettre « fournée » dessus recréerait exactement la confusion qu'on lève ici.
+Une ligne de récapitulatif sous le titre donne les quatre compteurs (depuis les fournées / saisis à
+la main / fournée non validée / manquants) — c'est la réponse d'un coup d'œil à « est-ce que mes
+prix d'achat sont bien là ? ».
+- **Un coût absent vaut `0` en base.** Affiché tel quel, le champ disait « ce produit coûte zéro
+  euro » au lieu de « je ne sais pas » : `dvalCout()` laisse le placeholder « manquant » apparaître
+  tant qu'on ne tape pas. Le **stock** garde son `0` — là, c'est une vraie valeur (§8, `0` falsy).
+
+### 5.5 Consommation matières (Tableau de bord)
+Section "Consommation matières (crues)" : croise les **ventes de la période** avec les **recettes des fournées**
+pour estimer les quantités crues consommées (oignons, sel, huile, anchois, fruits, sucre…).
+- Lien vente ↔ recette **par nom normalisé** (`normNom` : minuscules, sans accents, sans "confiture/de/la/les",
+  singulier/pluriel ignorés). "confiture fraise" == "confiture de fraises".
+- **Grammage d'une unité vendue** : toujours via `grammesUnite(unit, estPissa)`, jamais en extrayant
+  tous les chiffres de `unit` ("part ≈ 272 g · 35 €/kg" donnerait 27 235 g). Plaque = 750 g,
+  part = 1/12 de plaque.
+- **Fournées comptées** : `fourneeComptee()` écarte celles marquées « estimation », celles cochées
+  « Ne pas compter dans les statistiques », et celles au rendement impossible (poids cuit > poids cru).
+  Les fournées de démonstration faussaient le ratio oignons/produit fini d'un facteur ~2.
+- Recette exprimée en g d'ingrédient cru **par g de produit fini** (ingrédients ÷ poids fini de la fournée).
+- **Un ingrédient libellé en contenant n'est pas une matière première** : `estProduitFini(label)`
+  (mots `pot / bocal / plaque / barquette / sachet / boîte`) écarte les lignes qui sont un produit
+  **déjà fabriqué**, réintroduit dans une fournée de type kit. La fournée « Kit Pissaladière » du
+  16/08 porte `Pissaladière (pot 300 g) — d'après ta fournée du 09/08`, 200 kg à 21,09 €/kg :
+  comptée comme matière, elle ajoutait **187,73 kg fantômes sur 402 kg**, soit 47 % du total, et
+  arrivait en tête du donut devant les oignons. Aucune des 56 matières réelles ne porte un de ces
+  mots — la règle est sûre sur les données existantes. Même filtre dans `recettes` et `prixMatiere`.
+- Affichage : donut **cliquable** par matière (→ détail segmenté : quels produits l'ont consommée,
+  part de chacun, coût estimé, rythme semaine/mois/an) + prix d'achat moyen au kg, même sélecteur
+  de période (jour/semaine/mois/année) que les ventes.
+- **Achats marchandises** (indicateur du tableau de bord) : matières consommées par les ventes de la
+  période, valorisées au prix d'achat des recettes, et **rapportées au chiffre d'affaires**. C'est le
+  ratio qu'un commerçant regarde en premier.
+- **Consommation par produit** : vue semaine / mois / année, mesurée sur les **8 dernières semaines**
+  glissantes (indépendante de la période affichée), avec les matières de chaque produit et leur coût.
+- **« Vendu sans recette de fournée »** : ce qui s'est vendu sans qu'aucune fournée n'en donne la
+  recette (Miel, Crème de marron, Caramels, Reine Claude…) est estimé **sur les ventes seules**
+  (unités + poids). C'est la marchandise à produire ou racheter pour tenir le même rythme.
+- ⚠️ **Ne jamais rattacher une vente à une recette par préfixe de nom.** Testé sur les données
+  réelles : une fournée au titre `C` (saisie incomplète) captait Citron, Citron Bergamotte, Crème de
+  marron, clafoutis et caramel à tartiner. Rattachement **exact** uniquement (`normNom`) ; ce qui ne
+  matche pas va dans « vendu sans recette », visible, plutôt que deviné.
+
+### 5.4 ter — La marge n'est pas affichée si elle ne veut rien dire
+Sur les données du 19/09/2026 : **1 produit sur 48** a un prix d'achat. La marge s'affichait
+« 20,80 € » à côté d'un CA de **8 289,50 €** — le calcul était juste (20,80 € de marge sur ~36 € de
+ventes dont le coût est connu, soit 58 %) mais **illisible** : un commerçant lit « j'ai gagné 20 € ».
+Sous **5 % du CA couvert**, la tuile affiche `—` et dit ce qui manque (« 1 produit sur 48 a un prix
+d'achat »). Au-dessus, elle affiche le taux et la part du CA couverte. Un chiffre faux-ami est pire
+qu'une case vide. Le déblocage est §10 : le bouton « Calculer N prix d'achat depuis les fournées ».
+
+### 5.5 bis — Réassort & rythme de vente
+- **« À refaire »** = produit en vente (`active`), non `soon`, stock ≤ 5. Même règle partout :
+  chip dans Produits (liste triée du plus urgent au moins urgent) et bandeau repliable en Caisse.
+- **Rythme** (Tableau de bord) = unités vendues sur les **8 dernières semaines ÷ 8**, indépendant de la
+  période affichée. La couverture (`stock ÷ rythme`) dit combien de temps le stock tient — c'est ce
+  chiffre qui déclenche une fournée, pas le CA.
+
+### 5.6 bis — Matières premières (onglet « Matières & achats »)
+**Le stock de matières ne se saisit pas, il se déduit : `stock = achats − consommé par les fournées`.**
+La consommation était déjà entièrement connue (chaque fournée porte ses ingrédients et leurs prix,
+champs dédiés pissaladière + `data.extra`) ; seuls les **achats** manquaient.
+- Le référentiel a été amorcé automatiquement depuis les 36 fournées existantes (40 matières).
+- Une matière au stock **négatif** = elle a servi sans qu'aucun achat soit enregistré. Ce n'est pas
+  une erreur, c'est l'historique d'achats qui manque.
+- Les ingrédients de fournée qui ne correspondent à aucune matière apparaissent dans
+  « non rattachés » — souvent une unité différente (pièce vs kg) ou un libellé écrit autrement.
+  On les rattache via `alias`, jamais en supprimant.
+- ⚠️ Les **emballages** (bocaux, capuchons, étiquettes) ne sont pas encore suivis : leurs prix sont
+  dans les formats de fournée (`px_bocal`…) mais sans quantité achetée. Chantier suivant.
+
+### 5.2 bis — Relier un format à un produit (sans ça, rien ne descend)
+La chaîne §5.2 ne s'amorce que si le format porte un `pid`. **Au 17/09/2026, aucun des 40 formats
+n'était relié** : c'est la seule raison pour laquelle 59 produits sur 60 n'avaient pas de prix
+d'achat. Le prix d'achat n'est PAS à saisir à la main, il descend de la fournée.
+L'onglet « Contenants & vente » propose désormais l'appariement automatique (nom réduit via
+`normNom` + grammage via `grammesUnite`, tolérance 2 %). En cas d'ambiguïté — plusieurs produits au
+même grammage, ou plusieurs homonymes — **aucune suggestion n'est faite** : on ne devine pas.
+
+### 5.7 Boucle production → clients
+Après « Valider la fournée », un écran propose un **message d'annonce prêt à copier** listant les
+produits réellement entrés en stock (delta > 0 seulement). Il compte les clients ayant coché le
+consentement. WhatsApp interdisant l'envoi groupé par lien, le geste est : copier → coller dans la
+liste de diffusion. **Le consentement se récolte via la case du formulaire client** (§6.1) : sans
+elle, aucune annonce n'est possible.
+
+### 5.6 Stock oignons cuits (Production)
+Compteur = (oignons cuits produits par toutes les fournées pissaladière) − (consommés par les ventes de
+pissaladière, 750 g cuits/plaque). Trois tuiles : stock actuel, produit, consommé. Purement dérivé, non stocké.
+
+---
+
+## 6. Boutique client (parcours)
+
+1. **Flash QR → écran de coordonnées OBLIGATOIRE** (step `coords`). On demande prénom + nom + téléphone
+   (email et adresse **facultatifs**, complétés plus tard dans le profil). Autofill natif iOS/Android activé.
+   ⚠️ **Aucun écran ne doit exiger d'email** : la commande part par **WhatsApp**, pas par mail.
+   Trois verrous email (commande, avis, enregistrement du contact) ont bloqué toute commande
+   du 16/09 au 17/09/2026 — ne pas les réintroduire.
+   **Case « Prévenez-moi des nouvelles fournées »** : c'est la seule source de `opt_in`, donc la seule
+   source d'audience pour Publimail et les annonces de fournée. Elle était absente du formulaire alors
+   que le champ existait en base — ne pas la retirer. `save_lead` ne **rétrograde jamais** un
+   consentement (`opt_in = opt_in or excluded`) : passer commande effaçait l'accord donné à l'inscription.
+2. **Verrouillage strict** : impossible de voir la carte, le panier ou de commander sans coordonnées valides.
+   Garde-fou dans `ClientView` : tout accès à `shop/cart/checkout/done` sans `coordsOk` renvoie à `coords`.
+   Le bandeau promo ("Announce") ne s'affiche pas sur l'écran `coords`.
+3. Une personne déjà enregistrée (localStorage `ca_cust`) arrive sur l'accueil normal, pas de re-saisie.
+4. **Boutique** : bouton "+ Ajouter" (texte visible), sélecteur −/qté/+ une fois au panier.
+   Produit épuisé → "· sur commande" **cliquable** (s'ajoute au panier), jamais "Rupture" bloquant.
+   **Le stock n'est JAMAIS affiché côté client** (pas de "plus que X", pas de chiffre).
+5. États produit côté admin : `active` (masqué si false), `soon` ("Bientôt"), et sur-commande auto si stock 0.
+
+---
+
+### 6.3 Écran de coordonnées : court, une main, Entrée valide
+`Coords` : un titre, une phrase, trois champs (prénom, nom, téléphone), la case de consentement, un bouton `type="submit"`
+**dans** le `<form>` (la touche Entrée / « Suivant » du clavier valide). Champs à **16 px** et 46 px de haut (sous 16 px iOS
+zoome). Erreur **par champ**, au `blur` ou à l'envoi ; téléphone français = 10 chiffres (`telValide`, 06 12…, +33…, 0033…),
+étranger = indicatif + 9 chiffres minimum. On passe à l'écran suivant **tout de suite** et `upsertClient` enregistre en
+arrière-plan ; un échec est conservé dans `ca_cust_pending` et **rejoué à la prochaine ouverture**. La case de consentement
+part de `cust.optin` et reste décochée pour un nouveau contact (un consentement précoché n'est pas valable).
+Le garde-fou de `ClientView` (`coordsOk`, ≥ 6 chiffres) reste volontairement plus souple : on n'enferme pas un client déjà inscrit.
+
+### 6.4 Fêtes : annonce → rubrique « Idées cadeaux & fêtes »
+`Shop` construit une rubrique **dérivée** (aucune donnée en plus, un produit n'est jamais dupliqué) : catégorie `Coffrets`
+ou nom contenant pain d'épices / miel / coffret. Si le titre ou le texte de l'annonce parle de Noël, de fêtes, de cadeau ou de
+pain d'épices, toucher l'annonce ouvre cette rubrique (`shopFocus`). Plus de texte de repli « fraise » : un bandeau retiré
+n'affiche rien. La clé de fermeture est un hachage du contenu complet (une annonce voisine n'est plus masquée à tort).
+
+## 7. Style UI (respecter absolument)
+
+Palette `C` : cream `#EFE7D5`, paper `#FBF6EA`, board `#16140F`, ink `#241F17`, soft `#8C8068`,
+jam (bordeaux) `#7A2B33`, caramel `#B5722B`, ok (vert) `#3F7A4B`.
+Palette Production `PF` : navy `#123A52`, ochre `#C65A35`, good `#4b7a57`, warn `#a6482a`.
+- Titres en police script (Pacifico via `SCRIPT`).
+- Boutons principaux : bordeaux `C.jam`. Pas de noir pour les boutons de la boutique client.
+- Encarts de calcul : texte **en gras uniforme**, une seule couleur — pas de mélange gras/normal.
+- Récap chiffrés : **vignettes** (pastilles fond crème), pas de lignes de texte brut.
+- Formatage : `eur()`, `eur2()`, `eur3()` pour les montants ; virgule française.
+- **Téléphones** : toujours via `formatTel()`. Les numéros sont saisis comme ils viennent
+  (`0609908489`, `+33660871748`, `06 16 94 44 70`, `+393348101516`) et empilés dans une colonne
+  c'était illisible. Un numéro français, écrit `+33` / `0033` ou `0`, se lit **`06 09 90 84 89`** ;
+  un étranger garde son indicatif : **`+39 33 48 10 15 16`**. Affichage seul — la valeur saisie
+  n'est jamais réécrite en base (c'est elle qui sert de clé dans `save_lead`, §4).
+- **Noms** : `capNom()` à l'affichage (« croci » → « Croci », « Dettori-campus » → « Dettori-Campus »).
+- **Jamais d'emoji** (règle du propriétaire, 23/11/2026) : toujours un pictogramme `lucide-react` (`Warn`, `Ok` au niveau
+  module pour les alertes et validations ; `Check`, `AlertTriangle`, `Lock`…). Vaut aussi pour les messages WhatsApp
+  générés (récap de commande, annonce de fournée). Les ornements typographiques `✦` et `♥` (note) restent.
+- **Colonnes de chiffres** : `fontVariantNumeric: "tabular-nums"`, sinon les chiffres ne s'alignent
+  pas d'une ligne à l'autre. Une valeur à zéro se met en gris (`#C9C0AE`), pas en noir.
+- **Illustrations produit** (`Illu`, clés ayant un dessin propre) : `fraise, berry, mure, cerise, figue,
+  peche, apricot, plum, melon, orange, lemon, apple, quince, oignon, pissa, potpissa, caramel, miel,
+  marron, cake, loaf`. Ne PAS proposer de clé sans dessin (elle retombe sur le rond générique).
+- **L'icône suit le nom du produit** : `illuAuto(name)` (table `ILLU_PAR_NOM`, du plus spécifique au
+  plus général) et `illuDe(p)`. La valeur stockée ne l'emporte que si le commerçant l'a réellement
+  choisie : `""` et `"orange"` sont les défauts de seed, jamais choisis. Au 17/09/2026, **25 produits
+  sur 60 portaient `illu = "orange"`** avec la même couleur `#C25E1E` — fraises, pêche, figues, prunes,
+  melon, cerises et oignons s'affichaient en rond orange identique. La règle en requalifie 22.
+  Les icônes encore partagées (6 pots d'oignons, 8 prunes) sont des doublons de nom, pas d'icône.
+- **La couleur suit le fruit aussi** : `COUL_PAR_ILLU` + `couleurDe(p)`. Le dessin ne suffit pas —
+  rempli de la même teinte, une fraise ressemble à une pêche. 25 produits portaient exactement
+  `#C25E1E` (couleur de seed). La teinte n'est remplacée que si la valeur stockée est vide ou
+  vaut cette couleur de seed ; un choix manuel est toujours respecté. 29 confitures → **18
+  apparences distinctes** au lieu d'une.
+- ⚠️ **La Caisse n'affichait aucun dessin** : juste un carré de 14 px rempli de `p.col`. Avec 25
+  produits de la même couleur, la grille était uniformément orange. Elle rend désormais `<Illu>`
+  comme la boutique et l'onglet Produits. Dans les **sélecteurs** d'illustration, la pastille prend
+  la couleur de SA clé (`COUL_PAR_ILLU[k]`), pas celle du produit, sinon l'aperçu ment.
+
+---
+
+### 7.1 — Alignement : grille, jamais flex qui enroule
+Deux rangées flex séparées (les quantités, puis les prix) **enroulent chacune de leur côté** :
+« Prix anchois » ne tombait pas sous « Anchois ». La règle est désormais **une cellule par
+ingrédient, contenant sa quantité ET son prix** (`.pf-ing`) — un décalage devient impossible.
+Même principe pour les rangées de champs (`.pf-row`, `align-items: end`) : un label sur deux
+lignes (« Temps de cuisson / cycle ») ne décale plus la rangée entière.
+Vérifié au navigateur : 7 colonnes sur une ligne en 1280 px, 3 en 768, 2 en 390, 1 sous 360.
+
+### 7.1 bis — Une seule grammaire de recette, partout
+**Toute recette se lit de la même façon : une CELLULE par ingrédient** — son nom en tête, sa
+quantité et son unité dessous, puis son prix. C'est la forme du bloc « matières premières »
+(oignon, huile, sel, poivre, anchois, thym, ail), et elle s'applique maintenant aux trois autres
+listes qui en utilisaient une différente :
+- les **ingrédients libres** (la recette d'un cake, d'une confiture…),
+- le **rappel en lecture seule** de leur coût, juste au-dessus,
+- les **accompagnements** d'un format « Kit ».
+Classe unique : `.pf-ing`. `.pf-duo` reste pour le personnel et les frais (libellé + montant),
+`.pf-row` pour les rangées de champs simples.
+- ⚠️ **`auto-fill`, jamais `auto-fit`.** `auto-fit` ajuste le nombre de colonnes au nombre de
+  cellules : 7 matières premières donnaient 7 colonnes de 132 px et 12 ingrédients 8 colonnes de
+  114 px — deux grilles qui ne tombaient pas l'une sous l'autre. `auto-fill` fixe les colonnes sur
+  la **largeur disponible**, donc toutes les recettes partagent la même trame.
+- La piste de colonne fait **150 px minimum** : en dessous, « poudre d'amande » ou « bicarbonate »
+  se coupent dans le champ. La corbeille est sur la ligne de l'unité, jamais à côté du nom — elle
+  lui volait la largeur.
+- Vérifié au navigateur en **320 / 390 / 768 / 1280 px** : 3 grilles de recette, cellules de
+  largeur identique partout, aucun nom tronqué, aucun débordement.
+- ⚠️ La forme en **lignes avec en-tête** (ancienne classe `.pf-extra`) a été retirée : une recette
+  ne se lit plus jamais en tableau. Ne pas la réintroduire pour une liste d'ingrédients.
+
+### 5.1 sexies — Il faut une rubrique pour pouvoir reclasser
+La fournée « cake aux fruits confits » restait en famille `pissaladiere` non par négligence :
+**aucune famille « Cake » n'existait**, donc le sélecteur ne proposait rien de juste. Famille
+`cake` (« Cake / Gâteau ») ajoutée à `FAMILLES`. Règle générale : avant de demander au commerçant
+de reclasser une fournée, vérifier que la destination existe.
+
+### 7.2 — Version mobile de l'espace commerçant
+L'admin se tient **d'une main sur un stand de marché**. Tout passe par des classes CSS, aucune
+logique n'est dupliquée — une seule interface, pas deux codes à maintenir.
+- **Onglets en bas** (`.pro-nav` en `position: fixed; bottom: 0` sous 720 px) : le haut de l'écran
+  n'est pas atteignable au pouce. Même liste, même ordre, icône au-dessus du libellé.
+  Le ticket de caisse (`.caisse-mobilebar`) remonte au-dessus, sinon il la recouvre.
+- `.pro-cols` → une colonne, `.pro-cols2` → deux : les grilles à colonnes fixes (fiche produit sur
+  **6 colonnes**, coordonnées client, promos, réglages) étaient illisibles sur un téléphone.
+- Champs à **16 px et 42 px de haut minimum** : sous 16 px, iOS zoome tout seul à la saisie ;
+  sous 42 px on tape à côté.
+- `env(safe-area-inset-bottom)` partout en bas (encoche iPhone).
+- ⚠️ **Aucun débordement horizontal** — vérifié onglet par onglet en 320 / 390 / 768 / 1280 px.
+  Un `minWidth: 0` manquait sur le groupe de gauche de `Header` : il refusait de rétrécir et
+  poussait le badge « Espace commerçant » 13 px hors de l'écran.
+
+### 7.3 — Comment vérifier réellement un changement d'interface ici
+Supabase est **injoignable depuis le navigateur d'une session** (le connecteur MCP Supabase, lui, répond : lecture et migrations) : impossible de passer le PIN, donc
+impossible de charger l'admin connecté dans un navigateur. La méthode qui marche :
+`npx next start`, une page jetable qui monte `ProView` avec un jeu de produits complet, et
+Chromium (`/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell`, pas le binaire
+`chromium-*` dont le mode headless historique a été retiré). **Penser à injecter `<style>{FONT}</style>`** :
+il est posé par `BoutiquePublique`/`EspacePro`, pas par `ProView` — sans lui aucune classe ne
+s'applique et on mesure une mise en page qui n'existe pas.
+⚠️ **Un onglet qui mesure « 0 px de débordement » peut être un onglet qui n'a rien rendu.**
+Toujours compter les éléments rendus en même temps, sinon un écran planté passe pour un écran sain.
+Un jeu de test incomplet (produits sans `price`) fait planter toute la page sur `eur(undefined)`.
+
+### 7.4 — Fenêtres (modales) : deux pièges qui se cumulaient
+Le 22/09/2026, la fiche client de **Simon Dupuis** était **impossible à fermer**. Deux défauts
+distincts, tous deux corrigés — ne pas les réintroduire.
+
+**a) L'email ne peut pas servir de clé.** `save_lead` enregistre un contact **sans email** (§4) :
+la colonne vaut alors `NULL`. Or `ProClients` faisait `sel = c.email` et
+`selClient = rows.find((c) => c.email === sel)`. Fermer la fenêtre faisait `setSel(null)`… et
+`find(c => c.email === null)` **retrouvait la fiche**, donc elle se rouvrait aussitôt. Vérifié en
+base : **1 fiche sur 13** était dans ce cas, et c'était bien celle qui bloquait.
+- Clé stable au niveau module : **`cleClient(c)`** — `mail:<email>` s'il existe, sinon
+  `tel:<9 derniers chiffres>` (la même règle d'identité que `save_lead`). Sert pour `sel`, pour la
+  `key` React de la ligne et pour le surlignage.
+- ⚠️ Même famille de piège que l'agrégation par nom (§8) : **ne jamais prendre pour clé un champ
+  qui peut être vide.** Le vide finit par égaler la valeur « aucune sélection ».
+- `ordersOf` comparait `(o.email||"") === (c.email||"")` : le client sans email héritait de
+  **toutes** les commandes sans email. Il compare maintenant `cleClient(o) === cleClient(c)`.
+- « Modifier la fiche » ne pouvait rien enregistrer (`admin_save_customer` est **identifié par
+  l'email**) et échouait **en silence**. La fenêtre l'explique désormais et le bouton
+  « Enregistrer » est désactivé : saisir un email ici créerait une **deuxième** fiche au lieu de
+  corriger celle-ci. ⚠️ Le vrai correctif est côté base (une RPC identifiée par `id` ou téléphone) —
+  à faire avec le propriétaire, aucune écriture Supabase sans accord (§9).
+
+**b) `animation-fill-mode: forwards` enfermait toutes les modales.** `.ca-anim` portait
+`animation: caIn .35s … both`. Le `forwards` de `both` **retient la dernière image**, et le
+`transform: none` du keyframe s'y calcule en **`matrix(1,0,0,1,0,0)`** — une valeur **non-`none`**.
+L'élément devient donc pour toujours le **bloc conteneur** de ses descendants `position: fixed` :
+chaque fenêtre de l'admin (`inset: 0`) était bornée à son panneau au lieu de l'écran.
+Mesuré au navigateur en 390 px : voile **350 × 362** au lieu de 390 × 844, carte de **393 px** de
+haut qui **dépassait de 31 px** sous son propre voile, et clic « à côté » sans effet sur tout le
+reste de la page. C'est visible sur la capture du propriétaire : seul le panneau central est assombri.
+- Corrigé en **`backwards`** : il n'y a aucun délai, et l'image finale (opacité 1, transform none)
+  est déjà l'état naturel de l'élément — rien ne change à l'œil.
+- ⚠️ **Ne jamais remettre `both` ni `forwards` sur `.ca-anim`**, et se méfier de tout
+  `transform` / `filter` / `will-change` sur un ancêtre d'une modale.
+- Vérifié en 390 / 768 / 1280 px : voile plein écran, carte contenue, fermeture par la croix **et**
+  par le fond, aucune erreur JS. (Les erreurs d'hydratation React #418/#423/#425 sur `/` et
+  `/admin` sont **antérieures** — signature identique avant le correctif — à traiter à part.)
+
+## 8. PIÈGES CONNUS (déjà corrigés — ne pas réintroduire)
+
+- **Virgule française** : normaliser `,` → `.` sur toute saisie numérique (`.replace(",", ".")`).
+  Ne pas recalculer la valeur à chaque frappe pour l'unité native (la virgule saute sinon).
+- **`0` est falsy en JS** : tester `!= null` / `> 0` explicitement, pas `if (valeur)`.
+  Bug déjà vu : calcul auto du nb de pots caché quand poids dispo = 0. Champ nb de pots gardait un "0" de tête.
+- **Vue "Total" du dashboard** : ancre interne année 2020 → utiliser `new Date().getFullYear()` au drill-down.
+- **Agrégation produits par `pid`** (identifiant stable), pas par nom : des produits différents partagent
+  le même nom (doublons "pot d'oignons", "Pissaladière de ma mère" 250 g / 500 g).
+  ⚠️ Mais `i.pid || i.name` **coupe un même produit en deux lignes** : les ventes saisies avec un pid
+  tombent sous l'identifiant, les anciennes sous le nom. « Pissaladière · à la part » sortait 1re
+  (195 vendus) ET 2e (66 vendus). Toujours passer par **`cleProduit(i)`**, qui résout d'abord la fiche
+  (`prodDe`), et comparer les noms **sans casse ni espaces de bord** (« Pissaladière » ≠ « pissaladière »
+  sinon). Vérifié sur les ventes réelles : 78 lignes → 44.
+- **Libellés de matière en double** : `cleMatiere(label)` regroupe « MELONS »/« Melon »,
+  « Fraises »/« FRAISES », « Œuf »/« Œufs », « vin blanc »/« vin blanc␣ ». Un seul alias explicite :
+  une fournée porte `huile_cl: 75` ET un ingrédient « huile 10 cl » — même huile d'olive comptée deux
+  fois. 56 libellés bruts → 47 matières. L'affichage (`libMat`) ressort l'orthographe la plus fréquente.
+- **Champs de saisie** : une valeur saisie s'affiche en **noir gras** (`inp()` porte `fontWeight: 600`),
+  le gris maigre est réservé aux placeholders. Sans ça on ne distingue pas un champ rempli d'un champ vide.
+- **"Pissaladière" et "Grande fournée"** sont deux onglets séparés (clé de famille `kit_pissaladiere` obsolète).
+- **Décalage de cellules** : un label sur 2 lignes (ex. suffixe "(auto)") désaligne toute la rangée flex.
+- **Champs de saisie** : plafonner la largeur (`maxWidth`) sinon ils s'étirent sur toute la ligne.
+- **Fournées orphelines en base** : quelques entrées test (`pissaladiere_volume`, titre vide). Ne pas
+  supprimer de données sans accord explicite du propriétaire. Elles sont désormais visibles dans
+  l'onglet **« Non classées »** de Production et reclassables via le sélecteur de famille.
+- **`pid` des lignes de vente et de commande** : toujours le conserver au chargement (`admin_sales`,
+  `admin_orders`) et à l'enregistrement. Sans lui, l'agrégation retombe sur le nom, et 15 noms sont
+  partagés par plusieurs produits.
+- **Portée des variables dans ce gros fichier** : `ProStats` a référencé `rendementEstime`, un état de
+  `ProProduction`. Le build passe, mais l'onglet plante au render (`ReferenceError`). Aucun type-check
+  ici : vérifier à l'œil que chaque identifiant est bien dans la portée du composant.
+- **Actions destructrices** : suppression d'un produit, d'une commande ou d'une vente = `window.confirm`
+  obligatoire. Pour un produit, préférer « Masquer ».
+
+---
+
+## 9. RÈGLES DE TRAVAIL (attentes du propriétaire)
+
+- **Jamais de suppression de données Supabase sans accord explicite.** Désactiver (`active=false`) plutôt que supprimer.
+- Toujours **auditer / proposer avant d'appliquer** sur un gros changement ; ne pas se disperser.
+- Réponses **directes et concises**, pas de commentaire superflu, pas de données inventées.
+- Ne **jamais retirer** du texte/contenu existant sans le demander (ajouter, pas remplacer, par défaut).
+- Communication en **français**.
+- Toujours : build vert → push → vérifier le déploiement avant d'annoncer "en ligne".
+
+---
+
+## 10. Idées / chantiers en cours (backlog)
+
+- Kit Apéro (confit d'oignons + biscuits + tapenade + anchois) — à monter via le type "Kit" en Production.
+- Prix d'achat manquants : **ne pas les saisir à la main**. Trois chemins, tous automatiques :
+  le bouton « Calculer N prix d'achat depuis les fournées » applique le **prix FIFO** (§5.10),
+  relier les formats de fournée aux produits (§5.2 bis) puis valider la fournée, **ou** le bouton
+  « Calculer N prix d'achat depuis les fournées » de l'onglet Produits (`coutsDepuisFournees`), qui
+  applique la même définition sans passer par la validation. Au 17/09/2026 : **21 applicables**,
+  **12 bloqués** (le fruit lui-même n'a pas de prix au kilo dans sa fournée — 67 % du poids : CERISES,
+  FIGUES BLANCHES, PÊCHES, PRUNES ROUGES/JAUNES, ORANGES AMÈRES/DOUCES), 27 sans recette.
+  Un ingrédient sans prix pesant **plus de 5 % du poids bloque le calcul** : un coût amputé du fruit
+  principal serait faux et gonflerait les marges. Sous ce seuil (citron, vanille, menthe) on calcule
+  et on affiche ce qui est exclu. Saisir ces 7 prix en Production débloque les 12 produits.
+- Formulaire de contact : améliorer encore la capture (10 % de conversion scan→contact au départ).
+- **Emballages en matières suivies** (bocaux, capuchons, étiquettes) : la quantité consommée se déduit
+  du nb de pots produits par fournée, le prix est déjà dans les formats. À brancher sur `materials`.
+- **WhatsApp** : envoi groupé à la main pour l'instant (liste de diffusion). Pistes évoquées par le
+  propriétaire : brancher l'app sur WhatsApp pour dialoguer avec les clients, un chat, puis un envoi
+  automatique. Nécessiterait l'API WhatsApp Business (compte + coût) — à décider ensemble.
+- Doublons de noms de produits (15 noms partagés) : gênent l'appariement automatique format → produit.
+  À fusionner ou différencier (le grammage dans le nom suffirait).
+
+---
+
+## 11. Agents : mémoire et méthode
+Les agents ne retiennent rien d'une session à l'autre : leur mémoire est **`docs/rex.jsonl`** (leçons structurées ; `docs/REX.md` en est généré).
+Chaque agent démarre par `python3 scripts/rex.py brief <rôle>` (sa mission + ses leçons) ; toute erreur devient une leçon
+(`rex.py add`) dans le même commit que le correctif ; `rex.py suggest` propose des contrôles automatiques et des idées.
+Rôles, process (maquette → validation → code → QA → push → mémoire) et back end à connaître : **`docs/AGENTS.md`**.
+Définitions des agents : `.claude/agents/` (orchestrateur, maquettes, implementeur-ui, backend-supabase, illustrateur, qa-regression, memoire).
+Contrôles : `scripts/qa-inventaire.py` (libellés disparus), `scripts/qa-maquettes-alignement.js` (alignement).
+Prompt réutilisable pour d'autres projets : `docs/PROMPT-PROJET-TYPE.md`. Règle d'or : **refaire un écran ne retire aucune fonction** ;
+une maquette validée est reproduite à l'identique ; les maquettes se montrent en image ; on donne aux agents la dernière base.
