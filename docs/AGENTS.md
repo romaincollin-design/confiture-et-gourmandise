@@ -1,7 +1,7 @@
 # Agents du projet : rôles, process, mémoire
 
 ## 1. Le back end du projet (ce que tout agent doit savoir)
-- **Base** : Supabase, projet `dntohsnhtqeomllfjood`. Tables, RPC et règles : CLAUDE.md §4 (ne pas tout relire : `grep -n`).
+- **Base** : Supabase, projet `dntohsnhtqeomllfjood`. Tables, RPC et règles : docs/claude/kit/ARCHIVE-CLAUDE.md §4 (ne pas tout relire : `grep -n`).
 - **Toute écriture admin passe par une RPC `admin_*` qui prend le PIN** (`pass`). La RLS bloque l'accès direct ; un produit masqué (`active=false`) n'est lisible que par `admin_products`.
 - **Mouvements de stock** : toujours relatifs et atomiques (`admin_adjust_stock`, `admin_assemble_coffret`), jamais une valeur absolue périmée.
 - **Interdits** : supprimer des données sans accord ; migration sans accord ; écrire le PIN ou un jeton dans le dépôt.

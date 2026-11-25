@@ -1,0 +1,7 @@
+# Automatisation sous contrôle (décrite, rien n'est construit)
+**Trois plans** : produit (l'app) ; fabrication automatique (amélioration de contenu : file de travail, contrôles qualité, validation humaine) ; croissance automatique (offres au CRM, prospection e-mail, contenus, réseaux sociaux : calendrier, séquences, validation).
+**Centre de contrôle (admin + base)** : registre (nom, rubrique responsable, déclencheur, fréquence, statut, dernier passage, coût, validation exigée) ; interrupteur général et par automatisation ; journal ; plafond de dépense avec arrêt automatique ; file d'approbation.
+**Garde-fous** : rien ne sort sans validation de Romain ; mode d'essai par défaut ; contrôles automatiques avant validation, ancienne version conservée ; secrets dans le coffre du serveur ; accès minimal ; tout journalisé ; règles légales vérifiées avant le premier envoi (CNIL, consentement, désinscription, conditions des plateformes sociales).
+**Moteur ou session** : répétitif et en volume → moteur dans l'application ; ponctuel, créatif ou structurel → session de la rubrique Croissance.
+**Premiers candidats** (par ordre de simplicité) : message d'annonce de fournée (existe déjà à copier à la main, §5.7) ; relance des clients inscrits ; calendrier de contenus. Chacun passe par la file d'approbation.
+**Décisions en attente (Romain)** : clés d'API, outil d'envoi et domaine d'e-mail, comptes de réseaux sociaux, plafonds de dépense, validateurs.
