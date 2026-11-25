@@ -6,7 +6,8 @@
 | boutique, QR, coordonnées, panier, rubrique fêtes | Client |
 | commande, retrait, statut, stock vendu | Commandes |
 | production, fournée, coût, prix, marge, CA, tableau de bord, produits, coffrets, stock, matières | Gestion |
-| clients, consentement, offres, annonce, Publimail, promos, prospection, automatisation | Croissance |
+| clients existants, consentement, offres, annonce, Publimail, promos, automatisation | Croissance (Communication) |
+| prospection : nouveaux clients, cibles, séquences, contenus numériques | Prospection |
 | tout le reste, ou on ne sait pas | Entrée |
 
 Règles : un point = une seule session. S'il touche plusieurs zones, il va dans la rubrique qui possède le code partagé, avec « voir aussi ». Sans réponse claire : « à classer » avec la question. L'Entrée classe, écrit, indique ; elle ne corrige rien.

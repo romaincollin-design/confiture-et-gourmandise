@@ -1,6 +1,6 @@
-# Session « Comme Avant · Croissance » (CRM, diffusion, prospection, automatisation)
+# Session « Comme Avant · Communication, diffusion, automatisation » (CRM et clients existants)
 ## Ce qui est propre
-Clients (CRM), Publimail, Promos, annonces, boucle production → clients (§5.7), plus tard prospection et contenus. Plan complet : `kit/AUTOMATISATION.md`.
+Clients (CRM), Publimail, Promos, annonces, boucle production → clients (§5.7), automatisation. La prospection de nouveaux clients a sa propre session (`Prospection.md`). Plan complet : `kit/AUTOMATISATION.md`.
 ## Règles
 Consentement (`opt_in`) seule source d'audience ; jamais rétrogradé ; clé client `cleClient` ; téléphones via `formatTel`. Rien ne part sans validation de Romain. Prospection par e-mail et données personnelles : règles CNIL vérifiées avant le premier envoi.
 ## Argent
